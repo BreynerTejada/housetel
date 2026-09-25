@@ -299,6 +299,19 @@ automation.run(code, property)                # envuelve en AutomationRun + audi
 permissions.has_perm(user, property, code)
 ```
 
+### 4.3 Ajustes introducidos por el plan de implementación
+
+El plan (`docs/superpowers/plans/2026-09-25-housetel-implementation.md`) manda en caso de conflicto. Resumen de sus ajustes:
+
+- Contratos adicionales (plan §C): `inventory.release_block`, `inventory.provision_room_type`, `rates.provision_rates`, `guests.upsert_guest/update_guest/add_document/find_duplicates/merge_guests`, `bookings.post_room_charges`, `finance.post_charge(tax_exempt, business_date)`, `core.tokens`.
+- `Stay.period` se reemplaza por una expresión `daterange(checkin_date, checkout_date, '[)')` dentro de las `ExclusionConstraint`. En dorms la exclusión es por cama.
+- `Reservation.hold_expires_at` para reservas tentativas.
+- `Charge.amount` es neto; el impuesto va en `tax_amount`.
+- Rol de sistema adicional `housekeeping_supervisor`. Catálogo de permisos definitivo en plan §D.
+- Puntos de extensión del frontend (widgets, tabs y acciones de reserva, tabs de huésped, topbar, comandos, widget público) en plan §E.
+- App backend `control` (API del centro de control sobre modelos de `core`) y feature de frontend `calendar` (C13).
+- La suplantación de soporte desde el super-admin queda fuera de alcance; el super-admin ve el detalle de cada organización.
+
 ---
 
 ## 5. Módulos funcionales y criterios de aceptación
@@ -519,7 +532,7 @@ App nativa/PWA, SMS, kiosko, POS de restaurante, integración con cerraduras, mu
 
 - **A — Fundación** (2 agentes paralelos: backend-foundation, frontend-foundation).
 - **B — Motores núcleo** (5 agentes: B1 inventario, B2a tarifas, B2b reservas, B3 huéspedes/usuarios, B4 finanzas).
-- **C — Funcionalidades** (12 agentes: C1…C12), cada uno con pasada de verificación y corrección.
+- **C — Funcionalidades** (13 agentes: C1…C12 + C13 calendario, separado de C1), cada uno con pasada de verificación y corrección.
 - **D — Integración** (consolidar dependencias, seed completo, suite completa verde, `docker compose up` limpio).
 - **E — Validación E2E en Chrome** de los flujos de §10.1, corrigiendo lo que falle.
 
