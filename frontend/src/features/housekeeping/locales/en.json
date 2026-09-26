@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "housekeeping": "Housekeeping",
+    "maintenance": "Maintenance",
+    "settingsHousekeeping": "Housekeeping",
+    "settingsHousekeepingHint": "Stayover frequency, inspections and auto-assignment."
+  },
+  "pages": {
+    "mine": "My rooms"
+  }
+}

@@ -1,0 +1,259 @@
+{
+  "app": {
+    "name": "Housetel",
+    "tagline": "PMS para hoteles y hostales en Colombia"
+  },
+  "actions": {
+    "save": "Guardar",
+    "saveChanges": "Guardar cambios",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "add": "Agregar",
+    "back": "Volver",
+    "retry": "Reintentar",
+    "search": "Buscar",
+    "clear": "Limpiar",
+    "apply": "Aplicar",
+    "reload": "Recargar",
+    "continue": "Continuar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "open": "Abrir",
+    "export": "Exportar",
+    "logout": "Cerrar sesión",
+    "login": "Ingresar",
+    "more": "Más opciones"
+  },
+  "nav": {
+    "sections": {
+      "operations": "Operación",
+      "revenue": "Ingresos",
+      "insights": "Análisis",
+      "compliance": "Legal",
+      "tools": "Herramientas",
+      "settings": "Configuración",
+      "admin": "Plataforma"
+    },
+    "settings": "Configuración",
+    "main": "Navegación principal",
+    "settingsNav": "Secciones de configuración",
+    "adminNav": "Navegación de la plataforma",
+    "collapse": "Contraer menú",
+    "expand": "Expandir menú",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
+  },
+  "topbar": {
+    "property": "Hotel",
+    "switchProperty": "Cambiar de hotel",
+    "businessDate": "Fecha de negocio",
+    "businessDateHint": "Día operativo del hotel. Avanza con la auditoría nocturna.",
+    "search": "Buscar…",
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeSystem": "Según el sistema",
+    "userMenu": "Tu cuenta",
+    "profile": "Mi perfil",
+    "platformPanel": "Panel de plataforma",
+    "backToHotel": "Volver al hotel"
+  },
+  "languages": {
+    "es": "Español",
+    "en": "English"
+  },
+  "auth": {
+    "eyebrow": "PMS para hoteles y hostales",
+    "headline": "Todo el hotel, a la vista.",
+    "subhead": "Reservas, habitaciones, pagos y facturación electrónica en un solo lugar, pensado para Colombia.",
+    "rackLabel": "Tablero de habitaciones de ejemplo",
+    "floor": "Piso {{floor}}",
+    "title": "Inicia sesión",
+    "subtitle": "Usa el correo con el que te invitaron a Housetel.",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "tu@hotel.co",
+    "password": "Contraseña",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "submit": "Iniciar sesión",
+    "submitting": "Iniciando sesión…",
+    "invalidCredentials": "Correo o contraseña incorrectos.",
+    "throttled": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+    "failed": "No pudimos iniciar sesión. Inténtalo de nuevo.",
+    "demoTitle": "Cuentas de demostración",
+    "demoHint": "Clave para todas: {{password}}",
+    "demoUse": "Usar esta cuenta",
+    "demoOwner": "Dueño · Casa Aurora",
+    "demoFrontDesk": "Recepción · Casa Aurora",
+    "demoHousekeeping": "Limpieza · Casa Aurora",
+    "demoAdmin": "Super-admin de la plataforma",
+    "noAccount": "¿Tienes un hotel?",
+    "signup": "Crea tu cuenta"
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "description": "Tus datos y el idioma en que ves Housetel.",
+    "fullName": "Nombre completo",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "language": "Idioma",
+    "saved": "Perfil guardado"
+  },
+  "noProperties": {
+    "title": "Aún no tienes un hotel asignado",
+    "description": "Pide a quien administra tu hotel que te dé acceso. Cuando lo haga, vuelve a iniciar sesión."
+  },
+  "states": {
+    "loading": "Cargando…",
+    "empty": "Todavía no hay nada aquí",
+    "error": "No pudimos cargar esta información",
+    "errorHint": "Revisa tu conexión e inténtalo de nuevo."
+  },
+  "errors": {
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "network": "Sin conexión con el servidor. Revisa tu red e inténtalo de nuevo.",
+    "forbidden": "No tienes permiso para esta acción.",
+    "notFound": "No encontramos lo que buscas.",
+    "suspended": "Tu organización está suspendida por falta de pago."
+  },
+  "underConstruction": {
+    "eyebrow": "En preparación",
+    "description": "Estamos preparando esta sección. Mientras tanto, puedes seguir usando el resto de Housetel."
+  },
+  "notFound": {
+    "code": "Error 404",
+    "title": "No encontramos esta página",
+    "description": "Revisa la dirección o vuelve al inicio.",
+    "cta": "Ir al inicio"
+  },
+  "routeError": {
+    "title": "Algo falló al abrir esta pantalla",
+    "description": "Recarga la página. Si el problema continúa, avísale al soporte de Housetel.",
+    "reload": "Recargar"
+  },
+  "settings": {
+    "title": "Configuración",
+    "description": "Ajusta tu hotel, tus tarifas, tu equipo y tus integraciones.",
+    "empty": "No tienes acceso a ninguna sección de configuración."
+  },
+  "admin": {
+    "banner": "Panel de plataforma",
+    "bannerHint": "Ves datos de todas las organizaciones."
+  },
+  "public": {
+    "forHotels": "Para hoteles",
+    "login": "Ingresar",
+    "footerTagline": "Hoteles y hostales de Colombia, reservados directo con cada hotel.",
+    "madeIn": "Hecho en Colombia",
+    "rights": "© {{year}} Housetel"
+  },
+  "table": {
+    "search": "Buscar…",
+    "empty": "No hay resultados",
+    "emptyFiltered": "Nada coincide con los filtros. Prueba con otra búsqueda.",
+    "rowsPerPage": "Filas por página",
+    "pageOf": "Página {{page}} de {{pages}}",
+    "previous": "Página anterior",
+    "next": "Página siguiente",
+    "selected_one": "{{count}} seleccionada",
+    "selected_other": "{{count}} seleccionadas",
+    "total_one": "{{count}} registro",
+    "total_other": "{{count}} registros",
+    "density": "Densidad",
+    "comfortable": "Cómoda",
+    "compact": "Compacta",
+    "selectAll": "Seleccionar todas las filas",
+    "selectRow": "Seleccionar fila",
+    "sortBy": "Ordenar por {{column}}"
+  },
+  "date": {
+    "placeholder": "Elegir fecha",
+    "rangePlaceholder": "Elegir fechas",
+    "clear": "Borrar fechas",
+    "nights_one": "{{count}} noche",
+    "nights_other": "{{count}} noches",
+    "presets": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "tomorrow": "Mañana",
+      "thisWeek": "Esta semana",
+      "next7": "Próximos 7 días",
+      "thisMonth": "Este mes",
+      "lastMonth": "Mes pasado",
+      "last30": "Últimos 30 días"
+    }
+  },
+  "confirm": {
+    "title": "¿Confirmas esta acción?",
+    "typeToConfirm": "Para confirmar, escribe <strong>{{text}}</strong>",
+    "inputLabel": "Texto de confirmación"
+  },
+  "status": {
+    "reservation": {
+      "tentative": "Tentativa",
+      "confirmed": "Confirmada",
+      "checked_in": "En casa",
+      "checked_out": "Finalizada",
+      "cancelled": "Cancelada",
+      "no_show": "No show"
+    },
+    "room": {
+      "clean": "Limpia",
+      "dirty": "Sucia",
+      "inspected": "Inspeccionada",
+      "out_of_service": "Fuera de servicio",
+      "occupied": "Ocupada"
+    },
+    "payment": {
+      "created": "Creado",
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "declined": "Rechazado",
+      "voided": "Anulado",
+      "expired": "Vencido",
+      "error": "Error",
+      "failed": "Fallido"
+    },
+    "task": {
+      "pending": "Pendiente",
+      "in_progress": "En curso",
+      "done": "Terminada",
+      "inspected": "Inspeccionada",
+      "cancelled": "Cancelada"
+    }
+  },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "email": "Escribe un correo válido",
+    "minLength": "Escribe al menos {{count}} caracteres",
+    "number": "Escribe un número válido"
+  },
+  "commandPalette": {
+    "title": "Buscar en Housetel",
+    "placeholder": "Busca una sección o una acción…",
+    "empty": "Nada coincide con tu búsqueda.",
+    "navigation": "Ir a",
+    "actions": "Acciones"
+  },
+  "kpi": {
+    "up": "Sube {{value}}",
+    "down": "Baja {{value}}",
+    "flat": "Sin cambio",
+    "period": "Periodo"
+  },
+  "propertyTypes": {
+    "hotel": "Hotel",
+    "hostel": "Hostal",
+    "boutique": "Hotel boutique",
+    "aparthotel": "Aparthotel",
+    "glamping": "Glamping"
+  },
+  "toasts": {
+    "region": "Notificaciones"
+  }
+}

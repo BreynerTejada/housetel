@@ -1,0 +1,13 @@
+{
+  "nav": {
+    "rates": "Tarifas",
+    "ratePlans": "Planes tarifarios",
+    "promos": "Códigos promocionales",
+    "taxes": "Impuestos",
+    "taxesHint": "IVA y otros impuestos, con la exención para extranjeros no residentes.",
+    "policies": "Políticas de cancelación",
+    "policiesHint": "Ventanas de cancelación gratis y penalidades.",
+    "extras": "Extras",
+    "extrasHint": "Desayuno, parqueadero, traslados y otros servicios que se cobran aparte."
+  }
+}

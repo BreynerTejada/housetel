@@ -1,0 +1,16 @@
+{
+  "nav": {
+    "gettingStarted": "Primeros pasos",
+    "billing": "Plan y facturación",
+    "billingHint": "Tu plan de Housetel, el uso y las facturas.",
+    "adminHome": "Resumen",
+    "adminOrgs": "Organizaciones",
+    "adminPlans": "Planes",
+    "adminBilling": "Cobros",
+    "adminCommissions": "Comisiones"
+  },
+  "pages": {
+    "signup": "Crea tu cuenta",
+    "adminOrgDetail": "Organización"
+  }
+}

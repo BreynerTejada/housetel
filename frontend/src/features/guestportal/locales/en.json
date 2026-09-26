@@ -1,0 +1,10 @@
+{
+  "nav": {
+    "guestPortal": "Guest portal",
+    "guestPortalHint": "Online check-in, payments and requests from the guest's phone."
+  },
+  "pages": {
+    "portal": "Your booking",
+    "checkin": "Online check-in"
+  }
+}

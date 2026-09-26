@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "today": "Today",
+    "reservations": "Reservations",
+    "nightAudit": "Night audit"
+  },
+  "pages": {
+    "newReservation": "New reservation",
+    "reservationDetail": "Reservation"
+  }
+}

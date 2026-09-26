@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "property": "Propiedad",
+    "propertyHint": "Datos del hotel, datos legales, horarios, reglas y marca.",
+    "roomTypes": "Categorías",
+    "roomTypesHint": "Tipos de habitación con capacidad, camas y amenidades.",
+    "rooms": "Habitaciones",
+    "roomsHint": "Cada habitación hereda de su categoría y cambia solo lo que necesite.",
+    "customFields": "Campos personalizados",
+    "customFieldsHint": "Datos propios de tu hotel para categorías, habitaciones, huéspedes y reservas."
+  }
+}

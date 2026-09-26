@@ -1,0 +1,9 @@
+{
+  "nav": {
+    "onboarding": "Configuración asistida",
+    "chatbot": "Chatbot",
+    "chatbotHint": "Preguntas frecuentes y conversaciones del asistente de tu página.",
+    "aiSettings": "Inteligencia artificial",
+    "aiSettingsHint": "Proveedor, consumo y funciones de IA activas."
+  }
+}

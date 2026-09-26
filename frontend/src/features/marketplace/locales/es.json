@@ -1,0 +1,29 @@
+{
+  "nav": {
+    "bookingEngine": "Motor de reservas",
+    "bookingEngineHint": "Tu página de reservas directas, el widget y tu ficha en el marketplace."
+  },
+  "pages": {
+    "search": "Buscar alojamiento",
+    "hotel": "Hotel",
+    "book": "Tu reserva",
+    "confirmed": "Reserva confirmada",
+    "engine": "Reservas directas",
+    "embed": "Widget de reservas"
+  },
+  "home": {
+    "eyebrow": "Hoteles y hostales de Colombia",
+    "title": "Reserva directo con el hotel.",
+    "subtitle": "Precios reales de cada hotel, sin intermediarios y con confirmación inmediata.",
+    "destination": "Destino",
+    "destinationPlaceholder": "Cartagena, Medellín, Bogotá…",
+    "dates": "Fechas",
+    "guests": "Huéspedes",
+    "guestsValue": "2 adultos",
+    "search": "Buscar",
+    "searchLabel": "Buscar alojamiento",
+    "hotelsTitle": "¿Tienes un hotel o un hostal?",
+    "hotelsBody": "Administra reservas, habitaciones, pagos y facturación DIAN con Housetel.",
+    "hotelsCta": "Prueba Housetel gratis"
+  }
+}

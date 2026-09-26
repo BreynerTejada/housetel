@@ -1,0 +1,9 @@
+{
+  "nav": {
+    "onboarding": "Guided setup",
+    "chatbot": "Chatbot",
+    "chatbotHint": "FAQs and conversations of your website's assistant.",
+    "aiSettings": "AI",
+    "aiSettingsHint": "Provider, usage and active AI features."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "nav": {
+    "rates": "Rates",
+    "ratePlans": "Rate plans",
+    "promos": "Promo codes",
+    "taxes": "Taxes",
+    "taxesHint": "VAT and other taxes, with the exemption for foreign non-residents.",
+    "policies": "Cancellation policies",
+    "policiesHint": "Free-cancellation windows and penalties.",
+    "extras": "Extras",
+    "extrasHint": "Breakfast, parking, transfers and other services charged separately."
+  }
+}

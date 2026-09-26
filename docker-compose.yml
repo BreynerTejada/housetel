@@ -1,0 +1,80 @@
+name: housetel
+
+# Shared definition for every service that runs the Django codebase (API, Celery worker, Celery beat).
+x-backend: &backend
+  build:
+    context: ./backend
+    args:  # passwd/group entry for the runtime user below (see backend/Dockerfile)
+      APP_UID: ${HOST_UID:-1000}
+      APP_GID: ${HOST_GID:-1000}
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgres://housetel:housetel@db:5432/housetel
+    REDIS_URL: redis://redis:6379/0
+    EMAIL_HOST: mailpit
+    EMAIL_PORT: "1025"
+    HOME: /tmp
+  # Run as the host user so files created through the bind mount (migrations, media, caches)
+  # stay editable from the host. Override with HOST_UID/HOST_GID if your uid is not 1000.
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  volumes:
+    - ./backend:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: housetel
+      POSTGRES_USER: housetel
+      POSTGRES_PASSWORD: housetel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U housetel -d housetel"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+
+  backend:
+    <<: *backend
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8010:8000"
+
+  worker:
+    <<: *backend
+    command: celery -A config worker -l info --concurrency 2
+
+  beat:
+    <<: *backend
+    command: celery -A config beat -l info --schedule /tmp/celerybeat-schedule
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+
+volumes:
+  pgdata: {}

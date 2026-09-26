@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "property": "Property",
+    "propertyHint": "Hotel details, legal data, schedules, rules and branding.",
+    "roomTypes": "Room types",
+    "roomTypesHint": "Room types with capacity, beds and amenities.",
+    "rooms": "Rooms",
+    "roomsHint": "Each room inherits from its room type and overrides only what it needs.",
+    "customFields": "Custom fields",
+    "customFieldsHint": "Your own fields for room types, rooms, guests and reservations."
+  }
+}

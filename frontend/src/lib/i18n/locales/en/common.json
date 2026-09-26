@@ -1,0 +1,259 @@
+{
+  "app": {
+    "name": "Housetel",
+    "tagline": "PMS for hotels and hostels in Colombia"
+  },
+  "actions": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "add": "Add",
+    "back": "Back",
+    "retry": "Try again",
+    "search": "Search",
+    "clear": "Clear",
+    "apply": "Apply",
+    "reload": "Reload",
+    "continue": "Continue",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open",
+    "export": "Export",
+    "logout": "Log out",
+    "login": "Log in",
+    "more": "More options"
+  },
+  "nav": {
+    "sections": {
+      "operations": "Operations",
+      "revenue": "Revenue",
+      "insights": "Insights",
+      "compliance": "Compliance",
+      "tools": "Tools",
+      "settings": "Settings",
+      "admin": "Platform"
+    },
+    "settings": "Settings",
+    "main": "Main navigation",
+    "settingsNav": "Settings sections",
+    "adminNav": "Platform navigation",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "topbar": {
+    "property": "Property",
+    "switchProperty": "Switch property",
+    "businessDate": "Business date",
+    "businessDateHint": "The hotel's operating day. It moves forward with the night audit.",
+    "search": "Search…",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "Match system",
+    "userMenu": "Your account",
+    "profile": "My profile",
+    "platformPanel": "Platform panel",
+    "backToHotel": "Back to the hotel"
+  },
+  "languages": {
+    "es": "Español",
+    "en": "English"
+  },
+  "auth": {
+    "eyebrow": "PMS for hotels and hostels",
+    "headline": "Your whole hotel, at a glance.",
+    "subhead": "Reservations, rooms, payments and e-invoicing in one place, built for Colombia.",
+    "rackLabel": "Sample room board",
+    "floor": "Floor {{floor}}",
+    "title": "Log in",
+    "subtitle": "Use the email address you were invited with.",
+    "email": "Email",
+    "emailPlaceholder": "you@hotel.co",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "submit": "Log in",
+    "submitting": "Logging in…",
+    "invalidCredentials": "Wrong email or password.",
+    "throttled": "Too many attempts. Wait a minute and try again.",
+    "failed": "We couldn't log you in. Try again.",
+    "demoTitle": "Demo accounts",
+    "demoHint": "Password for all: {{password}}",
+    "demoUse": "Use this account",
+    "demoOwner": "Owner · Casa Aurora",
+    "demoFrontDesk": "Front desk · Casa Aurora",
+    "demoHousekeeping": "Housekeeping · Casa Aurora",
+    "demoAdmin": "Platform super admin",
+    "noAccount": "Run a hotel?",
+    "signup": "Create your account"
+  },
+  "profile": {
+    "title": "My profile",
+    "description": "Your details and the language you see Housetel in.",
+    "fullName": "Full name",
+    "email": "Email",
+    "phone": "Phone",
+    "language": "Language",
+    "saved": "Profile saved"
+  },
+  "noProperties": {
+    "title": "You don't have a property yet",
+    "description": "Ask whoever manages your hotel to give you access. Once they do, log in again."
+  },
+  "states": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "We couldn't load this information",
+    "errorHint": "Check your connection and try again."
+  },
+  "errors": {
+    "generic": "Something went wrong. Try again.",
+    "network": "No connection to the server. Check your network and try again.",
+    "forbidden": "You don't have permission to do this.",
+    "notFound": "We couldn't find what you're looking for.",
+    "suspended": "Your organization is suspended for non-payment."
+  },
+  "underConstruction": {
+    "eyebrow": "Coming soon",
+    "description": "We're getting this section ready. Meanwhile, the rest of Housetel works as usual."
+  },
+  "notFound": {
+    "code": "Error 404",
+    "title": "We couldn't find this page",
+    "description": "Check the address or go back to the start.",
+    "cta": "Go to the start"
+  },
+  "routeError": {
+    "title": "Something failed while opening this screen",
+    "description": "Reload the page. If it keeps happening, let Housetel support know.",
+    "reload": "Reload"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Set up your property, rates, team and integrations.",
+    "empty": "You don't have access to any settings section."
+  },
+  "admin": {
+    "banner": "Platform panel",
+    "bannerHint": "You're seeing data from every organization."
+  },
+  "public": {
+    "forHotels": "For hotels",
+    "login": "Log in",
+    "footerTagline": "Hotels and hostels in Colombia, booked directly with each hotel.",
+    "madeIn": "Made in Colombia",
+    "rights": "© {{year}} Housetel"
+  },
+  "table": {
+    "search": "Search…",
+    "empty": "No results",
+    "emptyFiltered": "Nothing matches the filters. Try another search.",
+    "rowsPerPage": "Rows per page",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "total_one": "{{count}} record",
+    "total_other": "{{count}} records",
+    "density": "Density",
+    "comfortable": "Comfortable",
+    "compact": "Compact",
+    "selectAll": "Select all rows",
+    "selectRow": "Select row",
+    "sortBy": "Sort by {{column}}"
+  },
+  "date": {
+    "placeholder": "Pick a date",
+    "rangePlaceholder": "Pick dates",
+    "clear": "Clear dates",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "presets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "tomorrow": "Tomorrow",
+      "thisWeek": "This week",
+      "next7": "Next 7 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "last30": "Last 30 days"
+    }
+  },
+  "confirm": {
+    "title": "Confirm this action?",
+    "typeToConfirm": "To confirm, type <strong>{{text}}</strong>",
+    "inputLabel": "Confirmation text"
+  },
+  "status": {
+    "reservation": {
+      "tentative": "Tentative",
+      "confirmed": "Confirmed",
+      "checked_in": "In house",
+      "checked_out": "Checked out",
+      "cancelled": "Cancelled",
+      "no_show": "No-show"
+    },
+    "room": {
+      "clean": "Clean",
+      "dirty": "Dirty",
+      "inspected": "Inspected",
+      "out_of_service": "Out of service",
+      "occupied": "Occupied"
+    },
+    "payment": {
+      "created": "Created",
+      "pending": "Pending",
+      "approved": "Approved",
+      "declined": "Declined",
+      "voided": "Voided",
+      "expired": "Expired",
+      "error": "Error",
+      "failed": "Failed"
+    },
+    "task": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "done": "Done",
+      "inspected": "Inspected",
+      "cancelled": "Cancelled"
+    }
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Enter a valid email address",
+    "minLength": "Enter at least {{count}} characters",
+    "number": "Enter a valid number"
+  },
+  "commandPalette": {
+    "title": "Search Housetel",
+    "placeholder": "Search for a section or an action…",
+    "empty": "Nothing matches your search.",
+    "navigation": "Go to",
+    "actions": "Actions"
+  },
+  "kpi": {
+    "up": "Up {{value}}",
+    "down": "Down {{value}}",
+    "flat": "No change",
+    "period": "Period"
+  },
+  "propertyTypes": {
+    "hotel": "Hotel",
+    "hostel": "Hostel",
+    "boutique": "Boutique hotel",
+    "aparthotel": "Aparthotel",
+    "glamping": "Glamping"
+  },
+  "toasts": {
+    "region": "Notifications"
+  }
+}

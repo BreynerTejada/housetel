@@ -1,0 +1,10 @@
+{
+  "nav": {
+    "guestPortal": "Portal del huésped",
+    "guestPortalHint": "Check-in online, pagos y solicitudes desde el celular del huésped."
+  },
+  "pages": {
+    "portal": "Tu reserva",
+    "checkin": "Check-in online"
+  }
+}

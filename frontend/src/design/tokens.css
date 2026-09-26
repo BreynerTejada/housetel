@@ -1,0 +1,318 @@
+/*
+ * Housetel design tokens — "cálido nórdico" (spec §7.3).
+ * Warm hospitality on a Nordic grid: lots of air, hairline borders, one warm accent (terracotta)
+ * and soft, legible states. Every color used by the UI comes from here.
+ *
+ * Conventions per state color:
+ *   --x       solid (dots, bars, fills, icons)
+ *   --x-soft  tinted background
+ *   --x-ink   text on --x-soft or on surfaces (WCAG AA ≥ 4.5:1, checked for both themes)
+ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --surface-2: #f3f0eb;
+  --surface-3: #ebe6df;
+  --border: #e7e2da;
+  --border-strong: #d5cdc2;
+  --text: #1f1c19;
+  --text-muted: #6e675e;
+  --text-subtle: #948c81;
+
+  --accent: #b4583b;
+  --accent-hover: #9a4a31;
+  --accent-soft: #f5e7e0;
+  --accent-ink: #8e4029;
+  --on-accent: #ffffff;
+
+  --success: #5f7f66;
+  --success-soft: #e8efe8;
+  --success-ink: #46624d;
+  --warning: #b98a2e;
+  --warning-soft: #f8efda;
+  --warning-ink: #7d5a14;
+  --danger: #b5473c;
+  --danger-soft: #f7e4e1;
+  --danger-ink: #933a31;
+  --info: #4e6c88;
+  --info-soft: #e5ecf3;
+  --info-ink: #3e5870;
+  --stone: #8c857b;
+  --stone-soft: #eeebe6;
+  --stone-ink: #5f5953;
+
+  --focus: color-mix(in srgb, var(--accent) 70%, transparent);
+  --overlay: rgb(31 28 25 / 0.32);
+  --hatch: rgb(31 28 25 / 0.09);
+
+  --elev-xs: 0 1px 0 rgb(31 28 25 / 0.04);
+  --elev-sm: 0 1px 2px rgb(31 28 25 / 0.06), 0 1px 1px rgb(31 28 25 / 0.03);
+  --elev-md: 0 10px 28px -12px rgb(31 28 25 / 0.18), 0 2px 6px rgb(31 28 25 / 0.05);
+  --elev-lg: 0 24px 56px -20px rgb(31 28 25 / 0.28), 0 4px 12px rgb(31 28 25 / 0.06);
+
+  --radius: 10px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #141311;
+  --surface: #1c1a18;
+  --surface-2: #252220;
+  --surface-3: #2e2a27;
+  --border: #35312c;
+  --border-strong: #4a453e;
+  --text: #eeeae4;
+  --text-muted: #a59e94;
+  --text-subtle: #7f786f;
+
+  --accent: #d4775c;
+  --accent-hover: #e08a70;
+  --accent-soft: rgb(212 119 92 / 0.16);
+  --accent-ink: #eba48e;
+  --on-accent: #1a1412;
+
+  --success: #7fa087;
+  --success-soft: rgb(127 160 135 / 0.16);
+  --success-ink: #a7c4ad;
+  --warning: #d2a54e;
+  --warning-soft: rgb(210 165 78 / 0.16);
+  --warning-ink: #e3c27f;
+  --danger: #d66a5e;
+  --danger-soft: rgb(214 106 94 / 0.16);
+  --danger-ink: #ee9a8f;
+  --info: #7a9bbb;
+  --info-soft: rgb(122 155 187 / 0.16);
+  --info-ink: #a9c2da;
+  --stone: #8f887e;
+  --stone-soft: rgb(143 136 126 / 0.16);
+  --stone-ink: #c4bdb3;
+
+  --overlay: rgb(0 0 0 / 0.55);
+  --hatch: rgb(238 234 228 / 0.1);
+
+  --elev-xs: 0 1px 0 rgb(0 0 0 / 0.3);
+  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elev-md: 0 12px 32px -12px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.3);
+  --elev-lg: 0 24px 60px -20px rgb(0 0 0 / 0.7), 0 4px 12px rgb(0 0 0 / 0.35);
+}
+
+/* No-JS / first paint: follow the OS unless the user explicitly chose light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #141311;
+    --surface: #1c1a18;
+    --surface-2: #252220;
+    --surface-3: #2e2a27;
+    --border: #35312c;
+    --border-strong: #4a453e;
+    --text: #eeeae4;
+    --text-muted: #a59e94;
+    --text-subtle: #7f786f;
+
+    --accent: #d4775c;
+    --accent-hover: #e08a70;
+    --accent-soft: rgb(212 119 92 / 0.16);
+    --accent-ink: #eba48e;
+    --on-accent: #1a1412;
+
+    --success: #7fa087;
+    --success-soft: rgb(127 160 135 / 0.16);
+    --success-ink: #a7c4ad;
+    --warning: #d2a54e;
+    --warning-soft: rgb(210 165 78 / 0.16);
+    --warning-ink: #e3c27f;
+    --danger: #d66a5e;
+    --danger-soft: rgb(214 106 94 / 0.16);
+    --danger-ink: #ee9a8f;
+    --info: #7a9bbb;
+    --info-soft: rgb(122 155 187 / 0.16);
+    --info-ink: #a9c2da;
+    --stone: #8f887e;
+    --stone-soft: rgb(143 136 126 / 0.16);
+    --stone-ink: #c4bdb3;
+
+    --overlay: rgb(0 0 0 / 0.55);
+    --hatch: rgb(238 234 228 / 0.1);
+
+    --elev-xs: 0 1px 0 rgb(0 0 0 / 0.3);
+    --elev-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --elev-md: 0 12px 32px -12px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.3);
+    --elev-lg: 0 24px 60px -20px rgb(0 0 0 / 0.7), 0 4px 12px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* Domain states are aliases, so both themes follow automatically. */
+:root {
+  /* Rooms (housekeeping): clean → sage, dirty → sand, inspected → slate, OOO → stone + hatch, occupied → accent */
+  --room-clean: var(--success);
+  --room-clean-soft: var(--success-soft);
+  --room-clean-ink: var(--success-ink);
+  --room-dirty: var(--warning);
+  --room-dirty-soft: var(--warning-soft);
+  --room-dirty-ink: var(--warning-ink);
+  --room-inspected: var(--info);
+  --room-inspected-soft: var(--info-soft);
+  --room-inspected-ink: var(--info-ink);
+  --room-ooo: var(--stone);
+  --room-ooo-soft: var(--stone-soft);
+  --room-ooo-ink: var(--stone-ink);
+  --room-occupied: var(--accent);
+  --room-occupied-soft: var(--accent-soft);
+  --room-occupied-ink: var(--accent-ink);
+
+  /* Reservations: uncertain → sand, upcoming → slate, in house → accent, done → sage, void → stone, problem → clay */
+  --status-tentative: var(--warning);
+  --status-tentative-soft: var(--warning-soft);
+  --status-tentative-ink: var(--warning-ink);
+  --status-confirmed: var(--info);
+  --status-confirmed-soft: var(--info-soft);
+  --status-confirmed-ink: var(--info-ink);
+  --status-checked-in: var(--accent);
+  --status-checked-in-soft: var(--accent-soft);
+  --status-checked-in-ink: var(--accent-ink);
+  --status-checked-out: var(--success);
+  --status-checked-out-soft: var(--success-soft);
+  --status-checked-out-ink: var(--success-ink);
+  --status-cancelled: var(--stone);
+  --status-cancelled-soft: var(--stone-soft);
+  --status-cancelled-ink: var(--stone-ink);
+  --status-no-show: var(--danger);
+  --status-no-show-soft: var(--danger-soft);
+  --status-no-show-ink: var(--danger-ink);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-overlay: var(--overlay);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --color-stone: var(--stone);
+  --color-stone-soft: var(--stone-soft);
+  --color-stone-ink: var(--stone-ink);
+
+  --color-room-clean: var(--room-clean);
+  --color-room-clean-soft: var(--room-clean-soft);
+  --color-room-dirty: var(--room-dirty);
+  --color-room-dirty-soft: var(--room-dirty-soft);
+  --color-room-inspected: var(--room-inspected);
+  --color-room-inspected-soft: var(--room-inspected-soft);
+  --color-room-ooo: var(--room-ooo);
+  --color-room-ooo-soft: var(--room-ooo-soft);
+  --color-room-occupied: var(--room-occupied);
+  --color-room-occupied-soft: var(--room-occupied-soft);
+
+  --color-status-tentative: var(--status-tentative);
+  --color-status-confirmed: var(--status-confirmed);
+  --color-status-checked-in: var(--status-checked-in);
+  --color-status-checked-out: var(--status-checked-out);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-no-show: var(--status-no-show);
+
+  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xs: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --shadow-xs: var(--elev-xs);
+  --shadow-sm: var(--elev-sm);
+  --shadow-md: var(--elev-md);
+  --shadow-lg: var(--elev-lg);
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --ease-out-soft: cubic-bezier(0.22, 0.8, 0.26, 1);
+
+  --animate-fade-in: ht-fade-in 160ms var(--ease-out-soft);
+  --animate-fade-out: ht-fade-out 120ms ease-in forwards;
+  --animate-pop-in: ht-pop-in 170ms var(--ease-out-soft);
+  --animate-pop-out: ht-pop-out 110ms ease-in forwards;
+  --animate-sheet-in-left: ht-sheet-in-left 240ms var(--ease-out-soft);
+  --animate-sheet-out-left: ht-sheet-out-left 180ms ease-in forwards;
+  --animate-sheet-in-right: ht-sheet-in-right 240ms var(--ease-out-soft);
+  --animate-sheet-out-right: ht-sheet-out-right 180ms ease-in forwards;
+  --animate-sheet-in-bottom: ht-sheet-in-bottom 260ms var(--ease-out-soft);
+  --animate-sheet-out-bottom: ht-sheet-out-bottom 180ms ease-in forwards;
+  --animate-shimmer: ht-shimmer 1.6s ease-in-out infinite;
+
+  @keyframes ht-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes ht-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes ht-pop-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes ht-pop-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(2px) scale(0.985); }
+  }
+  @keyframes ht-sheet-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: none; }
+  }
+  @keyframes ht-sheet-out-left {
+    from { transform: none; }
+    to { transform: translateX(-100%); }
+  }
+  @keyframes ht-sheet-in-right {
+    from { transform: translateX(100%); }
+    to { transform: none; }
+  }
+  @keyframes ht-sheet-out-right {
+    from { transform: none; }
+    to { transform: translateX(100%); }
+  }
+  @keyframes ht-sheet-in-bottom {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  @keyframes ht-sheet-out-bottom {
+    from { transform: none; }
+    to { transform: translateY(100%); }
+  }
+  @keyframes ht-shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+}

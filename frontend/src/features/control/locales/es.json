@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "alerts": "Alertas",
+    "integrations": "Integraciones",
+    "integrationsHint": "Pagos, canales, DIAN, WhatsApp e IA, en modo real o simulado.",
+    "automations": "Automatizaciones",
+    "automationsHint": "Tareas que corren solas: auditoría nocturna, asignación de habitaciones y más.",
+    "audit": "Registro de auditoría",
+    "auditHint": "Quién cambió qué y cuándo, con opción de deshacer."
+  }
+}

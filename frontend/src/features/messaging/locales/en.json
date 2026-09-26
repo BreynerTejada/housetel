@@ -1,0 +1,8 @@
+{
+  "nav": {
+    "inbox": "Inbox",
+    "waSim": "WhatsApp simulator",
+    "settingsMessaging": "Messaging",
+    "settingsMessagingHint": "Email and WhatsApp templates and automatic messages."
+  }
+}

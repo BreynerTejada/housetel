@@ -1,0 +1,29 @@
+{
+  "nav": {
+    "bookingEngine": "Booking engine",
+    "bookingEngineHint": "Your direct booking page, the widget and your marketplace listing."
+  },
+  "pages": {
+    "search": "Find a stay",
+    "hotel": "Hotel",
+    "book": "Your booking",
+    "confirmed": "Booking confirmed",
+    "engine": "Direct booking",
+    "embed": "Booking widget"
+  },
+  "home": {
+    "eyebrow": "Hotels and hostels in Colombia",
+    "title": "Book directly with the hotel.",
+    "subtitle": "Each hotel's real prices, no middlemen and instant confirmation.",
+    "destination": "Destination",
+    "destinationPlaceholder": "Cartagena, Medellín, Bogotá…",
+    "dates": "Dates",
+    "guests": "Guests",
+    "guestsValue": "2 adults",
+    "search": "Search",
+    "searchLabel": "Find a stay",
+    "hotelsTitle": "Run a hotel or a hostel?",
+    "hotelsBody": "Manage reservations, rooms, payments and DIAN invoicing with Housetel.",
+    "hotelsCta": "Try Housetel for free"
+  }
+}

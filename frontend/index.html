@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Housetel — PMS, motor de reservas y channel manager para hoteles y hostales en Colombia." />
+    <title>Housetel</title>
+    <script>
+      // Apply the saved theme and language before the first paint (keys match src/lib/theme.tsx and src/lib/i18n).
+      ;(function () {
+        try {
+          var root = document.documentElement
+          var pref = localStorage.getItem('housetel.theme')
+          var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          var dark = pref === 'dark' || ((pref === null || pref === 'system') && systemDark)
+          root.setAttribute('data-theme', dark ? 'dark' : 'light')
+          var lang = localStorage.getItem('housetel.lang')
+          if (lang === 'es' || lang === 'en') root.setAttribute('lang', lang)
+        } catch (e) {
+          /* storage unavailable: CSS falls back to prefers-color-scheme */
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

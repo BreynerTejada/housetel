@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "users": "Users",
+    "usersHint": "Invite your team and choose which properties each person can open.",
+    "roles": "Roles & permissions",
+    "rolesHint": "What each role can see and do."
+  },
+  "pages": {
+    "invite": "Accept invitation"
+  }
+}

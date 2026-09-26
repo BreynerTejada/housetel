@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "alerts": "Alerts",
+    "integrations": "Integrations",
+    "integrationsHint": "Payments, channels, DIAN, WhatsApp and AI, in real or simulated mode.",
+    "automations": "Automations",
+    "automationsHint": "Tasks that run on their own: night audit, room assignment and more.",
+    "audit": "Audit log",
+    "auditHint": "Who changed what and when, with undo."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "nav": {
+    "gettingStarted": "Getting started",
+    "billing": "Plan & billing",
+    "billingHint": "Your Housetel plan, usage and invoices.",
+    "adminHome": "Overview",
+    "adminOrgs": "Organizations",
+    "adminPlans": "Plans",
+    "adminBilling": "Billing",
+    "adminCommissions": "Commissions"
+  },
+  "pages": {
+    "signup": "Create your account",
+    "adminOrgDetail": "Organization"
+  }
+}

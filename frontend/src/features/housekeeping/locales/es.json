@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "housekeeping": "Limpieza",
+    "maintenance": "Mantenimiento",
+    "settingsHousekeeping": "Limpieza",
+    "settingsHousekeepingHint": "Frecuencia de repaso, inspecciones y asignación automática."
+  },
+  "pages": {
+    "mine": "Mis habitaciones"
+  }
+}
