@@ -19,6 +19,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.accounts.services import add_member, ensure_system_roles
 from apps.core.models import Organization, Property
+from apps.core.signals import seeding
 
 SEED_ORDER = ["inventory", "rates", "guests", "bookings", "finance", "housekeeping", "distribution",
               "marketplace", "guestportal", "messaging", "compliance", "revenue", "ai", "saas",
@@ -169,17 +170,18 @@ USERS = {
 
 def run(*, reset: bool = False, stdout=None) -> SeedContext:
     ctx = SeedContext(today=timezone.localdate(), rng=random.Random(RNG_SEED), stdout=stdout)
-    with transaction.atomic():
-        if reset:
-            _reset(ctx)
-        seed_base(ctx)
-    for app in SEED_ORDER:
-        module = _load_seeder(app)
-        if module is None:
-            continue
-        ctx.log(f"→ {app}")
+    with seeding():
         with transaction.atomic():
-            module.seed(ctx)
+            if reset:
+                _reset(ctx)
+            seed_base(ctx)
+        for app in SEED_ORDER:
+            module = _load_seeder(app)
+            if module is None:
+                continue
+            ctx.log(f"→ {app}")
+            with transaction.atomic():
+                module.seed(ctx)
     ctx.log("Seed completo")
     return ctx
 

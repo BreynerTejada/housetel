@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.bookings.tests.factories import ReservationFactory, StayFactory
 from apps.core.errors import DomainError
 from apps.core.signals import payment_received
+from apps.finance.cash import open_cash_shift
 from apps.finance.models import Charge, Folio, Payment, Refund
 from apps.finance.services import (
     folio_balance,
@@ -126,6 +127,7 @@ class TestRecordPayment:
         def receiver(sender, **kwargs):
             received.append(kwargs["payment"])
 
+        open_cash_shift(folio.property, owner, opening_float=Decimal("0"))  # B4: cash needs an open shift
         payment_received.connect(receiver)
         try:
             with django_capture_on_commit_callbacks(execute=True):

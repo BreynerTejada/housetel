@@ -189,6 +189,10 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Guest identity documents (apps/guests/storage.py) never live under MEDIA_ROOT, which /media/ serves without
+# authentication. Unset → `<MEDIA_ROOT>-private` (backend/media-private/ in development); in production point
+# it to a folder no web server publishes.
+PRIVATE_MEDIA_ROOT = Path(env("PRIVATE_MEDIA_ROOT")) if env("PRIVATE_MEDIA_ROOT") else None
 
 # --- Django REST framework --------------------------------------------------------------------------
 REST_FRAMEWORK = {
@@ -219,6 +223,17 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Choice fields that share a name across apps (`kind`, `status`, `source`) but not their options get a
+    # stable enum name here instead of a hashed one (`KindD0cEnum`) plus a warning. Add an entry when a new
+    # app introduces a colliding choice set (`manage.py spectacular --validate --fail-on-warn` must pass;
+    # test: apps/core/tests/test_schema.py).
+    "ENUM_NAME_OVERRIDES": {
+        "BookingStatusEnum": "apps.bookings.models.BookingStatus",
+        "ReservationSourceEnum": "apps.bookings.models.Reservation.Source",
+        "RoomTypeKindEnum": "apps.inventory.models.RoomType.Kind",
+        "RoomBlockKindEnum": "apps.inventory.models.RoomBlock.Kind",
+        "GuestDocumentKindEnum": "apps.guests.models.GuestDocument.Kind",
+    },
 }
 
 # --- Logging ----------------------------------------------------------------------------------------
@@ -244,3 +259,4 @@ if TESTING:
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "housetel-tests"}
     }
     MEDIA_ROOT = Path(tempfile.gettempdir()) / "housetel-test-media"
+    PRIVATE_MEDIA_ROOT = None  # → housetel-test-media-private, next to the temporary MEDIA_ROOT

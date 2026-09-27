@@ -180,6 +180,27 @@ class TestAppSeeders:
             ("control", "casa-aurora", today),
         ]
 
+    @pytest.mark.django_db(transaction=True)
+    def test_seeders_and_their_on_commit_signals_run_while_is_seeding_is_true(self, monkeypatch):
+        # transaction=True: like production, run()'s atomic blocks are outermost, so on_commit
+        # callbacks (where signals are dispatched) fire inside run() and must still see the flag.
+        from django.db import transaction
+
+        from apps.core.signals import is_seeding
+
+        observed = []
+
+        def seeder(ctx):
+            observed.append(("seed", is_seeding()))
+            transaction.on_commit(lambda: observed.append(("on_commit", is_seeding())))
+
+        monkeypatch.setattr(
+            seed, "_load_seeder", lambda app: SimpleNamespace(seed=seeder) if app == "inventory" else None
+        )
+        seed.run()
+        assert observed == [("seed", True), ("on_commit", True)]
+        assert is_seeding() is False
+
     def test_seeders_share_data_and_a_deterministic_rng(self, monkeypatch):
         seen = {}
 

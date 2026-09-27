@@ -45,12 +45,17 @@ El orquestador levanta Docker, corre la suite y hace commit entre fases.
 3. **Modelos siempre importables**: tras editar `models.py` corre `docker compose run --rm backend python manage.py check`. Un modelo roto rompe a todos los agentes.
 4. **Errores ajenos**: si un fallo proviene de código de otra app, no lo toques. Espera 1–2 min y reintenta. Si persiste, anótalo en tus integration-notes y continúa.
 5. **Dependencias**: no agregues paquetes pip/npm salvo necesidad real. Si lo haces, anótalo en integration-notes con la razón (la fase de integración las consolida). Nunca corras `npm install <pkg>` en paralelo con otros agentes; si lo necesitas, anótalo y usa una alternativa.
-6. **Tests aislados**: backend `docker compose run --rm -e TEST_DB_NAME=test_<tarea> backend pytest apps/<app> -q`; frontend `cd frontend && npx vitest run src/features/<feature>`; typecheck `cd frontend && npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -E "src/features/<feature>|src/components|src/lib|src/app" || true` (tu feature debe quedar sin errores).
+6. **Tests aislados y rápidos** (actualizado tras la Fase B; los tests son rápidos, el costo está en el arranque de cada corrida):
+   - Ciclo TDD: solo el archivo o test en el que trabajas, en el contenedor ya levantado y reutilizando tu BD de test: `docker compose exec -T -e TEST_DB_NAME=test_<tarea> backend pytest <archivo>[::test] -q --reuse-db` (~4 s). Agrega `--create-db` una vez después de crear o regenerar una migración de tu app.
+   - Suite completa de tu app: solo al terminar la implementación y al terminar la verificación, con el mismo comando sobre `apps/<app>` y **en segundo plano** (`run_in_background`) mientras sigues con otro trabajo; revisa el resultado antes de declarar terminado.
+   - Frontend: `cd frontend && npx vitest run <archivo>` en el ciclo; al final `npx vitest run src/features/<feature>` y typecheck una sola vez (`npx tsc -p tsconfig.app.json --noEmit 2>&1 | grep -E "src/features/<feature>" || true`).
+   - Nunca corras la suite completa de todas las apps ni `seed_demo` (tarda ~10 min): eso lo hace la integración de cada fase.
 7. **Señales**: los productores usan `core.signals.send_on_commit(...)` (internamente `send_robust`, que registra y no propaga excepciones de receivers). Los receivers van en `apps/<app>/receivers.py` (auto-descubierto). En tests usa el fixture `django_capture_on_commit_callbacks(execute=True)`.
 8. **API docs**: documenta en tus integration-notes cada endpoint (método, path, payload y respuesta de ejemplo), las señales emitidas/escuchadas, las automatizaciones y los contratos implementados. Los agentes de fases posteriores los leen.
 9. **Idioma**: código, nombres y comentarios en inglés; UI en ES/EN vía i18n; mensajes de error de API en español con `code` estable en inglés.
 10. **No commits**: el orquestador commitea al cerrar cada fase.
 11. **Calidad mínima por endpoint**: filtrado por propiedad/organización, chequeo de permiso, validación, test de aislamiento multi-tenant, test de permiso.
+12. **Seed y señales**: el seed de demo reproduce meses de historia a través de los servicios y emite miles de señales históricas. Todo receiver con efectos secundarios (tareas, mensajes, comisiones, ARI, facturas, TRA) debe hacer `if is_seeding(): return` (`from apps.core.signals import is_seeding`) y la app siembra sus datos derivados explícitamente en su `seed.py`. Cada seed de la Fase C debe tardar menos de ~60 s.
 
 Plantilla de `docs/integration-notes/<tarea>.md`:
 

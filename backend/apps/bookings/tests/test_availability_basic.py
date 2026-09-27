@@ -1,5 +1,7 @@
-"""Phase A availability (plan Step 5): correct but slow — active units − overlapping active stays − blocks,
-minimum over the nights. Units are rooms (private) or beds (dorm)."""
+"""Availability semantics (plan Step 5, kept by B2b): active units − overlapping active stays − blocks,
+minimum over the nights. Units are rooms (private) or beds (dorm). Since B2b the numbers come from
+InventoryDay (materialized on first use and maintained by the booking services and the inventory_changed
+receiver)."""
 
 from datetime import date, timedelta
 
@@ -10,6 +12,7 @@ from apps.bookings.services.availability import availability
 from apps.bookings.tests.factories import ReservationFactory, StayFactory
 from apps.core.tests.factories import PropertyFactory
 from apps.inventory.models import RoomBlock
+from apps.inventory.services import release_block
 from apps.inventory.tests.factories import BedFactory, DormRoomTypeFactory, RoomFactory, RoomTypeFactory
 
 pytestmark = pytest.mark.django_db
@@ -75,7 +78,7 @@ def test_it_is_the_minimum_over_the_nights_and_checkout_day_is_free(hotel):
     assert avail(hotel, OCT(3), OCT(4))[hotel["private"].pk] == 3
 
 
-def test_blocks_reduce_availability_until_released(hotel):
+def test_blocks_reduce_availability_until_released(hotel, django_capture_on_commit_callbacks):
     room_block = RoomBlock.objects.create(
         room=hotel["rooms"][0], start_date=OCT(3), end_date=OCT(5), kind="maintenance"
     )
@@ -90,8 +93,10 @@ def test_blocks_reduce_availability_until_released(hotel):
         room=hotel["dorm"], bed=hotel["beds"][0], start_date=OCT(1), end_date=OCT(9), kind="out_of_order"
     )
     assert avail(hotel) == {hotel["private"].pk: 2, hotel["dorm_type"].pk: 3}
-    room_block.released_at = timezone.now()
-    room_block.save()
+    # B2b: availability is read from InventoryDay, kept current by the inventory_changed receiver that the
+    # inventory service emits when a block is released.
+    with django_capture_on_commit_callbacks(execute=True):
+        release_block(room_block)
     assert avail(hotel)[hotel["private"].pk] == 3
 
 

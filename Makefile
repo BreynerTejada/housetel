@@ -6,7 +6,7 @@ BACKEND_SERVICES := db redis mailpit backend worker beat
 TEST_DB_ENV := $(if $(TEST_DB_NAME),-e TEST_DB_NAME=$(TEST_DB_NAME),)
 
 .PHONY: help up up-back down logs ps migrate makemigrations seed reset test test-back test-front \
-	lint lint-back lint-front format shell check
+	lint lint-back lint-front format shell check check-data smoke
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
@@ -61,8 +61,15 @@ lint-front: ## eslint (frontend)
 format: ## ruff format (backend)
 	$(COMPOSE) run --rm backend ruff format .
 
-check: ## Django system checks + pending migrations check
-	$(COMPOSE) run --rm backend sh -c "python manage.py check && python manage.py makemigrations --check --dry-run"
+check: ## Django system checks + pending migrations + OpenAPI schema without warnings
+	$(COMPOSE) run --rm backend sh -c "python manage.py check && python manage.py makemigrations --check --dry-run \
+		&& python manage.py spectacular --validate --fail-on-warn --file /tmp/schema.yaml && echo 'OpenAPI schema OK'"
+
+check-data: ## Read-only invariants of inventory and money (run it after `make seed`)
+	$(COMPOSE) run --rm backend python manage.py check_integrity
+
+smoke: ## End-to-end API smoke through the Vite proxy (needs `make up` + seed; leaves one test reservation)
+	python3 backend/scripts/smoke_proxy.py http://localhost:5173
 
 shell: ## Django shell
 	$(COMPOSE) run --rm backend python manage.py shell

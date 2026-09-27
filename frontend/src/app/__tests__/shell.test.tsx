@@ -31,6 +31,14 @@ describe('AppLayout sidebar', () => {
 
   it('marks only the most specific page as current', async () => {
     mockMe(makeMe())
+    // The rate plans page is real since phase B: an empty catalog is enough for the shell.
+    const emptyPage = () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })
+    server.use(
+      http.get('/api/v1/rates/rate-plans/', emptyPage),
+      http.get('/api/v1/rates/room-type-defaults/', emptyPage),
+      http.get('/api/v1/rates/cancellation-policies/', emptyPage),
+      http.get('/api/v1/rates/room-types/', () => HttpResponse.json([])),
+    )
     renderRoutes(buildRoutes(), { route: '/app/rates/plans' })
 
     const nav = await mainNav()

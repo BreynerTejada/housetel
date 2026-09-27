@@ -13,7 +13,7 @@ credenciales externas: cada integración arranca en modo **simulado**.
 ```bash
 cp .env.example .env        # y completa DJANGO_SECRET_KEY / FERNET_KEY (ver comentarios)
 make up                     # construye y levanta todos los servicios
-make seed                   # datos de demo (idempotente)
+make seed                   # datos de demo (idempotente; la primera vez tarda ~10 min, ver abajo)
 ```
 
 Abre **http://localhost:5173** (la app completa; Vite hace proxy de `/api` y `/media` al backend).
@@ -45,6 +45,38 @@ Solo el backend (útil mientras el frontend no está listo): `make up-back`.
 
 Admin de Django: http://localhost:8010/django-admin/ (con `admin@housetel.co`).
 
+## Datos de demo (`make seed`)
+
+`seed_demo` recorre `SEED_ORDER` (cada app tiene su `seed.py`, idempotente) y crea todo **por los servicios de
+contrato** (auditoría, señales e inventario incluidos). La primera carga tarda **≈ 10 min** (unas 3.300 reservas);
+repetirla solo revisa y no duplica. `make reset` borra la BD y la recrea desde cero (migraciones + seed).
+
+- **Inventario**: Hotel Casa Aurora (24 habitaciones: Estándar, Superior, Suite Vista al Mar), Andino Medellín
+  (40) y Andino Hostel Bogotá (dormitorios de 6 y 8 camas + privadas); amenidades, fotos, campos personalizados
+  y overrides de ejemplo (p. ej. la 306).
+- **Tarifas**: IVA 19 % (exento a extranjeros no residentes), políticas "Flexible 48h" y "No reembolsable",
+  planes Tarifa flexible / No reembolsable (−12 %) / Con desayuno, temporadas, extras y el código `BIENVENIDA10`.
+- **Huéspedes**: 183 por organización (colombianos y extranjeros, VIP, etiquetas, 3 duplicados para la demo de
+  fusión); un rol propio y una invitación pendiente por organización.
+- **Reservas** de −60 a +90 días en todos los estados y fuentes (recepción, teléfono, email, walk-in, booking
+  engine, marketplace, BookSim/AirSim), con llegadas y salidas de hoy, huéspedes en casa y grupos.
+- **Finanzas**: cargos por noche, pagos (efectivo, datáfono, transferencia, pasarela simulada), depósitos, links de
+  pago pendientes, penalidades, folios cerrados en 0 y un turno de caja abierto para `recepcion@casaaurora.co` (y
+  `recepcion@grupoandino.co` en Medellín).
+
+## Qué funciona hoy (Fases A y B)
+
+| Área | Rutas |
+|---|---|
+| Configuración de inventario | `/app/settings/property`, `/app/settings/room-types`, `/app/settings/rooms`, `/app/settings/custom-fields` |
+| Tarifas | `/app/rates` (grilla), `/app/rates/plans`, `/app/rates/promos`, `/app/settings/{taxes,policies,extras}` |
+| Huéspedes y equipo | `/app/guests`, `/app/guests/:id`, `/app/settings/users`, `/app/settings/roles`, `/invite/:token` |
+| Caja y pagos | `/app/cashier`, pasarela simulada `/sim/pay/:reference` |
+| API de reservas | `/api/v1/bookings/…` (reservas, estadías, check-in/out, ofertas, calendario); su UI llega en la Fase C |
+
+El resto de páginas muestra "En construcción" hasta su fase. Documentación de cada módulo (API con ejemplos,
+contratos, señales): `docs/integration-notes/` (B1–B4 y `B-INT.md`).
+
 ## Comandos
 
 ```bash
@@ -58,7 +90,9 @@ make test                          # backend + frontend
 make test-back ARGS="apps/core"    # pytest (TEST_DB_NAME=test_x para correr en paralelo)
 make test-front
 make lint / make format            # ruff (backend) + eslint (frontend)
-make check                         # system checks + migraciones pendientes
+make check                         # system checks + migraciones pendientes + esquema OpenAPI sin warnings
+make check-data                    # invariantes de inventario y dinero, solo lectura (después del seed)
+make smoke                         # smoke de la API por el proxy de Vite (deja una reserva de prueba)
 make shell                         # shell de Django
 ```
 
@@ -85,10 +119,11 @@ backend/
     ├── inventory/     categorías → habitaciones → camas, herencia de atributos, bloqueos
     ├── rates/         impuestos, políticas, planes base/derivados, grilla diaria, extras, promos, cotizador
     ├── bookings/      reservas, estadías (exclusión en BD contra doble asignación), inventario diario
-    ├── guests/        huéspedes (CRM por organización)
+    ├── guests/        huéspedes (CRM por organización); documentos de identidad fuera de /media
+    │                  (`backend/media-private/` o PRIVATE_MEDIA_ROOT), solo por la API autenticada
     ├── finance/       folios, cargos (neto + IVA aparte), pagos, reembolsos, intents, caja
     └── frontdesk, housekeeping, distribution, marketplace, guestportal, messaging, compliance,
-        revenue, ai, reports, saas, control      (módulos de las fases B/C)
+        revenue, ai, reports, saas, control      (módulos de la Fase C)
 
 frontend/src/
 ├── app/               árbol de rutas, puntos de extensión (extensions.ts), layouts, shell, login

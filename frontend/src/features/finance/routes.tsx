@@ -1,13 +1,9 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `finance` feature with placeholder pages. Owner: B4 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Owner: B4. `/app/cashier` (staff) and the simulated payment gateway `/sim/pay/:reference` (bare page).
 export const routes: FeatureRoutes = {
   bare: [
-    { path: '/sim/pay/:reference', element: <UnderConstruction titleKey="finance:pages.simPay" /> },
+    { path: '/sim/pay/:reference', lazy: () => import('./pages/SimPayPage').then((m) => ({ Component: m.default })) },
   ],
-  app: [
-    { path: 'cashier', element: <UnderConstruction titleKey="finance:nav.cashier" /> },
-  ],
+  app: [{ path: 'cashier', lazy: () => import('./pages/CashierPage').then((m) => ({ Component: m.default })) }],
 }

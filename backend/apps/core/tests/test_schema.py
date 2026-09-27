@@ -42,6 +42,27 @@ def test_property_scoped_views_document_the_property_header():
         ], f"{method} {path}"
 
 
+def test_the_schema_generates_without_warnings(tmp_path):
+    """The CI command `manage.py spectacular --validate --fail-on-warn` must pass with every app's API: the
+    `kind`/`status`/`source` choices that differ between apps would otherwise get hashed names such as
+    `KindD0cEnum` (unstable for generated clients) and a warning each."""
+    from django.core.management import call_command
+
+    call_command("spectacular", "--validate", "--fail-on-warn", "--file", str(tmp_path / "schema.yaml"))
+
+
+def test_colliding_enums_get_stable_names():
+    schemas = _schema()["components"]["schemas"]
+    for name in (
+        "BookingStatusEnum",
+        "ReservationSourceEnum",
+        "RoomTypeKindEnum",
+        "RoomBlockKindEnum",
+        "GuestDocumentKindEnum",
+    ):
+        assert name in schemas, name
+
+
 def test_session_cookie_auth_is_documented_and_auth_views_are_typed():
     schema = _schema()
     assert "cookieAuth" in schema["components"]["securitySchemes"]

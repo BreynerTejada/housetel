@@ -2,11 +2,36 @@
 `apps/<app>/receivers.py`."""
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.db import transaction
 from django.dispatch import Signal
 
 logger = logging.getLogger("housetel.signals")
+
+_seeding: ContextVar[bool] = ContextVar("housetel_seeding", default=False)
+
+
+def is_seeding() -> bool:
+    """True while `core.seed.run` executes (including its on_commit callbacks).
+
+    The demo seed replays months of history through the booking services, so it emits thousands of
+    historical signals. Receivers that create side effects (tasks, messages, commissions, ARI pushes,
+    invoices...) must return early when this is True; each app seeds its own derived data instead.
+    """
+    return _seeding.get()
+
+
+@contextmanager
+def seeding() -> Iterator[None]:
+    token = _seeding.set(True)
+    try:
+        yield
+    finally:
+        _seeding.reset(token)
+
 
 reservation_created = Signal()  # reservation
 reservation_updated = Signal()  # reservation, changes: dict[str, tuple[old, new]]

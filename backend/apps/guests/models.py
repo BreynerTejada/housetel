@@ -5,6 +5,7 @@ from django.db.models import Q
 
 from apps.core.fields import json_field
 from apps.core.models import BaseModel, Organization
+from apps.guests.storage import PrivateDocumentStorage, document_upload_to
 
 
 class Guest(BaseModel):
@@ -49,6 +50,9 @@ class Guest(BaseModel):
     merged_into = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="merged_guests"
     )
+    # B3: set when the guest's personal data was erased on request (Habeas Data); the record stays so that
+    # reservations, folios and legal reports keep their history.
+    anonymized_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["last_name", "first_name"]
@@ -97,7 +101,9 @@ class GuestDocument(BaseModel):
 
     guest = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name="documents")
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.OTHER)
-    file = models.FileField(upload_to="guest-documents/%Y/%m/")
+    # Private: outside MEDIA_ROOT, no public URL (see apps/guests/storage.py). Read it through
+    # GET /api/v1/guests/documents/<id>/file/.
+    file = models.FileField(upload_to=document_upload_to, storage=PrivateDocumentStorage(), max_length=255)
     uploaded_via = models.CharField(max_length=10, choices=UploadedVia.choices, default=UploadedVia.STAFF)
 
     class Meta:

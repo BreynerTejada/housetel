@@ -175,6 +175,7 @@ export function DataTable<T>({
           {showSearch && (
             <Input
               type="search"
+              name="search"
               value={searchValue}
               onChange={(event) => (onSearchChange ? onSearchChange(event.target.value) : setGlobalFilter(event.target.value))}
               placeholder={searchPlaceholder ?? t('table.search')}

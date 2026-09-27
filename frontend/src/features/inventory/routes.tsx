@@ -1,13 +1,16 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `inventory` feature with placeholder pages. Owner: B1 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Inventory settings (plan §E, owner B1). Pages load lazily; `settings/*` routes nest in SettingsLayout.
 export const routes: FeatureRoutes = {
   app: [
-    { path: 'settings/property', element: <UnderConstruction titleKey="inventory:nav.property" /> },
-    { path: 'settings/room-types', element: <UnderConstruction titleKey="inventory:nav.roomTypes" /> },
-    { path: 'settings/rooms', element: <UnderConstruction titleKey="inventory:nav.rooms" /> },
-    { path: 'settings/custom-fields', element: <UnderConstruction titleKey="inventory:nav.customFields" /> },
+    { path: 'settings/property', lazy: () => import('./pages/PropertyPage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/room-types', lazy: () => import('./pages/RoomTypesPage').then((m) => ({ Component: m.default })) },
+    {
+      path: 'settings/room-types/:roomTypeId',
+      lazy: () => import('./pages/RoomTypeEditorPage').then((m) => ({ Component: m.default })),
+    },
+    { path: 'settings/rooms', lazy: () => import('./pages/RoomsPage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/rooms/:roomId', lazy: () => import('./pages/RoomEditorPage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/custom-fields', lazy: () => import('./pages/CustomFieldsPage').then((m) => ({ Component: m.default })) },
   ],
 }

@@ -1,11 +1,9 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `guests` feature with placeholder pages. Owner: B3 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Guests CRM (B3). Pages load lazily so other bundles never carry this code.
 export const routes: FeatureRoutes = {
   app: [
-    { path: 'guests', element: <UnderConstruction titleKey="guests:nav.guests" /> },
-    { path: 'guests/:id', element: <UnderConstruction titleKey="guests:pages.guestDetail" /> },
+    { path: 'guests', lazy: () => import('./pages/GuestsPage').then((m) => ({ Component: m.default })) },
+    { path: 'guests/:id', lazy: () => import('./pages/GuestDetailPage').then((m) => ({ Component: m.default })) },
   ],
 }

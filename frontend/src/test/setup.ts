@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
+import { toast } from 'sonner'
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import i18n from '@/lib/i18n'
 import { server } from './server'
@@ -49,6 +50,9 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup()
   server.resetHandlers()
+  // Sonner keeps active toasts in a module-level store and replays them to the next <Toaster> that mounts:
+  // without this a toast left open by one test shows up in the next one.
+  toast.dismiss()
 })
 
 afterAll(() => {

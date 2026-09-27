@@ -50,6 +50,11 @@ describe('DataTable (client data)', () => {
     expect(firstCells()).toEqual(['HT-BBB222'])
   })
 
+  it('names the search box (Chrome flags form fields without an id or name)', () => {
+    render(<DataTable columns={columns} data={rows} getRowId={(r) => r.id} enableSearch />)
+    expect(screen.getByRole('searchbox')).toHaveAttribute('name', 'search')
+  })
+
   it('paginates', async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, code: `HT-${String(i).padStart(6, '0')}`, guest: `G${i}`, nights: i }))
     render(<DataTable columns={columns} data={many} getRowId={(r) => r.id} pageSize={10} />)

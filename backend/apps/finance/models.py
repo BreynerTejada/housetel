@@ -7,6 +7,7 @@ deleted, only voided with a reason. Folio balance = Σ non-voided charges (amoun
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.bookings.models import Reservation, Stay
@@ -130,10 +131,31 @@ class Payment(BaseModel):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     notes = models.TextField(blank=True)
+    # B4 additions. An online payment belongs to exactly one PaymentIntent (idempotent sync); manual payments
+    # taken while the user has an open cash shift are linked to it (shift totals / expected cash).
+    intent = models.OneToOneField(
+        "PaymentIntent", null=True, blank=True, on_delete=models.SET_NULL, related_name="payment"
+    )
+    cash_shift = models.ForeignKey(
+        "CashShift", null=True, blank=True, on_delete=models.SET_NULL, related_name="payments"
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)  # manual payment recorded by mistake
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    void_reason = models.TextField(blank=True)
 
     class Meta:
         ordering = ["created_at"]
         indexes = [models.Index(fields=["provider", "provider_reference"], name="payment_provider_ref_idx")]
+        constraints = [
+            # A provider transaction is recorded once (manual references are free text and may repeat).
+            models.UniqueConstraint(
+                fields=["provider", "provider_reference"],
+                condition=~Q(provider="manual") & ~Q(provider_reference=""),
+                name="payment_provider_reference_unique",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.method} {self.amount} ({self.status})"
@@ -153,6 +175,18 @@ class Refund(BaseModel):
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
+    # B4 additions. `pending` refunds wait for a manual step (e.g. PSE/Nequi transfer back to the guest);
+    # `instructions` says what to do and `completed_at` is set when they become approved/failed.
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    business_date = models.DateField(null=True, blank=True)
+    cash_shift = models.ForeignKey(
+        "CashShift", null=True, blank=True, on_delete=models.SET_NULL, related_name="refunds"
+    )
+    instructions = models.TextField(blank=True)
+    provider_payload = json_field()
+    completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["created_at"]
@@ -186,6 +220,14 @@ class PaymentIntent(BaseModel):
     expires_at = models.DateTimeField(null=True, blank=True)
     return_url = models.CharField(max_length=1000, blank=True)
     payload = json_field()
+    # B4 additions: what the provider reported on the last active verification.
+    provider_transaction_id = models.CharField(max_length=120, blank=True)
+    method = models.CharField(max_length=20, blank=True)  # Payment.Method value once known
+    status_message = models.CharField(max_length=255, blank=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -205,9 +247,21 @@ class CashShift(BaseModel):
     counted_cash = money_field(null=True, blank=True)
     difference = money_field(null=True, blank=True)
     notes = models.TextField(blank=True)
+    # B4 additions: who closed it and the optional count by denomination ({"50000": 3, "2000": 5}).
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    denominations = json_field()
 
     class Meta:
         ordering = ["-opened_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["property", "user"],
+                condition=Q(closed_at__isnull=True),
+                name="cash_shift_one_open_per_user",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"Caja {self.user} {self.opened_at:%Y-%m-%d %H:%M}"

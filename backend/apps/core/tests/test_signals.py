@@ -43,3 +43,20 @@ def test_a_failing_receiver_is_logged_and_does_not_break_the_others(
 
     assert calls == ["P-1"]
     assert "receiver exploded" in caplog.text
+
+
+def test_is_seeding_is_false_by_default_and_true_inside_seeding():
+    from apps.core.signals import is_seeding, seeding
+
+    assert is_seeding() is False
+    with seeding():
+        assert is_seeding() is True
+    assert is_seeding() is False
+
+
+def test_seeding_flag_is_reset_even_when_the_block_raises():
+    from apps.core.signals import is_seeding, seeding
+
+    with pytest.raises(RuntimeError), seeding():
+        raise RuntimeError("boom")
+    assert is_seeding() is False

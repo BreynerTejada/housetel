@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { matchRoutes } from 'react-router'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { getNav } from '@/app/extensions'
@@ -6,6 +7,7 @@ import { buildRoutes } from '@/app/routes'
 import { useSession } from '@/lib/session'
 import { auroraMembership, makeMe, mockMe } from '@/test/fixtures'
 import { preloadLazyRoutes, renderRoutes } from '@/test/render'
+import { server } from '@/test/server'
 
 beforeAll(preloadLazyRoutes, 60_000)
 
@@ -39,6 +41,12 @@ describe('staff area', () => {
 
   it('nests settings pages in the settings layout', async () => {
     mockMe(makeMe())
+    // The rooms page is real since phase B: an empty inventory is enough for the layout.
+    server.use(
+      http.get('/api/v1/inventory/rooms/', () => HttpResponse.json([])),
+      http.get('/api/v1/inventory/room-types/', () => HttpResponse.json([])),
+      http.get('/api/v1/inventory/custom-fields/', () => HttpResponse.json([])),
+    )
     renderRoutes(buildRoutes(), { route: '/app/settings/rooms' })
 
     expect(await screen.findByRole('heading', { name: 'Habitaciones', level: 1 })).toBeInTheDocument()
