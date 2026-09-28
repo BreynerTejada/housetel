@@ -1,8 +1,9 @@
-import { BedDouble, CalendarRange, ChevronDown, LogIn, LogOut } from 'lucide-react'
+import { Ban, BedDouble, CalendarRange, ChevronDown, LogIn, LogOut } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoneyText } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RoomKeyTag } from '@/features/inventory/components/RoomKeyTag'
 import { useActiveProperty } from '@/lib/auth'
@@ -10,9 +11,12 @@ import { formatDate, normalizeLang } from '@/lib/format'
 import { useCan } from '@/lib/permissions'
 import type { ReservationDetail, StayDetail } from '../api'
 import { stayLine, tr, unitLabel } from '../lib/labels'
-import { stayActions, type StayAction } from '../lib/stays'
+import { activeStays, stayActions, type StayAction } from '../lib/stays'
 
-/** One room of the reservation: key tag, category and rate, dates, nights and its actions. */
+/**
+ * One room of the reservation: key tag, category and rate, dates, nights and its actions — cancelling it on
+ * its own when the reservation has other rooms (pilot P3).
+ */
 export function StayCard({
   reservation,
   stay,
@@ -30,9 +34,12 @@ export function StayCard({
   const bd = property?.business_date ?? stay.checkin_date
   const canCheck = useCan('bookings.checkin')
   const canManage = useCan('bookings.manage')
+  const canCancel = useCan('bookings.cancel')
   const [showNights, setShowNights] = useState(false)
   const unit = unitLabel(stay.room?.number, stay.bed?.label)
-  const actions = stayActions(stay, bd).filter((action) => (action === 'checkin' || action === 'checkout' ? canCheck : canManage))
+  const actions = stayActions(stay, bd, activeStays(reservation).length).filter((action) =>
+    action === 'checkin' || action === 'checkout' ? canCheck : action === 'cancel' ? canCancel : canManage,
+  )
   const inactive = stay.status === 'cancelled' || stay.status === 'no_show'
 
   return (
@@ -52,6 +59,7 @@ export function StayCard({
               {tr(stay.room_type.name, i18n.language)}
             </h3>
             {stay.status !== reservation.status && <StatusBadge kind="reservation" status={stay.status} />}
+            {stay.group_block_id && <Badge tone="info">{t('stay.fromBlock')}</Badge>}
           </div>
           <p className="text-[13px] text-fg">{tr(stay.rate_plan.name, i18n.language)}</p>
           <p className="text-[13px] text-muted">
@@ -117,6 +125,12 @@ export function StayCard({
             <Button size="sm" onClick={() => onAction(stay, 'modify')}>
               <CalendarRange aria-hidden />
               {t('modify.title')}
+            </Button>
+          )}
+          {actions.includes('cancel') && (
+            <Button size="sm" variant="ghost" className="text-danger-ink hover:bg-danger-soft sm:ml-auto" onClick={() => onAction(stay, 'cancel')}>
+              <Ban aria-hidden />
+              {t('cancelStay.action')}
             </Button>
           )}
         </div>

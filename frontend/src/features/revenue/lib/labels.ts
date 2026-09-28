@@ -40,10 +40,18 @@ export interface ReasonLine {
 export function reasonLine(t: TFunction, reason: Reason, lang: Lang, currency: string): ReasonLine {
   if (reason.type === 'limit') {
     const price = formatMoney(reason.price, currency)
+    if (reason.kind === 'rounding') {
+      return {
+        title: t('revenue:reasons.rounding', { step: formatMoney(reason.step ?? '0', currency) }),
+        detail: t('revenue:reasons.roundingDetail', { from: formatMoney(reason.from ?? reason.price, currency) }),
+        value: price,
+        applied: true,
+      }
+    }
     if (reason.kind === 'max_daily_change') {
       return {
         title: t('revenue:reasons.maxDailyChange', { percent: percent(reason.percent ?? '0', lang) }),
-        detail: t('revenue:reasons.maxDailyChangeDetail'),
+        detail: t(reason.rounded ? 'revenue:reasons.maxDailyChangeRounded' : 'revenue:reasons.maxDailyChangeDetail'),
         value: price,
         applied: true,
       }

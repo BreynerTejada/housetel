@@ -181,6 +181,9 @@
   "reasons": {
     "maxDailyChange": "Daily change cap of {{percent}}",
     "maxDailyChangeDetail": "the price stays at",
+    "maxDailyChangeRounded": "after rounding, the price stays at",
+    "rounding": "Rounded to multiples of {{step}}",
+    "roundingDetail": "from {{from}} to the final price",
     "minPrice": "Price floor",
     "minPriceDetail": "the price goes up to",
     "maxPrice": "Price ceiling",

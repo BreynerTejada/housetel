@@ -124,6 +124,78 @@ def search_offers(
     return offers
 
 
+def room_offers(
+    *, property, checkin, checkout, promo_code=None, guest_is_foreign_non_resident=False, block=None
+) -> list[Offer]:
+    """Offers per room for the multi-room wizard (pilot plan P3): every active category with at least one unit
+    free on every night × the plans that sell it directly, quoted for ONE unit at the category's standard
+    occupancy (`base_occupancy` adults, at most `max_adults`; a dorm bed: one adult) — the desk then picks how
+    many of each and splits the guests. `units_needed` = 1, `total` = the unit's quote. A plan whose
+    restrictions fail those dates or without price is left out.
+
+    With `block` (a pickup from a group allotment) only the block's category is offered, and its availability
+    adds what the block still holds on each night (`blocks.availability_with_block`); restrictions are not
+    applied (a group's rooms were already agreed)."""
+    if not stay_nights(checkin, checkout):
+        return []
+    room_types = RoomType.objects.filter(property=property, is_active=True).order_by("sort_order", "code")
+    if block is not None:
+        room_types = room_types.filter(pk=block.room_type_id)
+    room_types = list(room_types)
+    if not room_types:
+        return []
+    if block is not None:
+        from apps.bookings.services.blocks import availability_with_block
+
+        available = {block.room_type_id: availability_with_block(block, checkin, checkout)}
+    else:
+        available = availability(
+            property=property, checkin=checkin, checkout=checkout, room_type_ids=[rt.pk for rt in room_types]
+        )
+    plans = list(
+        RatePlan.objects.filter(property=property, is_active=True)
+        .select_related("parent")
+        .prefetch_related("room_types")
+        .order_by("sort_order", "code")
+    )
+    offers = []
+    for room_type in room_types:
+        if available.get(room_type.pk, 0) < 1:
+            continue
+        dorm = room_type.kind == RoomType.Kind.DORM
+        adults = 1 if dorm else max(1, min(room_type.base_occupancy or 1, room_type.max_adults or 1))
+        for plan in plans:
+            if not plan_applies(plan, room_type, "direct"):
+                continue
+            unit_quote = quote(
+                property=property,
+                room_type=room_type,
+                rate_plan=plan,
+                checkin=checkin,
+                checkout=checkout,
+                adults=adults,
+                children=0,
+                promo_code=promo_code or None,
+                guest_is_foreign_non_resident=guest_is_foreign_non_resident,
+            )
+            if "no_rate" in unit_quote.violations or (block is None and not unit_quote.restrictions_ok):
+                continue
+            offers.append(
+                Offer(
+                    room_type_id=room_type.pk,
+                    rate_plan_id=plan.pk,
+                    available_units=available[room_type.pk],
+                    units_needed=1,
+                    quote=unit_quote,
+                    total=unit_quote.total,
+                )
+            )
+    order = {room_type.pk: index for index, room_type in enumerate(room_types)}
+    plan_order = {plan.pk: index for index, plan in enumerate(plans)}
+    offers.sort(key=lambda offer: (order[offer.room_type_id], offer.total, plan_order[offer.rate_plan_id]))
+    return offers
+
+
 def plan_applies(plan, room_type, channel) -> bool:
     """The plan sells this category on this channel (`channels` empty = every channel; "direct" also sells
     non-public plans, any other channel only public ones)."""

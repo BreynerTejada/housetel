@@ -1,20 +1,25 @@
-"""InventoryDay maintenance (plan B2b › Inventario).
+"""InventoryDay maintenance (plan B2b › Inventario; allotments: pilot plan P3).
 
-One row per (room_type, night): `total_units`, `sold_units`, `blocked_units`;
-`available = total − sold − blocked` (negative when overbooked). Units are rooms for private categories
-and beds for dorms.
+One row per (room_type, night): `total_units`, `sold_units`, `blocked_units`, `held_units`;
+`available = total − sold − blocked − held` (negative when overbooked). Units are rooms for private
+categories and beds for dorms.
 
 - `total_units`: active rooms (private) or active beds of active rooms (dorm).
 - `sold_units`: active stays (tentative | confirmed | checked_in) covering the night. A stay counts in the
   category of its assigned room (an upgrade occupies the upgraded category), else in its booked category.
 - `blocked_units`: distinct units under an active block (`released_at` null) of an active room; blocking a
   dorm room blocks all its active beds, blocking a bed blocks that bed.
+- `held_units`: units of group allotments not picked up yet — for every unreleased `GroupBlock` of the
+  category covering the night, `max(0, units − picked)`, where `picked` counts the stays created from the
+  block (`Stay.group_block`) in a pickup status (tentative | confirmed | checked_in | checked_out) that cover
+  the night. A pickup moves a unit from held to sold (availability unchanged); cancelling it gives the unit
+  back to the block until the block is released.
 
-`rebuild_inventory` recomputes rows from those tables (idempotent). Booking operations keep `sold_units` up to
-date incrementally with `adjust_inventory` inside their own transaction: rows are locked with
-`select_for_update()` in `(room_type_id, date)` order (the same order everywhere, so concurrent bookings queue
-instead of deadlocking) and missing rows are materialized first. Callers adjust inventory BEFORE writing the
-stays, so a materialization never counts the change twice.
+`rebuild_inventory` recomputes rows from those tables (idempotent). Booking operations keep `sold_units` and
+`held_units` up to date incrementally with `adjust_inventory` inside their own transaction: rows are locked
+with `select_for_update()` in `(room_type_id, date)` order (the same order everywhere, so concurrent bookings
+queue instead of deadlocking) and missing rows are materialized first. Callers adjust inventory BEFORE writing
+the stays (and blocks), so a materialization never counts the change twice.
 """
 
 import logging
@@ -27,7 +32,7 @@ from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.bookings.models import ACTIVE_STAY_STATUSES, InventoryDay, Stay
+from apps.bookings.models import ACTIVE_STAY_STATUSES, GroupBlock, InventoryDay, Stay
 from apps.bookings.types import AvailabilityError
 from apps.core.dates import daterange
 from apps.inventory.models import Bed, Room, RoomBlock, RoomType
@@ -38,7 +43,9 @@ HORIZON_PAST_DAYS = 7
 HORIZON_FUTURE_DAYS = 540
 MAX_DRIFT_DETAILS = 50
 ORIGIN = "bookings"  # `origin` kwarg of the inventory_changed events emitted by this app
-UNIT_FIELDS = ("total_units", "sold_units", "blocked_units")
+UNIT_FIELDS = ("total_units", "sold_units", "blocked_units", "held_units")
+# A stay created from an allotment counts as picked up in these statuses (a check-out keeps the pickup).
+PICKUP_STATUSES = ("tentative", "confirmed", "checked_in", "checked_out")
 
 
 @dataclass
@@ -100,6 +107,7 @@ def rebuild_inventory(property, start=None, end=None, room_type_ids=None) -> Reb
         )
         # Counted after the rows are locked: stays written by transactions that held these locks are visible.
         totals, sold, blocked = _count_units(property, type_ids, dorm_ids, start, end)
+        held = count_holds(type_ids, start, end)
         now = timezone.now()
         changed = []
         for row in locked:
@@ -108,6 +116,7 @@ def rebuild_inventory(property, start=None, end=None, room_type_ids=None) -> Reb
                 "total_units": totals[row.room_type_id],
                 "sold_units": sold[key],
                 "blocked_units": len(blocked[key]),
+                "held_units": held[key],
             }
             diffs = {
                 name: [getattr(row, name), value]
@@ -178,6 +187,30 @@ def _count_units(property, type_ids, dorm_ids, start, end):
     return totals, sold, blocked
 
 
+def count_holds(type_ids, start, end) -> Counter:
+    """{(room_type_id, night): held units} of the unreleased allotments of these categories over
+    `[start, end)`: per block and night `max(0, units − picked)`."""
+    held: Counter = Counter()
+    blocks = list(
+        GroupBlock.objects.filter(
+            room_type_id__in=list(type_ids), released_at__isnull=True, start__lt=end, end__gt=start
+        ).values_list("pk", "room_type_id", "start", "end", "units")
+    )
+    if not blocks:
+        return held
+    picked: Counter = Counter()  # (block id, night) → stays picked up from it
+    stays = Stay.objects.filter(
+        group_block_id__in=[block[0] for block in blocks], status__in=PICKUP_STATUSES
+    ).values_list("group_block_id", "checkin_date", "checkout_date")
+    for block_id, checkin, checkout in stays:
+        for night in daterange(checkin, checkout):
+            picked[(block_id, night)] += 1
+    for block_id, type_id, block_start, block_end, units in blocks:
+        for night in daterange(max(block_start, start), min(block_end, end)):
+            held[(type_id, night)] += max(0, units - picked[(block_id, night)])
+    return held
+
+
 def ensure_inventory(property, room_type_ids, start, end) -> None:
     """Materialize the rows of `[start, end)` that do not exist yet for these categories."""
     expected = (end - start).days
@@ -201,8 +234,8 @@ def available_by_date(property, room_type_ids, start, end) -> dict:
     rows = InventoryDay.objects.filter(
         room_type_id__in=list(room_type_ids), date__gte=start, date__lt=end
     ).values_list("room_type_id", "date", *UNIT_FIELDS)
-    for type_id, day, total, sold, blocked in rows:
-        result[type_id][day] = total - sold - blocked
+    for type_id, day, total, sold, blocked, held in rows:
+        result[type_id][day] = total - sold - blocked - held
     return result
 
 
@@ -223,17 +256,21 @@ def unit_type_id(stay):
     return stay.room_type_id
 
 
-def adjust_inventory(property, deltas, *, allow_overbooking=False) -> list[dict]:
-    """Apply `deltas` `{(room_type_id, date): ±units}` to `sold_units` under row locks.
+def adjust_inventory(property, deltas, *, allow_overbooking=False, held=None) -> list[dict]:
+    """Apply `deltas` `{(room_type_id, date): ±units}` to `sold_units` and `held` (same keys) to
+    `held_units`, under row locks.
 
-    Positive deltas must fit in the availability of their night; otherwise AvailabilityError (409) — or, with
-    `allow_overbooking`, the shortfalls are returned and applied anyway. Call it before writing the stays.
+    What a night must have available is its sold delta plus its held delta (a pickup takes a unit from the
+    allotment: +1 sold, −1 held, nothing new is needed). When that is positive it must fit in the night's
+    availability; otherwise AvailabilityError (409) — or, with `allow_overbooking`, the shortfalls are
+    returned and applied anyway. Call it before writing the stays (and blocks).
     """
     deltas = {key: delta for key, delta in deltas.items() if delta}
-    if not deltas:
+    held = {key: delta for key, delta in (held or {}).items() if delta}
+    if not deltas and not held:
         return []
     days_by_type: defaultdict = defaultdict(list)
-    for type_id, day in deltas:
+    for type_id, day in {*deltas, *held}:
         days_by_type[type_id].append(day)
     ranges = {type_id: (min(days), max(days) + timedelta(days=1)) for type_id, days in days_by_type.items()}
 
@@ -250,33 +287,40 @@ def adjust_inventory(property, deltas, *, allow_overbooking=False) -> list[dict]
             .filter(condition)
             .order_by("room_type_id", "date")
         }
+        needs = {key: deltas.get(key, 0) + held.get(key, 0) for key in {*deltas, *held}}
         shortfalls = [
             {
                 "room_type_id": str(type_id),
                 "date": day.isoformat(),
                 "available": rows[(type_id, day)].available,
-                "requested": delta,
+                "requested": need,
             }
-            for (type_id, day), delta in sorted(
-                deltas.items(), key=lambda item: (str(item[0][0]), item[0][1])
-            )
-            if delta > 0 and rows[(type_id, day)].available < delta
+            for (type_id, day), need in sorted(needs.items(), key=lambda item: (str(item[0][0]), item[0][1]))
+            if need > 0 and rows[(type_id, day)].available < need
         ]
         if shortfalls and not allow_overbooking:
             raise AvailabilityError(_shortfall_message(shortfalls), shortfalls=shortfalls)
         now = timezone.now()
         changed = []
-        for key, delta in deltas.items():
+        for key in needs:
             row = rows[key]
-            sold = row.sold_units + delta
-            if sold < 0:
-                logger.warning(
-                    "InventoryDay %s %s would go negative (%s); clamped to 0", key[0], key[1], sold
-                )
-                sold = 0
-            row.sold_units, row.updated_at = sold, now
+            for name, delta in (("sold_units", deltas.get(key, 0)), ("held_units", held.get(key, 0))):
+                if not delta:
+                    continue
+                value = getattr(row, name) + delta
+                if value < 0:
+                    logger.warning(
+                        "InventoryDay %s %s %s would go negative (%s); clamped to 0",
+                        key[0],
+                        key[1],
+                        name,
+                        value,
+                    )
+                    value = 0
+                setattr(row, name, value)
+            row.updated_at = now
             changed.append(row)
-        InventoryDay.objects.bulk_update(changed, ["sold_units", "updated_at"])
+        InventoryDay.objects.bulk_update(changed, ["sold_units", "held_units", "updated_at"])
     return shortfalls
 
 

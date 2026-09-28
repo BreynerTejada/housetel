@@ -19,6 +19,12 @@ Pillow>=12.3.0,<13
 phonenumbers>=9.0.40,<10
 qrcode>=8.2,<9
 python-dateutil>=2.9.0,<3
+# Production (plan P1): WSGI server, offline Swagger UI assets, S3-compatible storage, optional Sentry
+gunicorn>=26.2.0,<27
+drf-spectacular-sidecar>=2026.9.1
+django-storages[s3]>=1.14.6,<2
+boto3>=1.43.103,<2
+sentry-sdk[django,celery]>=2.70.0,<3
 # Tests and lint
 pytest>=9.1.1,<10
 pytest-django>=4.14.0,<5

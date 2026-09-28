@@ -118,7 +118,17 @@ def _raise_request_alert(request) -> None:
         ).strip(),
         link=f"/app/reservations/{reservation.pk}",
         dedupe_key=_alert_dedupe(request),
-        data={"request_id": str(request.pk), "reservation_id": str(reservation.pk), "kind": request.kind},
+        data={
+            "request_id": str(request.pk),
+            "reservation_id": str(reservation.pk),
+            "kind": request.kind,
+            # what the staff UI needs to write this alert in the viewer's language
+            "code": reservation.code,
+            "guest": reservation.booker.full_name,
+            "extra_name": request.extra.name if request.extra_id else None,
+            "time": f"{request.requested_time:%H:%M}" if request.requested_time else "",
+            "notes": (request.notes or "")[:300],
+        },
         source="guest",
     )
 

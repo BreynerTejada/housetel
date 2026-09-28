@@ -11,6 +11,8 @@ def _billing_cycle(property, params) -> RunResult:
 
     report = run_billing_cycle()
     details = report.as_dict()
+    if report.skipped:  # production without the platform's Wompi keys: nobody is charged nor suspended
+        return RunResult(status="skipped", summary=report.skipped, details=details)
     summary = (
         f"Pruebas convertidas {report.trials_converted} · renovaciones {report.renewed} · "
         f"pagos {report.paid} · "

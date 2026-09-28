@@ -1,4 +1,4 @@
-import { FlaskConical, PlugZap, Settings2, Zap } from 'lucide-react'
+import { BookOpenText, FlaskConical, PlugZap, Settings2, Zap } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { errorMessage } from '@/lib/errors'
 import { formatRelative, normalizeLang } from '@/lib/format'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { cn } from '@/lib/utils'
 import { useTestIntegration, useUpdateIntegration, type Integration, type IntegrationMode } from '../api'
+import { guideFor } from '../lib/guides'
+import { allowedModes } from '../lib/integrations'
 import { IntegrationIcon } from './badges'
 import { IntegrationStatusPill } from './IntegrationStatusPill'
 
@@ -15,15 +18,20 @@ interface Props {
   integration: Integration
   /** Opens the configuration sheet, optionally preselecting a mode (switching to real always goes there). */
   onConfigure: (integration: Integration, mode?: IntegrationMode) => void
+  /** Opens the sheet in real mode with the provider's step-by-step guide open (plan P6). */
+  onGuide: (integration: Integration) => void
 }
 
 /**
  * One integration of the hotel: what it does, its mode (the Real / Simulated switch), its connection state and
- * the two things people do with it — test the connection and configure it.
+ * what people do with it — read the provider's guide to real mode, test the connection and configure it.
  */
-export function IntegrationCard({ integration, onConfigure }: Props) {
+export function IntegrationCard({ integration, onConfigure, onGuide }: Props) {
   const { t, i18n } = useTranslation('control')
   const lang = normalizeLang(i18n.language)
+  const { simulations_enabled: simulations } = useRuntimeConfig()
+  const modes = allowedModes(integration, simulations)
+  const guide = guideFor(integration.kind, lang)
   const titleId = useId()
   const update = useUpdateIntegration()
   const test = useTestIntegration()
@@ -94,13 +102,14 @@ export function IntegrationCard({ integration, onConfigure }: Props) {
           >
             {(['real', 'simulated'] as const).map((mode) => {
               const Icon = mode === 'real' ? Zap : FlaskConical
-              const available = integration.available_modes.includes(mode)
+              const available = modes.includes(mode)
+              const reason = integration.providers[mode] ? t('integrations.mode.offHere') : t('integrations.mode.unavailable')
               return (
                 <ToggleGroupItem
                   key={mode}
                   value={mode}
                   disabled={!available}
-                  title={available ? undefined : t('integrations.mode.unavailable')}
+                  title={available ? undefined : reason}
                   className={cn(mode === 'real' && 'data-[state=on]:text-accent-ink')}
                 >
                   <Icon aria-hidden />
@@ -125,7 +134,13 @@ export function IntegrationCard({ integration, onConfigure }: Props) {
             {t('integrations.status.checked', { when: formatRelative(integration.last_checked_at, lang) })}
           </p>
         )}
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {guide && (
+            <Button size="sm" variant="ghost" onClick={() => onGuide(integration)} aria-label={t('integrations.card.guideLabel', { name: title })}>
+              <BookOpenText aria-hidden />
+              {t('integrations.card.guide')}
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={() => void runTest()} loading={test.isPending} disabled={!integration.enabled}>
             {!test.isPending && <PlugZap aria-hidden />}
             {test.isPending ? t('integrations.card.testing') : t('integrations.card.test')}

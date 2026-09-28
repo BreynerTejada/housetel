@@ -62,12 +62,15 @@ class FeeQuote:
 
 def free_until(reservation, snapshot) -> datetime | None:
     """`checkin_date` at the property's check-in time, in its timezone, minus `free_until_hours_before`."""
+    return _deadline(reservation.property, reservation.checkin_date, snapshot)
+
+
+def _deadline(prop, checkin_date, snapshot) -> datetime | None:
     hours = snapshot.get("free_until_hours_before")
     if hours is None or snapshot.get("non_refundable"):
         return None
-    prop = reservation.property
     arrival = datetime.combine(
-        reservation.checkin_date,
+        checkin_date,
         prop.check_in_time or time(15, 0),
         tzinfo=ZoneInfo(prop.timezone or "America/Bogota"),
     )
@@ -94,6 +97,28 @@ def cancellation_fee(reservation, *, now=None) -> FeeQuote:
     penalty_type = snapshot.get("penalty_type") or "first_night"
     return FeeQuote(
         _penalty(penalty_type, snapshot, stays, reservation.currency), penalty_type, deadline, snapshot
+    )
+
+
+def stay_cancellation_fee(stay, *, now=None) -> FeeQuote:
+    """Penalty for cancelling one room of a reservation now — the reservation's policy applied to that stay
+    alone (proportional): tentative or without policy → free; non-refundable → the stay's total; free until
+    `free_until_hours_before` its own arrival; after it `first_night` (its first night), `percent` (of its
+    total) or `full` (its total)."""
+    reservation = stay.reservation
+    snapshot = reservation.cancellation_policy_snapshot or {}
+    if reservation.status == "tentative" or stay.status == "tentative":
+        return FeeQuote(ZERO, "tentative", None, snapshot)
+    if not snapshot:
+        return FeeQuote(ZERO, "no_policy", None, {})
+    if snapshot.get("non_refundable"):
+        return FeeQuote(_total([stay]), "non_refundable", None, snapshot)
+    deadline = _deadline(reservation.property, stay.checkin_date, snapshot)
+    if deadline is not None and (now or timezone.now()) <= deadline:
+        return FeeQuote(ZERO, "free_window", deadline, snapshot)
+    penalty_type = snapshot.get("penalty_type") or "first_night"
+    return FeeQuote(
+        _penalty(penalty_type, snapshot, [stay], reservation.currency), penalty_type, deadline, snapshot
     )
 
 

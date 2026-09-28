@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useCan } from '@/lib/permissions'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { cn } from '@/lib/utils'
 import { useConversations, useUnreadCount, type Channel, type ConversationFilters } from '../api'
 import { ConversationListEmpty, ConversationRow } from '../components/ConversationList'
@@ -49,7 +50,9 @@ export default function InboxPage() {
   const q = params.get('q') ?? ''
   const [search, setSearch] = useState(q)
   const [limit, setLimit] = useState(PAGE)
-  const canSimulate = useCan('messaging.send')
+  const { simulations_enabled: simulations } = useRuntimeConfig()
+  // the WhatsApp simulator is a development/demo tool: never offered where simulations are off (production)
+  const canSimulate = useCan('messaging.send') && simulations
   const filters = useMemo(() => ({ ...filtersFor(view, channel, q), page_size: limit }), [view, channel, q, limit])
   const conversations = useConversations(filters)
   const unread = useUnreadCount()

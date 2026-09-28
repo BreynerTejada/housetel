@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from apps.bookings.models import Stay
 from apps.core import audit, integrations
 from apps.core.errors import ConflictError, DomainError
+from apps.core.runtime import require_simulations
 from apps.core.tenancy import PropertyScopedAPIView, PropertyScopedMixin
 from apps.messaging import editor, inbox
 from apps.messaging.api import serializers as s
@@ -596,6 +597,7 @@ def _reservation_ref(reservation) -> dict | None:
     }
 
 
+@require_simulations  # 404 where simulations are off (production)
 class SimulatorInboundView(PropertyScopedAPIView):
     """Play the guest: a WhatsApp message from `phone` lands in the inbox exactly like a real one (the guest
     is found by phone in the organization, or created as a WhatsApp contact). Only while the hotel's WhatsApp
@@ -622,6 +624,7 @@ class SimulatorInboundView(PropertyScopedAPIView):
         return Response(data, status=status.HTTP_201_CREATED)
 
 
+@require_simulations  # 404 where simulations are off (production)
 class SimulatorThreadView(PropertyScopedAPIView):
     """What the guest's phone shows: the WhatsApp chat of `phone` with this hotel (internal notes
     excluded)."""
@@ -664,6 +667,7 @@ class SimulatorThreadView(PropertyScopedAPIView):
         )
 
 
+@require_simulations  # 404 where simulations are off (production)
 class SimulatorContactsView(PropertyScopedAPIView):
     """Guests with a phone to play in the simulator: arrivals of the next days and in-house guests first, or
     the ones matching `q` (name or phone digits)."""

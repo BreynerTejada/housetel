@@ -337,10 +337,24 @@ def _parties(invoice, s) -> Table:
     customer = invoice.customer or {}
     place = ", ".join(x for x in (customer.get("city"), customer.get("country")) if x)
     buyer = [_p("ADQUIRIENTE", s["eyebrow"]), _p(customer.get("name", ""), s["strong"])]
+    if customer.get("trade_name") and customer.get("trade_name") != customer.get("name"):
+        buyer.append(_p(customer["trade_name"], s["muted"]))
     buyer.append(_p(_customer_document(customer), s["base"]))
+    if customer.get("company_id"):  # P4: invoice to a company
+        regime = "Responsable de IVA" if customer.get("vat_responsible") else "No responsable de IVA"
+        codes = " · ".join(customer.get("tax_responsibilities") or [])
+        buyer.append(_p(f"{regime}{f' · {codes}' if codes else ''}", s["muted"]))
     for value in (customer.get("address"), place, customer.get("email"), customer.get("phone")):
         if value:
             buyer.append(_p(value, s["muted"]))
+    if customer.get("payment_form") == "credit" and invoice.due_date:
+        buyer.append(
+            _p(
+                f"Forma de pago: crédito a {customer.get('payment_terms_days', 0)} días · vence el "
+                f"{invoice.due_date:%d/%m/%Y}",
+                s["base"],
+            )
+        )
     table = Table([[buyer, _stay_block(invoice, s)]], colWidths=[CONTENT_WIDTH / 2, CONTENT_WIDTH / 2])
     table.setStyle(
         TableStyle(
@@ -637,9 +651,20 @@ def _customer_party(root, customer) -> None:
     if customer.get("dv"):
         attrs["schemeID"] = customer["dv"]
     _el(scheme, "cbc:CompanyID", customer.get("document_number", ""), **attrs)
+    if customer.get("tax_responsibilities"):  # P4: a company's DIAN fiscal responsibilities (O-13;O-15…)
+        _el(
+            scheme,
+            "cbc:TaxLevelCode",
+            ";".join(customer["tax_responsibilities"]),
+            listName=customer.get("tax_regime", "48"),
+        )
     tax = _el(scheme, "cac:TaxScheme")
-    _el(tax, "cbc:ID", "ZZ")
-    _el(tax, "cbc:Name", "No aplica")
+    if customer.get("vat_responsible"):
+        _el(tax, "cbc:ID", "01")
+        _el(tax, "cbc:Name", "IVA")
+    else:
+        _el(tax, "cbc:ID", "ZZ")
+        _el(tax, "cbc:Name", "No aplica")
     contact = _el(party, "cac:Contact")
     _el(contact, "cbc:ElectronicMail", customer.get("email", ""))
 
@@ -701,8 +726,11 @@ def render_invoice_xml(invoice) -> bytes:
     _supplier_party(root, supplier_info(invoice.property))
     _customer_party(root, invoice.customer or {})
     means = _el(root, "cac:PaymentMeans")
-    _el(means, "cbc:ID", "1")
-    _el(means, "cbc:PaymentMeansCode", "10")
+    on_credit = (invoice.customer or {}).get("payment_form") == "credit" and invoice.due_date is not None
+    _el(means, "cbc:ID", "2" if on_credit else "1")  # forma de pago: 1 contado, 2 crédito (P4)
+    _el(means, "cbc:PaymentMeansCode", "ZZZ" if on_credit else "10")
+    if on_credit:
+        _el(means, "cbc:PaymentDueDate", invoice.due_date.isoformat())
     groups = _tax_groups(invoice)
     _tax_total(root, groups, currency)
     totals = _el(root, "cac:LegalMonetaryTotal")

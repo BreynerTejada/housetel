@@ -9,6 +9,8 @@ def issue_pending_invoices(property, params) -> RunResult:
     from apps.compliance.services.invoices import issue_pending_invoices as run
 
     report = run(property, lookback_days=int(params.get("lookback_days", 3)))
+    if report.get("skipped"):
+        return RunResult(status="skipped", summary=report["skipped"], details=report)
     summary = (
         f"{report['auto_issued']} facturas emitidas, {report['retried']} reintentos, "
         f"{report['refreshed']} consultas a la DIAN, {report['failed']} con error"
@@ -37,6 +39,8 @@ def tra_retry(property, params) -> RunResult:
     from apps.compliance.services.tra import retry_pending_tra
 
     report = retry_pending_tra(property)
+    if report.get("skipped"):
+        return RunResult(status="skipped", summary=report["skipped"], details=report)
     summary = (
         f"{report['retried']} registros TRA reintentados: {report['registered']} registrados, "
         f"{report['failed']} pendientes"

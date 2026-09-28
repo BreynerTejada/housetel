@@ -13,6 +13,12 @@ holds the resolution lock):
 A number is never reused: a document that fails keeps its number and is retried (`retry_invoice`, the
 automation `compliance.issue_pending_invoices`). Charges covered by an invoice in any status but `cancelled`
 cannot be invoiced again; a credit note (`issue_credit_note`) annuls the invoice and frees them.
+
+P4 (split folios): one invoice per folio and customer. The guest-side folios of a reservation (guest, master,
+house) are invoiced together to the booker; each company folio gets its own invoice to the company's NIT
+(`issue_reservation_invoices` issues them all; `issue_invoice(folio)` one). Invoices to a company with credit
+carry `due_date` (issue date + its payment terms). Opening balances of receivables (charges with
+`source="opening_balance"`, invoiced before Housetel) are never invoiced.
 """
 
 from __future__ import annotations
@@ -29,7 +35,7 @@ from django.utils import timezone
 from apps.bookings.models import ACTIVE_STAY_STATUSES, Reservation, Stay
 from apps.compliance.models import Invoice, InvoiceResolution
 from apps.compliance.services import numbering
-from apps.compliance.services.builder import build_document, invoice_customer
+from apps.compliance.services.builder import build_document, folio_customer
 from apps.compliance.services.config import get_settings, local_date, supplier_info
 from apps.compliance.services.documents import render_invoice_pdf, render_invoice_xml
 from apps.core import alerts, audit, integrations
@@ -50,10 +56,35 @@ DONE_STATUSES = (Invoice.Status.ISSUED, Invoice.Status.ACCEPTED)
 MAX_AUTO_ATTEMPTS = 8
 LOOKBACK_DAYS = 3
 KIND_FILE_NAMES = {Invoice.Kind.INVOICE: "factura", Invoice.Kind.CREDIT_NOTE: "nota-credito"}
+OPENING_BALANCE_SOURCE = "opening_balance"  # corporate.services: receivables invoiced before Housetel
 
 
 class InvoiceConflict(ConflictError):
     code = "invoice_conflict"
+
+
+class EinvoiceNotConfigured(ConflictError):
+    """The e-invoicing provider cannot work here (P-INT): real mode without its credentials or disabled, or
+    the simulated one where simulations are off (production). Nothing is numbered: the charges stay
+    pending."""
+
+    code = "einvoice_not_configured"
+
+
+EINVOICE_NOT_CONFIGURED = (
+    "La facturación electrónica no está configurada: actívala en Configuración → Integraciones → Factura "
+    "electrónica. Los cargos quedan pendientes de facturar."
+)
+
+
+def einvoice_ready(prop) -> bool:
+    """The e-invoicing integration can issue documents here (`core.integrations.is_operational`)."""
+    return integrations.is_operational(prop, "einvoice")
+
+
+def _ensure_einvoice(prop) -> None:
+    if not einvoice_ready(prop):
+        raise EinvoiceNotConfigured(EINVOICE_NOT_CONFIGURED)
 
 
 # ------------------------------------------------------------------------------------------------ helpers
@@ -67,9 +98,23 @@ def covered_charge_ids():
 
 
 def invoiceable_charges(folios):
-    return Charge.objects.filter(folio__in=folios, voided_at__isnull=True).exclude(
-        pk__in=covered_charge_ids()
+    return (
+        Charge.objects.filter(folio__in=folios, voided_at__isnull=True)
+        .exclude(pk__in=covered_charge_ids())
+        .exclude(source=OPENING_BALANCE_SOURCE)
     )
+
+
+def invoice_groups(reservation) -> list[list[Folio]]:
+    """Folios invoiced together (P4): guest-side folios (guest, master, house) in one invoice to the booker,
+    then each company folio on its own (to the company)."""
+    folios = list(
+        Folio.objects.filter(reservation=reservation).select_related("company").order_by("created_at")
+    )
+    guest_side = [folio for folio in folios if folio.folio_type != Folio.FolioType.COMPANY]
+    groups = [guest_side] if guest_side else []
+    groups += [[folio] for folio in folios if folio.folio_type == Folio.FolioType.COMPANY]
+    return groups
 
 
 def uninvoiced_by_reservation(property, reservation_ids=None) -> dict:
@@ -87,22 +132,21 @@ def uninvoiced_by_reservation(property, reservation_ids=None) -> dict:
 
 
 def _resolve(target) -> tuple[Reservation | None, list[Folio]]:
+    """A folio → itself; a reservation → its first group of folios (guest side, then each company folio) with
+    something to invoice."""
     if isinstance(target, Reservation):
-        folios = list(Folio.objects.filter(reservation=target).order_by("created_at"))
-        if not folios:
+        groups = invoice_groups(target)
+        if not groups:
             raise InvoiceConflict(
                 "La reserva no tiene folio con cargos para facturar", code="nothing_to_invoice"
             )
-        return target, folios
+        for group in groups:
+            if invoiceable_charges(group).exists():
+                return target, group
+        return target, groups[0]
     if isinstance(target, Folio):
         return target.reservation, [target]
     raise TypeError("issue_invoice espera una reserva o un folio")
-
-
-def _customer_guest(invoice):
-    if invoice.reservation_id:
-        return invoice.reservation.booker
-    return invoice.folio.guest
 
 
 def _user(actor):
@@ -117,12 +161,49 @@ def _file_name(invoice, extension: str) -> str:
 
 
 def issue_invoice(target, *, actor=None, source="user", issued_at=None, render=True) -> Invoice:
-    """Invoice the non-voided, not yet invoiced charges of a reservation (all its folios) or of one folio.
+    """Invoice the non-voided, not yet invoiced charges of one folio or, for a reservation, of its first group
+    of folios with pending charges (P4: guest side first, then each company folio; use
+    `issue_reservation_invoices` to invoice every group).
 
     `issued_at` backdates the document (seed / backfills: its date is the one the numbering validates);
     `render=False` leaves the PDF/XML to be generated on first download (`ensure_pdf` / `ensure_xml`)."""
     reservation, folios = _resolve(target)
+    return _issue(reservation, folios, actor=actor, source=source, issued_at=issued_at, render=render)
+
+
+def issue_for_folio(folio, *, actor=None, source="user", issued_at=None, render=True) -> Invoice:
+    """The invoice of a folio's group ("Facturar a"): a company folio alone; a guest-side folio together
+    with the reservation's other guest-side folios."""
+    if folio.reservation_id and folio.folio_type != Folio.FolioType.COMPANY:
+        group = next(
+            (group for group in invoice_groups(folio.reservation) if any(f.pk == folio.pk for f in group)),
+            [folio],
+        )
+        return _issue(
+            folio.reservation, group, actor=actor, source=source, issued_at=issued_at, render=render
+        )
+    return _issue(folio.reservation, [folio], actor=actor, source=source, issued_at=issued_at, render=render)
+
+
+def issue_reservation_invoices(
+    reservation, *, actor=None, source="user", issued_at=None, render=True
+) -> list:
+    """One invoice per group of folios of the reservation with something to invoice (guest side to the booker,
+    each company folio to its company). A numbering problem stops at the first failure (it raises)."""
+    issued = []
+    for group in invoice_groups(reservation):
+        total = invoiceable_charges(group).aggregate(total=Sum(F("amount") + F("tax_amount")))["total"] or 0
+        if total <= 0:
+            continue
+        issued.append(
+            _issue(reservation, group, actor=actor, source=source, issued_at=issued_at, render=render)
+        )
+    return issued
+
+
+def _issue(reservation, folios, *, actor=None, source="user", issued_at=None, render=True) -> Invoice:
     prop = folios[0].property
+    _ensure_einvoice(prop)  # before numbering: a document that cannot be sent never takes a number
     settings = get_settings(prop)
     moment = issued_at or timezone.now()
     day = local_date(prop, moment)
@@ -144,6 +225,8 @@ def issue_invoice(target, *, actor=None, source="user", issued_at=None, render=T
             resolution, number = numbering.assign_number(
                 prop, InvoiceResolution.DocumentKind.INVOICE, on_date=day
             )
+            terms = int(document.customer.get("payment_terms_days") or 0)
+            credit = document.customer.get("payment_form") == "credit"
             invoice = Invoice.objects.create(
                 property=prop,
                 reservation=reservation,
@@ -155,6 +238,7 @@ def issue_invoice(target, *, actor=None, source="user", issued_at=None, render=T
                 prefix=resolution.prefix,
                 full_number=f"{resolution.prefix}{number}",
                 issue_date=day,
+                due_date=day + timedelta(days=terms) if credit else None,
                 issued_at=moment,
                 currency=prop.currency,
                 customer=document.customer,
@@ -282,7 +366,12 @@ def _alert(invoice) -> None:
         message=invoice.error_message,
         link=f"/app/compliance?tab=invoices&invoice={invoice.pk}",
         dedupe_key=alert_key(invoice),
-        data={"invoice_id": str(invoice.pk), "status": invoice.status},
+        data={
+            "invoice_id": str(invoice.pk),
+            "status": invoice.status,
+            "number": invoice.full_number,
+            "document": "credit_note" if invoice.kind == Invoice.Kind.CREDIT_NOTE else "invoice",
+        },
         source="compliance",
     )
 
@@ -294,9 +383,10 @@ def retry_invoice(invoice, *, actor=None, source="user") -> Invoice:
     """Send again a draft / failed / rejected document (a rejected invoice takes the current customer data,
     the
     usual fix), or ask the provider about one still waiting for the DIAN (`issued`)."""
-    invoice = Invoice.objects.select_related("property", "reservation__booker", "folio__guest").get(
-        pk=invoice.pk
-    )
+    invoice = Invoice.objects.select_related(
+        "property", "reservation__booker", "folio__guest", "folio__company", "folio__reservation__booker"
+    ).get(pk=invoice.pk)
+    _ensure_einvoice(invoice.property)
     if invoice.status == Invoice.Status.ISSUED:
         return refresh_invoice(invoice, actor=actor, source=source)
     if invoice.status not in RETRYABLE_STATUSES:
@@ -306,7 +396,7 @@ def retry_invoice(invoice, *, actor=None, source="user") -> Invoice:
         )
     if invoice.kind == Invoice.Kind.INVOICE:
         settings = get_settings(invoice.property)
-        customer = invoice_customer(_customer_guest(invoice), final_consumer_id=settings.final_consumer_id)
+        customer = folio_customer(invoice.folio, final_consumer_id=settings.final_consumer_id)
         if customer != invoice.customer:
             invoice.customer = customer
             invoice.save(update_fields=["customer", "updated_at"])
@@ -314,6 +404,7 @@ def retry_invoice(invoice, *, actor=None, source="user") -> Invoice:
 
 
 def refresh_invoice(invoice, *, actor=None, source="user") -> Invoice:
+    _ensure_einvoice(invoice.property)
     provider = integrations.get_provider(invoice.property, "einvoice")
     try:
         result = provider.refresh(invoice)
@@ -352,6 +443,7 @@ def issue_credit_note(
     if not reason:
         raise DomainError("Indica el motivo de la nota crédito", code="reason_required")
     prop = invoice.property
+    _ensure_einvoice(prop)
     moment = issued_at or timezone.now()
     day = local_date(prop, moment)
     try:
@@ -450,7 +542,8 @@ def departed(reservation) -> bool:
 
 
 def auto_issue_on_checkout(stay) -> Invoice | None:
-    """Receiver of `stay_checked_out`: when the last stay leaves and the hotel invoices automatically."""
+    """Receiver of `stay_checked_out`: when the last stay leaves and the hotel invoices automatically. One
+    invoice per folio group (P4: the guest's and each company's); returns the first."""
     reservation = Reservation.objects.select_related("property").get(pk=stay.reservation_id)
     if not departed(reservation):
         return None
@@ -459,14 +552,18 @@ def auto_issue_on_checkout(stay) -> Invoice | None:
         return None
     if settings.go_live_date and reservation.checkout_date < settings.go_live_date:
         return None
+    if not einvoice_ready(reservation.property):  # stays in Pendientes → Facturas until it is configured
+        logger.info("Invoice of %s left pending: e-invoicing is not configured", reservation.code)
+        return None
     pending = uninvoiced_by_reservation(reservation.property, [reservation.pk]).get(reservation.pk)
     if not pending or pending["total"] <= 0:
         return None
     try:
-        return issue_invoice(reservation, source="automation")
+        issued = issue_reservation_invoices(reservation, source="automation")
     except DomainError as exc:  # numbering problems raise their own alert
         logger.warning("Automatic invoice of %s failed: %s", reservation.code, exc)
         return None
+    return issued[0] if issued else None
 
 
 def issue_pending_invoices(property, *, lookback_days=LOOKBACK_DAYS, max_attempts=MAX_AUTO_ATTEMPTS) -> dict:
@@ -475,6 +572,8 @@ def issue_pending_invoices(property, *, lookback_days=LOOKBACK_DAYS, max_attempt
     documents waiting for the DIAN and (with automatic invoicing on) invoice the reservations that left in the
     last `lookback_days` days without an invoice. Rejected documents wait for a person (they need a fix)."""
     report = {"retried": 0, "accepted": 0, "failed": 0, "refreshed": 0, "auto_issued": 0, "errors": []}
+    if not einvoice_ready(property):  # production before the hotel connects Factus: nothing to send yet
+        return {**report, "skipped": EINVOICE_NOT_CONFIGURED}
     retry = Invoice.objects.filter(
         property=property, status__in=(Invoice.Status.DRAFT, Invoice.Status.ERROR), attempts__lt=max_attempts
     )
@@ -499,7 +598,7 @@ def issue_pending_invoices(property, *, lookback_days=LOOKBACK_DAYS, max_attempt
         if reservation.pk not in pending or pending[reservation.pk]["total"] <= 0:
             continue
         try:
-            invoice = issue_invoice(reservation, source="automation")
+            issued = issue_reservation_invoices(reservation, source="automation")
         except DomainError as exc:
             report["failed"] += 1
             report["errors"].append(
@@ -508,7 +607,8 @@ def issue_pending_invoices(property, *, lookback_days=LOOKBACK_DAYS, max_attempt
             if isinstance(exc, numbering.NumberingError):  # no usable resolution: the rest would fail too
                 break
             continue
-        report["auto_issued"] += 1
-        if invoice.status not in DONE_STATUSES:
-            report["failed"] += 1
+        for invoice in issued:
+            report["auto_issued"] += 1
+            if invoice.status not in DONE_STATUSES:
+                report["failed"] += 1
     return report

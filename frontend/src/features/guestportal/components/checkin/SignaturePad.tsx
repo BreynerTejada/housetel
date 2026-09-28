@@ -96,7 +96,7 @@ export function SignaturePad({
           <span className="text-lg leading-none">×</span>
           <span className="mb-1 flex-1 border-b border-[#d5cdc2]" />
         </div>
-        <p aria-hidden className="pointer-events-none absolute right-4 bottom-3 text-xs text-[#948c81]">
+        <p aria-hidden className="pointer-events-none absolute right-4 bottom-3 text-xs text-[#6c655c]">
           {t('checkin.signature.padHint')}
         </p>
       </div>

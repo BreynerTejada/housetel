@@ -1,6 +1,7 @@
 """Deterministic explanation of one recommendation, in Spanish and English: the change, the rules that moved
-the price (with their adjustments), the limits that held it back and, when it differs from the current price,
-the reference (anchor) price it was computed from."""
+the price (with their adjustments), the limits that held it back, the commercial rounding (the recommended
+price is always the final, rounded one) and, when it differs from the current price, the reference (anchor)
+price it was computed from."""
 
 from decimal import Decimal
 
@@ -89,6 +90,9 @@ def _rule_label(reason: dict, lang: str) -> str:
 
 def _limit_label(reason: dict, lang: str, currency: str) -> str:
     kind = reason["kind"]
+    if kind == "rounding":
+        step = money(reason.get("step") or 0, lang, currency)
+        return f"redondeado a múltiplos de {step}" if lang == "es" else f"rounded to multiples of {step}"
     if kind == "max_daily_change":
         limit = percent(reason["percent"], lang)
         return (

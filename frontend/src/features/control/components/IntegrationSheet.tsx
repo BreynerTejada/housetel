@@ -1,5 +1,5 @@
-import { ArrowUpRight, Copy, FlaskConical, PlugZap, TriangleAlert, Webhook, Zap } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { ArrowUpRight, FlaskConical, PlugZap, TriangleAlert, Zap } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { errorMessage } from '@/lib/errors'
 import { formatRelative, normalizeLang } from '@/lib/format'
 import { usePermissionChecker } from '@/lib/permissions'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { cn } from '@/lib/utils'
 import {
   useTestIntegration,
@@ -20,30 +21,38 @@ import {
   type IntegrationMode,
   type IntegrationUpdate,
 } from '../api'
-import { KIND_META } from '../lib/integrations'
+import { guideFor } from '../lib/guides'
+import { allowedModes, isLive, KIND_META } from '../lib/integrations'
 import { IntegrationIcon } from './badges'
 import { ConfigFieldInput } from './ConfigFieldInput'
+import { IntegrationGuide } from './IntegrationGuide'
 import { IntegrationStatusPill } from './IntegrationStatusPill'
 
 interface Props {
   integration: Integration | null
   /** Mode preselected when the sheet opens (e.g. the user clicked "Real" on the card). */
   initialMode?: IntegrationMode
+  /** Opened from the card's "Guía" button: the step-by-step guide starts open and in view. */
+  focusGuide?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-/** Configuration of one integration: mode, the provider's form (from its CONFIG_FIELDS), on/off and a test. */
-export function IntegrationSheet({ integration, initialMode, open, onOpenChange }: Props) {
+/**
+ * Configuration of one integration: mode, the provider's step-by-step guide to real mode (plan P6), its form
+ * (from its CONFIG_FIELDS, each value with where it lives in the provider's panel), on/off and a test.
+ */
+export function IntegrationSheet({ integration, initialMode, focusGuide = false, open, onOpenChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(34rem,100vw)]">
         {integration && (
           <IntegrationForm
             // a new form per integration and preselected mode; tests and saves refresh `integration` in place
-            key={`${integration.kind}:${initialMode ?? integration.mode}`}
+            key={`${integration.kind}:${initialMode ?? integration.mode}:${focusGuide ? 'guide' : 'form'}`}
             integration={integration}
             initialMode={initialMode ?? integration.mode}
+            focusGuide={focusGuide}
             onClose={() => onOpenChange(false)}
           />
         )}
@@ -61,15 +70,30 @@ function initialValues(fields: ConfigField[], config: Record<string, ConfigValue
   return values
 }
 
-function IntegrationForm({ integration, initialMode, onClose }: { integration: Integration; initialMode: IntegrationMode; onClose: () => void }) {
+function IntegrationForm({
+  integration,
+  initialMode,
+  focusGuide,
+  onClose,
+}: {
+  integration: Integration
+  initialMode: IntegrationMode
+  focusGuide: boolean
+  onClose: () => void
+}) {
   const { t, i18n } = useTranslation('control')
   const lang = normalizeLang(i18n.language)
   const can = usePermissionChecker()
   const update = useUpdateIntegration()
   const test = useTestIntegration()
+  const { simulations_enabled: simulations } = useRuntimeConfig()
   const kindText = (key: string) => t(`integrations.kinds.${integration.kind}.${key}`)
   const title = kindText('title')
   const meta = KIND_META[integration.kind] ?? {}
+  const modes = allowedModes(integration, simulations)
+  const guide = guideFor(integration.kind, lang)
+  const whereOf = (name: string) => guide?.keys.find((key) => key.field === name)?.where
+  const guideRef = useRef<HTMLDivElement>(null)
 
   const [mode, setMode] = useState<IntegrationMode>(initialMode)
   const [enabled, setEnabled] = useState(integration.enabled)
@@ -79,6 +103,20 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [missing, setMissing] = useState<string[]>([])
+
+  // The card's "Guía" button: bring the guide into view once the sheet has animated in (scrolling only the
+  // sheet's body, so its header with the integration's name stays in place).
+  useEffect(() => {
+    if (!focusGuide) return
+    const timer = window.setTimeout(() => {
+      const guide = guideRef.current
+      const body = guide?.closest<HTMLElement>('.overflow-y-auto')
+      if (!guide || !body) return
+      const top = body.scrollTop + guide.getBoundingClientRect().top - body.getBoundingClientRect().top - 12
+      body.scrollTo({ top, behavior: 'smooth' })
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [focusGuide])
 
   const switchingToReal = mode === 'real' && integration.mode !== 'real'
   const dirty =
@@ -154,20 +192,13 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
     }
   }
 
-  async function copyWebhook(url: string) {
-    try {
-      await navigator.clipboard.writeText(url)
-      toast.success(t('integrations.webhook.copied'))
-    } catch {
-      toast.error(url)
-    }
-  }
-
   const fieldLabel = (name: string) => {
     const field = fields.find((item) => item.name === name)
     return field ? (lang === 'en' ? field.label_en : field.label_es) : name
   }
-  const webhookUrl = meta.webhookPath ? `${window.location.origin}${meta.webhookPath}` : null
+  // The provider's environment as the form stands (a select without a value uses its default: sandbox/staging).
+  const environmentValue = values.environment ?? fields.find((field) => field.name === 'environment')?.default ?? null
+  const environment = typeof environmentValue === 'string' ? environmentValue : null
 
   return (
     <form onSubmit={submit} className="flex h-full min-h-0 flex-col">
@@ -186,7 +217,7 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
           <legend className="eyebrow mb-2">{t('integrations.sheet.modeTitle')}</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {(['real', 'simulated'] as const).map((option) => {
-              const available = integration.available_modes.includes(option)
+              const available = modes.includes(option)
               const info = integration.providers[option]
               const Icon = option === 'real' ? Zap : FlaskConical
               const selected = mode === option
@@ -214,7 +245,13 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
                     {t(`integrations.mode.${option}`)}
                   </span>
                   <span className="text-xs text-muted">
-                    {available ? (lang === 'en' && info?.label_en ? info.label_en : info?.label) : t('integrations.mode.unavailable')}
+                    {available
+                      ? lang === 'en' && info?.label_en
+                        ? info.label_en
+                        : info?.label
+                      : integration.providers[option]
+                        ? t('integrations.mode.offHere')
+                        : t('integrations.mode.unavailable')}
                   </span>
                   <span className="text-xs text-fg/80">{kindText(option)}</span>
                 </label>
@@ -224,11 +261,20 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
         </fieldset>
 
         {mode === 'real' ? (
-          <section className="grid gap-4">
+          <section className="grid grid-cols-1 gap-4">
             <p className="flex gap-2 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-[13px] text-warning-ink">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               {t('integrations.sheet.realWarning')}
             </p>
+            <div ref={guideRef} className="min-w-0">
+              <IntegrationGuide
+                integration={integration}
+                environment={environment}
+                fieldLabel={fieldLabel}
+                // open while it is not live yet (or when asked from the card); once live it folds away
+                defaultOpen={focusGuide || !isLive(integration)}
+              />
+            </div>
             <div className="grid gap-4">
               <h3 className="eyebrow">{t('integrations.sheet.fieldsTitle')}</h3>
               {fields.length === 0 && <p className="text-sm text-muted">{t('integrations.sheet.noFields')}</p>}
@@ -251,27 +297,11 @@ function IntegrationForm({ integration, initialMode, onClose }: { integration: I
                     })
                   }
                   missing={missing.includes(field.name)}
+                  where={whereOf(field.name)}
                 />
               ))}
               {fields.some((field) => field.secret) && <p className="text-xs text-subtle">{t('integrations.sheet.secretHint')}</p>}
             </div>
-            {webhookUrl && (
-              <div className="grid gap-1.5 rounded-lg border border-border bg-surface-2/60 p-3">
-                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
-                  <Webhook aria-hidden className="size-4 text-muted" />
-                  {t('integrations.webhook.title')}
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="num min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-fg" title={webhookUrl}>
-                    {webhookUrl}
-                  </code>
-                  <Button type="button" size="icon-sm" variant="ghost" aria-label={t('integrations.webhook.copy')} onClick={() => void copyWebhook(webhookUrl)}>
-                    <Copy aria-hidden />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted">{t(`integrations.webhook.${integration.kind}`)}</p>
-              </div>
-            )}
           </section>
         ) : (
           <p className="text-sm text-muted">{t('integrations.sheet.simulatedNote')}</p>

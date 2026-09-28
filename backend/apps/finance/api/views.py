@@ -65,7 +65,7 @@ class FolioViewSet(
 ):
     """Folios of the active property. `GET folios/?reservation=<id>&status=open|closed`."""
 
-    queryset = Folio.objects.select_related("reservation__booker", "guest", "property")
+    queryset = Folio.objects.select_related("reservation__booker", "guest", "property", "company")
     serializer_class = s.FolioSummarySerializer
     lookup_value_regex = UUID_REGEX
     required_permissions = {
@@ -87,7 +87,12 @@ class FolioViewSet(
         return queryset.order_by("created_at")
 
     def get_serializer_context(self):
-        return {**super().get_serializer_context(), "totals": reporting.folio_totals}
+        # The folios of one reservation (the folio panel's tabs) also carry each folio's expected balance.
+        with_expected = bool(self.request.query_params.get("reservation")) if self.request else False
+        return {
+            **super().get_serializer_context(),
+            "totals": lambda obj: reporting.folio_totals(obj, with_expected=with_expected),
+        }
 
     def _detail(self, folio_id):
         folio = (
@@ -189,26 +194,28 @@ class FolioViewSet(
     @action(detail=True, methods=["post"])
     def charges(self, request, pk=None):
         """Post an extra (`{extra_id, quantity?}`) or a manual line (`{kind, description, amount, quantity?,
-        tax_id?}`; `amount` is the NET unit price; only adjustments may be negative)."""
+        tax_id?}`; `amount` is the NET unit price; only adjustments may be negative). The charge goes to THIS
+        folio (the staff chose it): the reservation's billing rules apply only to automatic charges."""
         folio = self.get_object()
         data = s.ChargeCreateSerializer(data=request.data, context={"property": request.property})
         data.is_valid(raise_exception=True)
         values = data.validated_data
-        if "extra" in values:
-            charge = services.post_extra_charge(
-                folio, values["extra"], quantity=values["quantity"], actor=request.user
-            )
-        else:
-            charge = services.post_charge(
-                folio,
-                kind=values["kind"],
-                amount=values["amount"],
-                description=values["description"],
-                quantity=values["quantity"],
-                tax=values["tax"],
-                tax_exempt=services.is_tax_exempt(folio, values["tax"]),
-                actor=request.user,
-            )
+        with services.explicit_folio():
+            if "extra" in values:
+                charge = services.post_extra_charge(
+                    folio, values["extra"], quantity=values["quantity"], actor=request.user
+                )
+            else:
+                charge = services.post_charge(
+                    folio,
+                    kind=values["kind"],
+                    amount=values["amount"],
+                    description=values["description"],
+                    quantity=values["quantity"],
+                    tax=values["tax"],
+                    tax_exempt=services.is_tax_exempt(folio, values["tax"]),
+                    actor=request.user,
+                )
         return Response(s.ChargeSerializer(charge).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=s.ManualPaymentSerializer, responses={201: s.PaymentSerializer})
@@ -282,12 +289,51 @@ class FolioViewSet(
         }
 
 
+def _target_folio(request, folio_id) -> Folio:
+    return get_object_or_404(Folio, pk=folio_id, property=request.property)
+
+
 class ChargeViewSet(PropertyScopedMixin, viewsets.GenericViewSet):
     queryset = Charge.objects.select_related("folio__property", "tax", "posted_by", "voided_by")
     serializer_class = s.ChargeSerializer
     property_field = "folio__property"
     lookup_value_regex = UUID_REGEX
-    required_permissions = {"void": "finance.void"}
+    required_permissions = {"void": "finance.void", "transfer": "finance.collect", "split": "finance.collect"}
+
+    @extend_schema(request=s.TransferSerializer, responses=s.ChargeSerializer)
+    @action(detail=True, methods=["post"])
+    def transfer(self, request, pk=None):
+        """P4: move the charge to another open folio of the same reservation (`{to_folio_id, reason?}`)."""
+        data = s.TransferSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        charge = services.transfer_charge(
+            self.get_object(),
+            to_folio=_target_folio(request, data.validated_data["to_folio_id"]),
+            actor=request.user,
+            reason=data.validated_data["reason"],
+        )
+        return Response(s.ChargeSerializer(self.get_queryset().get(pk=charge.pk)).data)
+
+    @extend_schema(request=s.SplitChargeSerializer, responses={201: s.SplitResultSerializer})
+    @action(detail=True, methods=["post"])
+    def split(self, request, pk=None):
+        """P4: split the charge — `amount` (total with tax) to a new charge on `to_folio_id` (default: same);
+        the original is voided and the rest stays as another charge."""
+        data = s.SplitChargeSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        values = data.validated_data
+        target = _target_folio(request, values["to_folio_id"]) if values.get("to_folio_id") else None
+        rest, part = services.split_charge(
+            self.get_object(),
+            amount=values["amount"],
+            to_folio=target,
+            actor=request.user,
+            reason=values["reason"],
+        )
+        return Response(
+            {"rest": s.ChargeSerializer(rest).data, "part": s.ChargeSerializer(part).data},
+            status=status.HTTP_201_CREATED,
+        )
 
     @extend_schema(request=s.ReasonConfirmSerializer, responses=s.ChargeSerializer)
     @action(detail=True, methods=["post"])
@@ -311,7 +357,21 @@ class PaymentViewSet(PropertyScopedMixin, viewsets.GenericViewSet):
     serializer_class = s.PaymentSerializer
     property_field = "folio__property"
     lookup_value_regex = UUID_REGEX
-    required_permissions = {"void": "finance.void", "refund": "finance.refund"}
+    required_permissions = {"void": "finance.void", "refund": "finance.refund", "transfer": "finance.collect"}
+
+    @extend_schema(request=s.TransferSerializer, responses=s.PaymentSerializer)
+    @action(detail=True, methods=["post"])
+    def transfer(self, request, pk=None):
+        """P4: move an approved payment without refunds to another open folio of the same reservation."""
+        data = s.TransferSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        payment = services.transfer_payment(
+            self.get_object(),
+            to_folio=_target_folio(request, data.validated_data["to_folio_id"]),
+            actor=request.user,
+            reason=data.validated_data["reason"],
+        )
+        return Response(s.PaymentSerializer(self.get_queryset().get(pk=payment.pk)).data)
 
     @extend_schema(request=s.ReasonConfirmSerializer, responses=s.PaymentSerializer)
     @action(detail=True, methods=["post"])

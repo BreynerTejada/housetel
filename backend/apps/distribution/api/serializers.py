@@ -346,7 +346,10 @@ class ChannelConnectionWriteSerializer(serializers.Serializer):
                     try:
                         check_public_url(url)
                     except ChannelError as exc:
-                        problems.append(f"Fila {index}: {exc.message}")
+                        # a name that does not resolve right now is accepted (the download checks it again
+                        # when it connects); an internal address never is
+                        if exc.code != "dns_error":
+                            problems.append(f"Fila {index}: {exc.message}")
             else:
                 item["ical_import_url"] = ""
         if problems:
@@ -416,6 +419,9 @@ class ChannelConnectionWriteSerializer(serializers.Serializer):
             errors["mode"] = ["Modo inválido: real o simulated"]
         if attrs.get("mode") and attrs["mode"] not in integrations.providers_for(kind):
             errors["mode"] = ["No hay proveedor para ese modo"]
+        elif attrs.get("mode") and not integrations.mode_allowed(kind, attrs["mode"]):
+            # Production (simulations off): iCal and Channex only in real mode (`options/` offers the same).
+            errors["mode"] = ["El modo simulado no está disponible en este entorno"]
         fields = {field["name"]: field for field in config_fields(kind)}
         problems = []
         for key, value in (integration.get("config") or {}).items():

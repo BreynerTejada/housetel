@@ -42,7 +42,8 @@ class PortalView(APIView):
         visible = Invoice.objects.none()
         for kind, statuses in VISIBLE.items():
             visible |= Invoice.objects.filter(reservation=reservation, kind=kind, status__in=statuses)
-        return visible.order_by("created_at")
+        # P4: a company folio's documents belong to the company (an agency's net rate…), never to the guest.
+        return visible.exclude(folio__folio_type="company").order_by("created_at")
 
 
 class PortalInvoicesView(PortalView):

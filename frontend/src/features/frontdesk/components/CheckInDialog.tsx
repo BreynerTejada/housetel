@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { countryName } from '@/features/guests/countries'
 import { formatDocument, formatPhone } from '@/features/guests/format'
+import { isApiError } from '@/lib/api'
 import { useActiveProperty } from '@/lib/auth'
 import { errorMessage } from '@/lib/errors'
 import { normalizeLang } from '@/lib/format'
@@ -123,6 +124,9 @@ function CheckInForm({
   const [picked, setPicked] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The backend refused because the guest leaving is still in that room (409 `room_occupied`, pilot P3): the
+  // desk read the message and can confirm again to check in anyway.
+  const [occupiedConfirm, setOccupiedConfirm] = useState<string | null>(null)
 
   const current = currentUnit(stay.room, stay.bed, stay.room_type.code)
   const units = orderUnits(current, options.data ?? [], occupied)
@@ -143,8 +147,11 @@ function CheckInForm({
     }
     if (selected.occupiedBy) warnings.push({ key: 'occupied', text: t('checkin.roomOccupied', { room, name: selected.occupiedBy }) })
   }
+  if (occupiedConfirm && !warnings.some((warning) => warning.key === 'occupied')) warnings.push({ key: 'occupied', text: occupiedConfirm })
   const reasons = [...blockers, ...warnings]
-  const force = blockers.length > 0
+  // A second look was given to everything listed (the button says "Hacer check-in igual"): the backend also
+  // refuses an occupied room (409 `room_occupied`) unless forced.
+  const force = reasons.length > 0
 
   async function confirm() {
     setSaving(true)
@@ -160,7 +167,12 @@ function CheckInForm({
       toast.success(t('checkin.done', { name: reservation.booker.full_name, room }))
       onDone(detail)
     } catch (err) {
-      setError(errorMessage(err, t))
+      if (isApiError(err) && err.code === 'room_occupied') {
+        setOccupiedConfirm(err.message)
+        setError(null)
+      } else {
+        setError(errorMessage(err, t))
+      }
       await queryClient.invalidateQueries({ queryKey: bookingKeys.reservation(reservation.id) })
       await queryClient.invalidateQueries({ queryKey: bookingKeys.roomOptions(stay.id) })
     } finally {
@@ -193,7 +205,15 @@ function CheckInForm({
           ) : units.length === 0 ? (
             <p className="text-[13px] text-muted">{t('checkin.noRooms')}</p>
           ) : (
-            <RoomChoice units={units} value={selected?.key ?? null} onChange={setPicked} labelId={roomsLabel} />
+            <RoomChoice
+              units={units}
+              value={selected?.key ?? null}
+              onChange={(key) => {
+                setPicked(key)
+                setOccupiedConfirm(null)
+              }}
+              labelId={roomsLabel}
+            />
           )}
         </section>
 

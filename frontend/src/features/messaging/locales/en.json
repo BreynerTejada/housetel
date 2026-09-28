@@ -353,7 +353,9 @@
     "openInbox": "See it in the inbox",
     "emptyChat": "No messages yet. Say hi to the hotel.",
     "newContact": "New number: writing creates it as a contact",
-    "reservation": "Booking {{code}}"
+    "reservation": "Booking {{code}}",
+    "unavailableTitle": "The simulator does not exist in this environment",
+    "unavailableHint": "The WhatsApp simulator is a demo tool: simulations are turned off here. Connect your real WhatsApp Business number in Settings › Integrations."
   },
   "commands": {
     "unread": "See unread messages"

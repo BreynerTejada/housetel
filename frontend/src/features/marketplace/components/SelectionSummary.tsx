@@ -1,8 +1,10 @@
 import { X } from 'lucide-react'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { MoneyText } from '@/components/Money'
 import { Button } from '@/components/ui/button'
+import { useChatOffset } from '@/features/ai/lib/chat-offset'
 import { cn } from '@/lib/utils'
 import type { Offer } from '../api'
 import { selectionSummary, type SelectionItem } from '../lib/selection'
@@ -78,13 +80,21 @@ export function SelectionSummary({ items, offers, currency, taxExempt, checkoutH
   )
 }
 
-/** Phones: the total and the button stay at the bottom of the screen once something is picked. */
+/**
+ * Phones: the total and the button stay at the bottom of the screen once something is picked. The hotel's chat
+ * bubble floats above the bar (it reads the bar's height), so it never covers "Reservar" (plan P6).
+ */
 export function MobileSelectionBar({ items, offers, currency, checkoutHref }: Omit<SelectionSummaryProps, 'onRemove' | 'taxExempt'>) {
   const { t } = useTranslation('marketplace')
   const summary = selectionSummary(items, offers)
+  const bar = useRef<HTMLDivElement>(null)
+  useChatOffset(bar, summary.lines > 0)
   if (summary.lines === 0) return null
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-4 py-3 shadow-lg backdrop-blur lg:hidden">
+    <div
+      ref={bar}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur lg:hidden"
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
         <div>
           <p className="text-xs text-muted">{t('hotel.summary.rooms', { count: summary.rooms })}</p>

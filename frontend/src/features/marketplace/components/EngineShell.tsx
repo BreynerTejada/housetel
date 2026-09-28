@@ -6,6 +6,7 @@ import { LanguageMenu } from '@/app/shell/LanguageMenu'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingState } from '@/components/LoadingState'
 import { LogoMark } from '@/components/Logo'
+import { LegalFooterLinks } from '@/features/saas/components/LegalFooterLinks'
 import { cn } from '@/lib/utils'
 import { useEngineConfig, type EngineConfig } from '../api'
 import { useBrandTheme } from '../lib/useBrandTheme'
@@ -120,10 +121,13 @@ export function EngineShell({ slug, children }: { slug: string; children: (confi
               </div>
             )}
           </div>
-          <p className="flex items-center gap-2 text-xs text-muted">
-            <LogoMark className="size-5" />
-            {t('engine.poweredBy')}
-          </p>
+          <div className="grid gap-2 sm:justify-items-end">
+            <p className="flex items-center gap-2 text-xs text-muted">
+              <LogoMark className="size-5" />
+              {t('engine.poweredBy')}
+            </p>
+            <LegalFooterLinks />
+          </div>
         </div>
       </footer>
     </div>

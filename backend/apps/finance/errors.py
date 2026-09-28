@@ -61,6 +61,18 @@ class SimulationDisabled(ConflictError):
     code = "simulation_disabled"
 
 
+class ChargeInvoicedError(ConflictError):
+    """P4: the charge is covered by an electronic invoice; annul it with a credit note before moving it."""
+
+    code = "charge_invoiced"
+
+
+class FolioMismatchError(DomainError):
+    """P4: charges and payments move only between open folios of the same reservation."""
+
+    code = "folio_mismatch"
+
+
 class ProviderError(Exception):
     """A payment provider call failed (network, HTTP error, unexpected answer). Never shown raw to guests."""
 

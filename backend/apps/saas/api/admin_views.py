@@ -18,6 +18,7 @@ from apps.core.api.pagination import StandardPagination
 from apps.core.errors import ConfirmationRequired, DomainError
 from apps.core.integrations import get_provider, get_setting
 from apps.core.models import Organization
+from apps.core.runtime import public_base_url
 from apps.saas.api.permissions import IsPlatformAdmin
 from apps.saas.api.serializers import (
     CommissionSerializer,
@@ -568,6 +569,8 @@ def _billing_settings_payload() -> dict:
     return {
         "mode": setting.mode,
         "enabled": setting.enabled,
+        # P-INT: False = the billing cycle charges nobody (production without WOMPI_PLATFORM_* or disabled).
+        "collection_available": billing.collection_available(),
         "status": setting.status,
         "status_message": setting.status_message,
         "last_checked_at": setting.last_checked_at,
@@ -577,7 +580,7 @@ def _billing_settings_payload() -> dict:
             "private_key_configured": bool(settings.WOMPI_PLATFORM_PRIVATE_KEY),
             "integrity_secret_configured": bool(settings.WOMPI_PLATFORM_INTEGRITY_SECRET),
             "events_secret_configured": bool(settings.WOMPI_PLATFORM_EVENTS_SECRET),
-            "webhook_url": f"{settings.FRONTEND_URL}/api/v1/public/saas/webhooks/wompi/",
+            "webhook_url": f"{public_base_url()}/api/v1/public/saas/webhooks/wompi/",
         },
     }
 

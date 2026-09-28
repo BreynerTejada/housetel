@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CircleDashed, FileText, QrCode, X } from 'lucide-react'
+import { Check, CircleDashed, FileText, QrCode, ShieldCheck, X } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
@@ -99,6 +100,18 @@ function CheckinDetail({ checkin }: { checkin: StaffCheckin }) {
 
       {checkin.signature_url && (
         <SignaturePanel url={checkin.signature_url} name={booker ? guestName(booker) : ''} checkin={checkin} lang={lang} timeZone={timeZone} />
+      )}
+
+      {checkin.retention_purged_at && (
+        <p className="flex items-start gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3 text-[13px] text-muted">
+          <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-success-ink" />
+          <span>
+            {t('staff.retentionPurged', { date: formatHotelDateTime(checkin.retention_purged_at, timeZone, lang) })}{' '}
+            <Link to="/legal/privacidad" className="font-semibold text-accent-ink underline-offset-4 hover:underline">
+              {t('staff.retentionPolicy')}
+            </Link>
+          </span>
+        </p>
       )}
     </div>
   )

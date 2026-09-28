@@ -1,0 +1,105 @@
+# Housetel CI (plan P1): backend lint + checks + tests against real PostgreSQL/Redis, frontend typecheck + lint +
+# tests + build, and a build of the production images. Tests that call the real LLM are excluded (live_llm).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (ruff, checks, pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: housetel
+          POSTGRES_USER: housetel
+          POSTGRES_PASSWORD: housetel
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U housetel -d housetel"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://housetel:housetel@localhost:5432/housetel
+      REDIS_URL: redis://localhost:6379/0
+      DJANGO_SECRET_KEY: ci-not-a-secret
+      EMAIL_HOST: localhost
+      EMAIL_PORT: "1025"
+      TEST_DB_NAME: test_housetel_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Django checks, migrations and OpenAPI schema
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py spectacular --validate --fail-on-warn --file /tmp/schema.yaml
+      - name: Tests
+        run: pytest -q -m "not live_llm"
+
+  frontend:
+    name: Frontend (typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  images:
+    name: Production images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the backend and nginx images (docker-compose.prod.yml)
+        env:
+          PROD_ENV_FILE: deploy/env.prod.example
+        run: docker compose -p housetel-prod -f docker-compose.prod.yml --env-file deploy/env.prod.example build

@@ -1,0 +1,14 @@
+# Proxy to gunicorn. Django sets its own security headers on these responses (X-Frame-Options DENY, nosniff,
+# HSTS, Referrer-Policy) and reads X-Forwarded-Proto (SECURE_PROXY_SSL_HEADER) and X-Forwarded-For (DRF
+# NUM_PROXIES) from here. X-Request-ID ties this access log line to Django's JSON logs.
+proxy_http_version 1.1;
+proxy_set_header Connection "";
+proxy_set_header Host $http_host;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $housetel_proto;
+proxy_set_header X-Forwarded-Host $http_host;
+proxy_set_header X-Request-ID $request_id;
+proxy_redirect off;
+proxy_connect_timeout 10s;
+proxy_send_timeout 120s;
+proxy_read_timeout 120s;

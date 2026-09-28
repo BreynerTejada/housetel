@@ -222,7 +222,7 @@ class LLMService:
             ),
             link="/app/settings/ai",
             dedupe_key=dedupe_key,
-            data={"provider": self.provider, "error": reason[:500]},
+            data={"provider": self.provider, "provider_label": label, "error": reason[:500]},
             source="ai",
         )
 

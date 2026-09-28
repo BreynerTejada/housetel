@@ -9,11 +9,12 @@ from django.db.models import Exists, OuterRef, Q
 
 from apps.bookings.models import Reservation, Stay
 from apps.compliance.models import Invoice, InvoiceResolution, SireReport, TraRegistration
-from apps.compliance.services.builder import build_document
+from apps.compliance.services.builder import build_document, folio_customer
 from apps.compliance.services.config import get_settings, local_date
 from apps.compliance.services.invoices import (
     DONE_STATUSES,
     RETRYABLE_STATUSES,
+    invoice_groups,
     invoiceable_charges,
     uninvoiced_by_reservation,
 )
@@ -284,9 +285,14 @@ def reservation_legal(reservation) -> dict:
     records = reservation_records(reservation)
     booker = reservation.booker
     settings = get_settings(prop)
-    preview = issue_preview(reservation, settings) if uninvoiced["total"] > 0 else None
+    folios = folio_options(reservation, settings)
+    preview = next((row["preview"] for row in folios if row["preview"]), None)
+    guest_side = next((row for row in folios if row["folio_type"] != "company"), None)
+    company_billed = any(row["folio_type"] == "company" for row in folios)
     warnings = []
-    if not booker.document_number:
+    if not booker.document_number and (
+        not company_billed or (guest_side is not None and guest_side["uninvoiced"]["count"] > 0)
+    ):
         warnings.append("final_consumer")
     if Invoice.objects.filter(reservation=reservation, status__in=RETRYABLE_STATUSES).exists():
         warnings.append("invoice_failed")
@@ -319,24 +325,11 @@ def reservation_legal(reservation) -> dict:
         "warnings": warnings,
         "resolution": resolution_health(prop),
         "preview": preview,
+        "folios": folios,
     }
 
 
-def issue_preview(reservation, settings) -> dict | None:
-    """What "Emitir factura" would invoice now: customer, grouped lines and totals (no number is taken)."""
-    from apps.finance.models import Folio
-
-    folios = list(Folio.objects.filter(reservation=reservation).order_by("created_at"))
-    if not folios:
-        return None
-    charges = list(
-        invoiceable_charges(folios)
-        .select_related("tax", "stay__room_type", "extra")
-        .order_by("business_date", "created_at")
-    )
-    if not charges:
-        return None
-    document = build_document(folios[0], charges, final_consumer_id=settings.final_consumer_id)
+def _preview_payload(document, count: int) -> dict:
     return {
         "customer": document.customer,
         "lines": [
@@ -346,8 +339,52 @@ def issue_preview(reservation, settings) -> dict | None:
         "tax_total": _money(document.tax_total),
         "total": _money(document.total),
         "exempt_note": document.exempt_note,
-        "charges_count": len(charges),
+        "charges_count": count,
     }
+
+
+def folio_options(reservation, settings) -> list[dict]:
+    """Who the reservation can be invoiced to (P4, the "Facturar a" selector): one row per folio group — the
+    guest side (booker) and each company folio — with its customer, what is still to invoice and the preview.
+    Issue a row with `POST invoices/issue/ {folio_id}`."""
+    rows = []
+    for group in invoice_groups(reservation):
+        first = group[0]
+        charges = list(
+            invoiceable_charges(group)
+            .select_related("tax", "stay__room_type", "extra")
+            .order_by("business_date", "created_at")
+        )
+        document = (
+            build_document(first, charges, final_consumer_id=settings.final_consumer_id) if charges else None
+        )
+        customer = (
+            document.customer
+            if document
+            else folio_customer(first, final_consumer_id=settings.final_consumer_id)
+        )
+        total = document.total if document else 0
+        rows.append(
+            {
+                "folio_id": str(first.pk),
+                "folio_ids": [str(folio.pk) for folio in group],
+                "folio_type": "company" if first.folio_type == "company" else "guest",
+                "status": first.status,
+                "company_id": str(first.company_id) if first.company_id else None,
+                "customer": customer,
+                "uninvoiced": {"count": len(charges), "total": _money(total)},
+                "can_issue": bool(document and document.total > 0),
+                "preview": _preview_payload(document, len(charges))
+                if document and document.total > 0
+                else None,
+            }
+        )
+    return rows
+
+
+def issue_preview(reservation, settings) -> dict | None:
+    """What "Emitir factura" would invoice first (the first folio group with charges; see `folio_options`)."""
+    return next((row["preview"] for row in folio_options(reservation, settings) if row["preview"]), None)
 
 
 def tra_candidates(reservation) -> list[dict]:

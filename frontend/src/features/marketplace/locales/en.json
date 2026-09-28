@@ -387,20 +387,20 @@
       "payAtHotel": "Pay at the hotel",
       "payAtHotelBody": "Nothing to pay now: you pay on arrival.",
       "payDepositBody": "You pay the {{amount}} deposit your rate requires now and the rest at the hotel.",
-      "offline": "This hotel takes payment on arrival.",
+      "offline": "This hotel takes payment on arrival: you pay nothing online.",
       "secure": "You pay on the hotel's gateway (Wompi). Housetel never stores your card details.",
       "hold": "Your booking is held while you pay."
     },
     "consent": {
       "title": "Permissions",
-      "data": "I authorize {{hotel}} and Housetel to process my personal data to manage this booking (Colombian Law 1581 of 2012).",
+      "data": "I authorize {{hotel}} and Housetel to process my personal data to manage this booking, under the <privacy>data processing policy</privacy> (Colombian Law 1581 of 2012).",
       "dataRequired": "We need your permission to manage the booking.",
       "marketing": "I'd like to receive news and offers from {{hotel}}.",
       "terms": "Hotel conditions"
     },
     "submitPay": "Book and pay {{amount}}",
     "submit": "Confirm booking",
-    "legal": "By booking you accept the hotel's conditions and your rate's cancellation policy.",
+    "legal": "By booking you accept <terms>Housetel's terms</terms>, the hotel's conditions and your rate's cancellation policy.",
     "summary": {
       "title": "Booking summary",
       "units_one": "{{count}} room",
@@ -414,7 +414,9 @@
       "total": "Total",
       "dueNow": "You pay now",
       "dueLater": "You pay at the hotel",
-      "updating": "Updating the price…"
+      "updating": "Updating the price…",
+      "toggle": "See the price breakdown",
+      "dueNowShort": "you pay {{amount}} now"
     },
     "errors": {
       "noAvailabilityTitle": "Your selection is no longer available",

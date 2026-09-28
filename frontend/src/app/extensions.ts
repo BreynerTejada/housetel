@@ -19,6 +19,7 @@ import type { RouteObject } from 'react-router'
 import type { LucideIcon } from 'lucide-react'
 import { useMe } from '@/lib/auth'
 import { usePermissionChecker } from '@/lib/permissions'
+import { useRuntimeConfig } from '@/lib/runtime'
 
 export type NavSection = 'operations' | 'revenue' | 'insights' | 'compliance' | 'tools' | 'settings' | 'admin'
 
@@ -38,6 +39,11 @@ export interface NavItem {
   platformAdmin?: boolean
   /** Optional one-line description (shown on the settings index). */
   descriptionKey?: string
+  /**
+   * Development/demo tool (OTA and WhatsApp simulators): hidden when the installation has simulations off
+   * (`useRuntimeConfig().simulations_enabled`, false in production). Plan P1.
+   */
+  devOnly?: boolean
 }
 
 /**
@@ -140,8 +146,17 @@ export function collectNav(modules: Modules<{ nav?: NavItem[] }>): NavItem[] {
   return sortNav(Object.values(modules).flatMap((module) => module.nav ?? []))
 }
 
-export function filterNav(items: NavItem[], { can, isPlatformAdmin }: { can: Permission; isPlatformAdmin: boolean }): NavItem[] {
-  return items.filter((item) => (item.platformAdmin ? isPlatformAdmin : can(item.permission)))
+/**
+ * Items the viewer may see: platform items for platform admins, the rest by permission; `devOnly` items only
+ * while simulations are on (`simulationsEnabled`, default true so pure callers keep the old behaviour).
+ */
+export function filterNav(
+  items: NavItem[],
+  { can, isPlatformAdmin, simulationsEnabled = true }: { can: Permission; isPlatformAdmin: boolean; simulationsEnabled?: boolean },
+): NavItem[] {
+  return items.filter(
+    (item) => (!item.devOnly || simulationsEnabled) && (item.platformAdmin ? isPlatformAdmin : can(item.permission)),
+  )
 }
 
 /**
@@ -237,14 +252,16 @@ export function getFeatureRoutes(): Required<FeatureRoutes> {
 
 // ---- Hooks (filtered by the active membership's permissions) -----------------------------------
 
-/** Nav items the current user can see, optionally for one section. */
+/** Nav items the current user can see, optionally for one section (dev-only tools only with simulations on). */
 export function useNav(section?: NavSection): NavItem[] {
   const can = usePermissionChecker()
   const { data: me } = useMe()
+  const { simulations_enabled: simulationsEnabled } = useRuntimeConfig()
   const isPlatformAdmin = me?.is_platform_admin ?? false
   return useMemo(
-    () => filterNav(allNav, { can, isPlatformAdmin }).filter((item) => !section || item.section === section),
-    [can, isPlatformAdmin, section],
+    () =>
+      filterNav(allNav, { can, isPlatformAdmin, simulationsEnabled }).filter((item) => !section || item.section === section),
+    [can, isPlatformAdmin, simulationsEnabled, section],
   )
 }
 

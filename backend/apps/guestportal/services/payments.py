@@ -20,12 +20,13 @@ def create_payment(reservation, *, amount=None):
     from apps.finance.services import (
         create_payment_intent,
         get_or_create_folio,
+        guest_part,
         intent_is_stale,
-        reservation_balance,
     )
 
     currency = reservation.currency
-    due = quantize(reservation_balance(reservation), currency)
+    # The link pays the guest's folio: only the guest side's part (a company's part is the company's, P4).
+    due = quantize(guest_part(reservation), currency)
     if due <= 0:
         raise NothingToPay("Tu reserva no tiene saldo pendiente")
     try:

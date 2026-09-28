@@ -23,9 +23,11 @@ export function OnlineCheckinWidget() {
   const firstPending = requests.data?.results[0]
 
   return (
-    <section aria-labelledby={titleId} className="grid gap-3 rounded-xl border border-border bg-surface p-4">
+    // `grid-cols-1` (minmax(0, 1fr)): long guest names truncate instead of widening the card past a 375 px
+    // screen (P-INT, reported by P3).
+    <section aria-labelledby={titleId} className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-4">
       <header className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 id={titleId} className="flex items-center gap-2 text-[15px] font-bold">
             <Smartphone aria-hidden className="size-4 text-muted" />
             {t('widget.title')}
@@ -33,7 +35,7 @@ export function OnlineCheckinWidget() {
           {rows.length > 0 && <p className="text-[13px] text-muted">{t('widget.progress', { done, total: rows.length })}</p>}
         </div>
         {rows.length > 0 && (
-          <span className="num text-[22px] leading-7 font-bold tracking-[-0.03em]">
+          <span className="num shrink-0 text-[22px] leading-7 font-bold tracking-[-0.03em]">
             {done}
             <span className="text-[15px] text-muted">/{rows.length}</span>
           </span>
@@ -62,16 +64,18 @@ export function OnlineCheckinWidget() {
                   className="flex items-center gap-3 rounded-lg px-1 py-2 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
                       {row.is_vip && <Crown aria-label={t('widget.vip')} className="size-3.5 shrink-0 text-warning" />}
-                      {row.guest_name}
+                      <span className="truncate">{row.guest_name}</span>
                     </span>
                     <span className="num block text-[12px] text-muted">
                       {row.code}
                       {row.eta ? ` · ${row.eta}` : ''}
                     </span>
                   </span>
-                  <Badge tone={TONE[row.checkin_status]}>{t(`staff.status.${row.checkin_status}`)}</Badge>
+                  <Badge tone={TONE[row.checkin_status]} className="shrink-0">
+                    {t(`staff.status.${row.checkin_status}`)}
+                  </Badge>
                   <ChevronRight aria-hidden className="size-4 shrink-0 text-subtle" />
                 </Link>
               </li>

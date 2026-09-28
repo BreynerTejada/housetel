@@ -340,7 +340,8 @@
         "cta": "Crear reserva de prueba",
         "text": "Haz una reserva de prueba para ver el flujo completo: calendario, folio y check-in.",
         "summary_one": "{{count}} reserva creada",
-        "summary_other": "{{count}} reservas creadas"
+        "summary_other": "{{count}} reservas creadas",
+        "alt": "Importar desde otro sistema"
       }
     },
     "profileFields": {
@@ -388,7 +389,7 @@
       "phoneHint": "Opcional. Para ayudarte con la configuración.",
       "password": "Contraseña",
       "passwordHint": "Mínimo {{min}} caracteres.",
-      "terms": "Acepto los términos del servicio y la política de tratamiento de datos personales (Ley 1581 de 2012)."
+      "terms": "Acepto los <terms>términos del servicio</terms>, la <privacy>política de tratamiento de datos personales</privacy> y el <dpa>contrato de encargo de datos</dpa> de los huéspedes de mi hotel (Ley 1581 de 2012)."
     },
     "planHint": "Con ese tamaño te corresponde el plan <strong>{{plan}}</strong> ({{price}}/mes + IVA) cuando termine la prueba.",
     "next": "Continuar",
@@ -655,7 +656,13 @@
       "envHint": "Se configuran como variables de entorno del servidor (.env) y nunca se muestran aquí.",
       "webhook": "URL de eventos para el panel de Wompi",
       "copyWebhook": "Copiar URL de eventos",
-      "copyFailed": "No se pudo copiar"
+      "copyFailed": "No se pudo copiar",
+      "simulatedOff": "No disponible en este entorno: las simulaciones están apagadas",
+      "enabled": "Cobro automático",
+      "enabledHint": "El ciclo diario de las 03:00 cobra renovaciones y pruebas vencidas.",
+      "enabledOn": "Cobro automático activado",
+      "enabledOff": "Cobro automático desactivado",
+      "collectionStopped": "El ciclo de cobro está detenido: no cobra, no convierte pruebas vencidas ni marca mora o suspende a ninguna organización hasta que el cobro esté activo y con sus llaves."
     },
     "commissions": {
       "title": "Comisiones",
@@ -681,6 +688,27 @@
       "settled": "Liquidación de {{month}} ejecutada",
       "settledCount_one": "{{count}} liquidación",
       "settledCount_other": "{{count}} liquidaciones"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal · Versión {{version}} · Vigente desde el {{date}}",
+    "documents": "Documentos legales",
+    "contents": "Contenido",
+    "onThisPage": "En esta página",
+    "inShort": "En pocas palabras",
+    "fullTextBelow": "El resumen no reemplaza el texto completo, que sigue a continuación.",
+    "questionsTitle": "¿Dudas o una solicitud sobre tus datos?",
+    "questionsBody": "Escríbenos: respondemos consultas en máximo 10 días hábiles y reclamos en máximo 15.",
+    "whatsapp": "Escribir por WhatsApp",
+    "print": "Imprimir o guardar en PDF",
+    "backToTop": "Volver arriba",
+    "spanishPrevails": "Si hay diferencias entre versiones, prevalece la versión en español.",
+    "noEmail": "el correo de soporte que aparece en «Ayuda y soporte»",
+    "noWhatsapp": "(el número está en «Ayuda y soporte»)",
+    "links": {
+      "terminos": "Términos y condiciones",
+      "privacidad": "Política de datos personales",
+      "encargo-datos": "Encargo de datos"
     }
   }
 }

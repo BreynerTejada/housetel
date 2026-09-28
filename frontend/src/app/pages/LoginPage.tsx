@@ -111,6 +111,13 @@ export function LoginPage() {
                 </div>
               )}
             />
+            {/* P2: password recovery (feature `team`); carries the typed email to prefill the form. */}
+            <Link
+              to={{ pathname: '/forgot-password', search: form.watch('email').trim() ? `?email=${encodeURIComponent(form.watch('email').trim())}` : '' }}
+              className="-mt-1.5 justify-self-end rounded-sm text-[13px] font-semibold text-accent-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55"
+            >
+              {t('team:auth.forgotLink')}
+            </Link>
             {failure && (
               <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-ink">
                 {failure}

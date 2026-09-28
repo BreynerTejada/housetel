@@ -181,6 +181,9 @@
   "reasons": {
     "maxDailyChange": "Tope de cambio diario de {{percent}}",
     "maxDailyChangeDetail": "el precio se queda en",
+    "maxDailyChangeRounded": "con el redondeo, el precio se queda en",
+    "rounding": "Redondeo a múltiplos de {{step}}",
+    "roundingDetail": "de {{from}} al precio final",
     "minPrice": "Precio mínimo",
     "minPriceDetail": "el precio sube hasta",
     "maxPrice": "Precio máximo",

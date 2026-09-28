@@ -16,6 +16,9 @@ What every phase integration checks after the full demo seed (plan B-INT) and an
   (`ExternalReservationMap`); no housekeeping task or night-audit report dated after the business date (a
   report of the business date itself would mean the day is closed but the date did not move) and no invoice
   issued in the future.
+- pilot phase data (P-INT): every stay taken from a group block (P3) is of the block's category and belongs to
+  the block's group; every company folio has its company, no opening balance (receivables invoiced before
+  Housetel) is ever invoiced and what an active payment on account applies never exceeds its amount (P4).
 
 Exits with an error listing each failed check (with a few examples) when one fails.
 """
@@ -168,7 +171,7 @@ def property_checks(prop) -> list[tuple[str, list]]:
         .values_list("pk", flat=True)
     ]  # fmt: skip
     checks.append(("fechas: nada fechado después de la fecha de negocio", late))
-    return checks + phase_c_checks(prop, reservations)
+    return checks + phase_c_checks(prop, reservations) + phase_p_checks(prop)
 
 
 def phase_c_checks(prop, reservations) -> list[tuple[str, list]]:
@@ -211,4 +214,53 @@ def phase_c_checks(prop, reservations) -> list[tuple[str, list]]:
         .values_list("business_date", flat=True)
     ]  # fmt: skip
     checks.append(("fase C: nada fechado después de la fecha de negocio", future))
+    return checks
+
+
+def phase_p_checks(prop) -> list[tuple[str, list]]:
+    """Invariants of the pilot phase: group blocks (P3) and corporate billing (P4). Read-only."""
+    from django.db.models import F
+
+    from apps.bookings.models import Stay
+    from apps.compliance.models import Invoice
+    from apps.corporate.models import AccountPayment
+    from apps.corporate.services import OPENING_BALANCE_SOURCE
+    from apps.finance.models import Folio, Payment
+
+    checks = []
+    picked = Stay.objects.filter(reservation__property=prop, group_block__isnull=False)
+    wrong_type = picked.exclude(room_type_id=F("group_block__room_type_id")).values_list(
+        "reservation__code", flat=True
+    )
+    checks.append(("grupos: cada estadía de un cupo es de la categoría del cupo", list(wrong_type)))
+    wrong_group = picked.exclude(reservation__group_id=F("group_block__group_id")).values_list(
+        "reservation__code", flat=True
+    )
+    checks.append(("grupos: cada reserva con estadías de un cupo es del grupo del cupo", list(wrong_group)))
+    orphans = Folio.objects.filter(
+        property=prop, folio_type=Folio.FolioType.COMPANY, company__isnull=True
+    ).values_list("pk", flat=True)
+    checks.append(("empresas: todo folio de empresa tiene su empresa", [str(pk) for pk in orphans]))
+    invoiced = (
+        Invoice.objects.filter(property=prop, charges__source=OPENING_BALANCE_SOURCE)
+        .values_list("full_number", flat=True)
+        .distinct()
+    )
+    checks.append(("empresas: ningún saldo inicial se factura en Housetel", list(invoiced)))
+    over = []
+    for account_payment in AccountPayment.objects.filter(
+        property=prop, status=AccountPayment.Status.ACTIVE
+    ).prefetch_related("allocations__payment"):
+        applied = sum(
+            (
+                allocation.amount
+                for allocation in account_payment.allocations.all()
+                if allocation.payment.status != Payment.Status.VOIDED
+            ),
+            ZERO,
+        )
+        if applied > account_payment.amount:
+            label = account_payment.reference or str(account_payment.pk)
+            over.append((label, str(applied), str(account_payment.amount)))
+    checks.append(("cartera: lo aplicado de cada pago a cuenta no supera su monto", over))
     return checks

@@ -24,18 +24,18 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from django.core.mail import send_mail
 from django.db import connection, transaction
 from django.utils import timezone
 
-from apps.core import audit
+from apps.core import audit, integrations
 from apps.core.alerts import raise_alert, resolve_alert
 from apps.core.errors import ConflictError, DomainError
 from apps.core.i18n import t
 from apps.core.integrations import get_provider, get_setting
 from apps.core.models import Organization
 from apps.core.money import ZERO, quantize
+from apps.core.runtime import public_base_url
 from apps.finance.errors import ProviderError
 from apps.saas.models import CommissionSettlement, Plan, PlatformInvoice, Subscription
 from apps.saas.services.plans import plan_fits, plan_for_units
@@ -182,7 +182,15 @@ def check_plan_limit(org: Organization) -> bool:
                 ),
                 link="/app/settings/billing",
                 dedupe_key="saas:plan_limit",
-                data={"units": info["units"], "max_units": info["max_units"], "plan": sub.plan.code},
+                data={
+                    "units": info["units"],
+                    "max_units": info["max_units"],
+                    "plan": sub.plan.code,
+                    # P-INT: what the translated text needs (control:alertText.plan_limit)
+                    "plan_name": sub.plan.name or {},
+                    "properties": info["properties"],
+                    "max_properties": info["max_properties"],
+                },
                 source="saas",
             )
         else:
@@ -306,6 +314,24 @@ def upcoming_invoice(sub: Subscription) -> dict | None:
 
 def billing_mode() -> str:
     return get_setting(None, "saas_billing").mode
+
+
+COLLECTION_UNAVAILABLE = (
+    "Cobro de suscripciones sin configurar: no se cobró ni se marcó mora a ninguna organización. Configura "
+    "WOMPI_PLATFORM_* y activa el cobro en Plataforma → Facturación."
+)
+
+
+def collection_available() -> bool:
+    """Whether the platform can charge subscriptions in this installation (P-INT): the simulated gateway where
+    simulations are on, or the platform's real Wompi once its `WOMPI_PLATFORM_*` keys are set and the
+    integration is enabled (`core.integrations.is_live`). Without it the billing cycle charges nobody and
+    never moves an organization to past due or suspended (a production server without the keys would
+    otherwise suspend every hotel after three failed attempts)."""
+    setting = get_setting(None, "saas_billing")
+    if setting.mode == "simulated":
+        return setting.enabled and integrations.mode_allowed("saas_billing", "simulated")
+    return integrations.is_live(None, "saas_billing")
 
 
 def _provider():
@@ -694,7 +720,7 @@ def suspend_organization(org: Organization, *, actor=None, reason: str = "", sou
         org,
         "Tu cuenta de Housetel está suspendida",
         "Suspendimos el acceso a tu cuenta por falta de pago. Entra a Configuración → Plan y facturación "
-        f"para pagar y reactivarla al instante: {settings.FRONTEND_URL}/app/settings/billing",
+        f"para pagar y reactivarla al instante: {public_base_url()}/app/settings/billing",
     )
     return org
 
@@ -816,6 +842,7 @@ class CycleReport:
     recovered: int = 0
     cancelled: int = 0
     errors: list = field(default_factory=list)
+    skipped: str = ""  # why nothing was charged (collection not configured, P-INT)
 
     def as_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
@@ -841,7 +868,7 @@ def _start_past_due(sub: Subscription, report: CycleReport, now) -> None:
         "No pudimos cobrar tu suscripción de Housetel",
         "Tu factura de Housetel está pendiente. Reintentaremos el cobro en los próximos días; también puedes "
         "pagarla ahora desde Configuración → Plan y facturación: "
-        f"{settings.FRONTEND_URL}/app/settings/billing",
+        f"{public_base_url()}/app/settings/billing",
     )
 
 
@@ -942,13 +969,17 @@ def run_billing_cycle(now=None) -> CycleReport:
     """One pass over every subscription; each one in its own savepoint (one failure never stops the rest)."""
     now = now or timezone.now()
     report = CycleReport()
+    if not collection_available():
+        report.skipped = COLLECTION_UNAVAILABLE
+        logger.warning("Billing cycle: subscription charges are not configured; nothing was charged")
     subs = Subscription.objects.select_related("plan", "organization").exclude(
         status=Subscription.Status.CANCELLED
     )
     for sub in subs:
         try:
-            with transaction.atomic():
-                _process_subscription(sub, report, now)
+            if not report.skipped:
+                with transaction.atomic():
+                    _process_subscription(sub, report, now)
         except Exception as exc:  # noqa: BLE001 - reported in the run details, the loop goes on
             logger.exception("Billing cycle failed for organization %s", sub.organization_id)
             report.errors.append({"organization": str(sub.organization_id), "error": f"{exc}"[:300]})

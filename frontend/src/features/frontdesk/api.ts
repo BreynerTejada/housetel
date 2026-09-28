@@ -21,6 +21,7 @@ export type ReservationSource =
   | 'marketplace'
   | 'ota'
   | 'api'
+  | 'import'
 export type Guarantee = 'none' | 'card' | 'deposit' | 'ota'
 export type HousekeepingStatus = 'clean' | 'dirty' | 'inspected' | 'out_of_service'
 export type RoomKind = 'private' | 'dorm'
@@ -42,6 +43,7 @@ export const RESERVATION_SOURCES: ReservationSource[] = [
   'marketplace',
   'ota',
   'api',
+  'import',
 ]
 
 export interface Page<T> {
@@ -281,6 +283,8 @@ export interface StayDetail {
   checked_in_at: string | null
   checked_out_at: string | null
   occupants: GuestSummaryRef[]
+  /** Picked up from this group allotment (pilot P3). */
+  group_block_id?: string | null
 }
 
 export interface PolicySnapshot {
@@ -466,6 +470,8 @@ export interface StayRequestInput {
   room_id?: string | null
   bed_id?: string | null
   locked_room?: boolean
+  /** Picked up from a group allotment: takes the block's held units first. */
+  group_block_id?: string | null
 }
 
 export interface ReservationCreateInput {
@@ -482,6 +488,188 @@ export interface ReservationCreateInput {
   guarantee: Guarantee
   /** Tentative only: minutes the rooms are held (the backend default is 20). */
   hold_minutes?: number
+  /** An existing group of the property… */
+  group_id?: string | null
+  /** …or a new one created with the reservation (the booker becomes its contact). */
+  group_name?: string
+  /** Staff pickups from a group allotment skip the rate restrictions. */
+  enforce_restrictions?: boolean
+}
+
+// ---- Multi-room (pilot P3): offers per room and the quote of several stays ------------------------------
+
+/** An offer per ROOM (`GET /bookings/room-offers/`): one unit quoted at the category's standard occupancy. */
+export interface RoomOffer extends Offer {
+  room_type: Offer['room_type'] & { base_occupancy: number }
+}
+
+export interface RoomOffersQuery {
+  checkin: string
+  checkout: string
+  promoCode: string
+  foreign: boolean
+  /** A pickup from this allotment: only its category, availability + what it still holds. */
+  block?: string | null
+}
+
+export interface StayQuoteLine {
+  index: number
+  room_type_id: string
+  rate_plan_id: string
+  checkin: string
+  checkout: string
+  nights: number
+  adults: number
+  children: number
+  /** Units priced: dorm beds count one per guest. */
+  units: number
+  total: Money
+  per_night: Money
+  restrictions_ok: boolean
+  violations: string[]
+}
+
+export interface StaysQuote {
+  currency: string
+  total: Money
+  stays: StayQuoteLine[]
+}
+
+export interface StaysQuoteInput {
+  stays: StayRequestInput[]
+  promo_code: string
+  foreign: boolean
+}
+
+export interface StayCancelPreview extends CancelPreview {
+  stay_total: Money
+  /** The last active room of a reservation not in house yet: the whole reservation is cancelled. */
+  cancels_reservation: boolean
+  /** The other rooms already checked out: the reservation ends as checked out. */
+  ends_reservation: boolean
+}
+
+// ---- Groups and allotments (pilot P3) --------------------------------------------------------------------
+
+export type GroupState = 'upcoming' | 'in_house' | 'past' | 'empty'
+export type GroupWhen = 'upcoming' | 'past' | 'all'
+
+export interface GroupFigures {
+  start: string | null
+  end: string | null
+  reservations: number
+  rooms: number
+  blocks: number
+  blocked_units: number
+  picked_rooms: number
+  room_nights: number
+  picked_room_nights: number
+  /** null without allotments. */
+  pickup_pct: number | null
+  balance: Money
+  state: GroupState
+}
+
+export interface GroupListItem {
+  id: string
+  name: string
+  notes: string
+  contact_guest: GuestBrief | null
+  reservations_count: number
+  figures: GroupFigures | null
+  created_at: string
+}
+
+export interface BlockNight {
+  date: string
+  units: number
+  picked: number
+  remaining: number
+}
+
+export interface BlockPickup {
+  nights: BlockNight[]
+  room_nights: number
+  picked_room_nights: number
+  pickup_pct: number
+  picked_rooms: number
+  remaining_min: number
+  released: boolean
+}
+
+export interface GroupBlock {
+  id: string
+  group_id: string
+  room_type: RoomTypeRef
+  start: string
+  end: string
+  units: number
+  release_date: string
+  released_at: string | null
+  pickup: BlockPickup
+  created_at: string
+}
+
+export interface RoomingRow {
+  stay_id: string
+  reservation_id: string
+  code: string
+  status: ReservationStatus
+  booker_name: string
+  room_type: RoomTypeRef
+  rate_plan: { id: string; code: string; name: I18nText }
+  room: { id: string; number: string; housekeeping_status: HousekeepingStatus } | null
+  bed: { id: string; label: string } | null
+  checkin: string
+  checkout: string
+  nights: number
+  adults: number
+  children: number
+  /** The guest sleeping in the room (the stay's first occupant). */
+  guest: { id: string; first_name: string; last_name: string; full_name: string } | null
+  occupants: number
+  group_block_id: string | null
+  total_amount: Money
+}
+
+export interface GroupDetail extends GroupListItem {
+  currency: string
+  business_date: string
+  blocks: GroupBlock[]
+  reservations: ReservationListItem[]
+  rooming: RoomingRow[]
+}
+
+export interface GroupInput {
+  name: string
+  notes: string
+  contact_guest_id: string | null
+}
+
+export interface BlockInput {
+  room_type_id: string
+  start: string
+  end: string
+  units: number
+  release_date: string
+  /** Hold the units even when a night doesn't have them (needs `bookings.overbook`). */
+  allow_overbooking?: boolean
+}
+
+export interface RoomTypeOption {
+  id: string
+  code: string
+  name: I18nText
+  kind: RoomKind
+  color: string
+  is_active: boolean
+  sort_order: number
+  base_occupancy: number
+  max_adults: number
+  max_children: number
+  max_occupancy: number
+  /** Active rooms (private) or beds (dorm): the most an allotment can hold. */
+  units_count: number
 }
 
 export interface Extra {
@@ -606,7 +794,13 @@ export const bookingKeys = {
   cancelPreview: (id: string) => ['bookings', 'cancel-preview', id] as const,
   modifyPreview: (stayId: string, input: ModifyInput) => ['bookings', 'modify-preview', stayId, input] as const,
   offers: (query: OfferQuery) => ['bookings', 'offers', query] as const,
+  roomOffers: (query: RoomOffersQuery) => ['bookings', 'room-offers', query] as const,
+  quote: (input: StaysQuoteInput) => ['bookings', 'quote', input] as const,
+  stayCancelPreview: (stayId: string) => ['bookings', 'stay-cancel-preview', stayId] as const,
   extras: () => ['bookings', 'extras'] as const,
+  groups: (params: Query) => ['bookings', 'groups', params] as const,
+  group: (id: string) => ['bookings', 'group', id] as const,
+  roomTypes: () => ['bookings', 'room-types'] as const,
 }
 
 // ---- Fetchers ------------------------------------------------------------------------------------
@@ -621,8 +815,10 @@ export const getReservation = (id: string) => api.get<ReservationDetail>(`/booki
 export const createReservation = (input: ReservationCreateInput) =>
   api.post<ReservationDetail>('/bookings/reservations/', input)
 
-export const updateReservation = (id: string, patch: Partial<Pick<ReservationDetail, 'notes' | 'special_requests' | 'eta' | 'guarantee' | 'language'>>) =>
-  api.patch<ReservationDetail>(`/bookings/reservations/${id}/`, patch)
+export const updateReservation = (
+  id: string,
+  patch: Partial<Pick<ReservationDetail, 'notes' | 'special_requests' | 'eta' | 'guarantee' | 'language'>> & { group_id?: string | null },
+) => api.patch<ReservationDetail>(`/bookings/reservations/${id}/`, patch)
 
 export const getCancelPreview = (id: string) => api.get<CancelPreview>(`/bookings/reservations/${id}/cancel-preview/`)
 
@@ -674,6 +870,54 @@ export const getOffers = (query: OfferQuery) =>
 
 export const getExtras = () =>
   api.get<Page<Extra>>('/rates/extras/', { params: { is_active: true, page_size: 200 } })
+
+export const getRoomOffers = (query: RoomOffersQuery) =>
+  api.get<RoomOffer[]>('/bookings/room-offers/', {
+    params: {
+      checkin: query.checkin,
+      checkout: query.checkout,
+      promo_code: query.promoCode.trim() || undefined,
+      foreign: query.foreign ? 1 : undefined,
+      block: query.block || undefined,
+    },
+  })
+
+export const quoteStays = (input: StaysQuoteInput) => api.post<StaysQuote>('/bookings/reservations/quote/', input)
+
+export const addStay = (reservationId: string, input: Partial<StayRequestInput> & Pick<StayRequestInput, 'room_type_id' | 'rate_plan_id' | 'adults'>) =>
+  api.post<ReservationDetail>(`/bookings/reservations/${reservationId}/stays/`, input)
+
+export const getStayCancelPreview = (stayId: string) => api.get<StayCancelPreview>(`/bookings/stays/${stayId}/cancel-preview/`)
+
+export const cancelStay = (stayId: string, reason: string, waiveFee: boolean) =>
+  api.post<ReservationDetail>(`/bookings/stays/${stayId}/cancel/`, { reason, waive_fee: waiveFee, confirm: true })
+
+export const getGroups = (params: Query) => api.get<Page<GroupListItem>>('/bookings/groups/', { params })
+
+export const getGroup = (id: string) => api.get<GroupDetail>(`/bookings/groups/${id}/`)
+
+export const createGroup = (input: GroupInput) => api.post<GroupListItem>('/bookings/groups/', input)
+
+export const updateGroup = (id: string, input: Partial<GroupInput>) => api.patch<GroupListItem>(`/bookings/groups/${id}/`, input)
+
+export const deleteGroup = (id: string) => api.delete<void>(`/bookings/groups/${id}/`)
+
+export const createBlock = (groupId: string, input: BlockInput) => api.post<GroupBlock>(`/bookings/groups/${groupId}/blocks/`, input)
+
+export const updateBlock = (id: string, input: Partial<Omit<BlockInput, 'room_type_id'>>) =>
+  api.patch<GroupBlock>(`/bookings/blocks/${id}/`, input)
+
+export const releaseBlock = (id: string) => api.post<GroupBlock>(`/bookings/blocks/${id}/release/`)
+
+export const deleteBlock = (id: string) => api.delete<void>(`/bookings/blocks/${id}/`)
+
+export const setRoomingName = (stayId: string, name: { first_name: string; last_name: string }) =>
+  api.post<RoomingRow>(`/bookings/stays/${stayId}/rooming/`, name)
+
+export const exportRooming = (groupId: string, lang: string) =>
+  api.get<Blob>(`/frontdesk/groups/${groupId}/rooming-list/`, { params: { lang }, responseType: 'blob' })
+
+export const getRoomTypes = () => api.get<RoomTypeOption[]>('/inventory/room-types/')
 
 export const getOnlineCheckin = (reservationId: string) =>
   api.get<OnlineCheckinState>(`/frontdesk/reservations/${reservationId}/online-checkin/`)
@@ -754,6 +998,49 @@ export function useOffers(query: OfferQuery, enabled = true) {
 /** Active extras of the property (breakfast, parking, transfers…). */
 export function useExtras(enabled = true) {
   return useQuery({ queryKey: bookingKeys.extras(), queryFn: getExtras, enabled, staleTime: 5 * 60_000 })
+}
+
+/** Offers per room for the multi-room wizard, the "add room" dialog and allotment pickups. */
+export function useRoomOffers(query: RoomOffersQuery, enabled = true) {
+  return useQuery({
+    queryKey: bookingKeys.roomOffers(query),
+    queryFn: () => getRoomOffers(query),
+    enabled: enabled && Boolean(query.checkin && query.checkout && query.checkout > query.checkin),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Exact prices of the rooms being booked (nothing is held). */
+export function useStaysQuote(input: StaysQuoteInput | null, enabled = true) {
+  return useQuery({
+    queryKey: bookingKeys.quote(input ?? { stays: [], promo_code: '', foreign: false }),
+    queryFn: () => quoteStays(input!),
+    enabled: enabled && Boolean(input && input.stays.length > 0),
+    placeholderData: keepPreviousData,
+    retry: false,
+  })
+}
+
+export function useStayCancelPreview(stayId: string, enabled = true) {
+  return useQuery({
+    queryKey: bookingKeys.stayCancelPreview(stayId),
+    queryFn: () => getStayCancelPreview(stayId),
+    enabled,
+    staleTime: 0,
+  })
+}
+
+export function useGroups(params: Query) {
+  return useQuery({ queryKey: bookingKeys.groups(params), queryFn: () => getGroups(params), placeholderData: keepPreviousData })
+}
+
+export function useGroup(id: string | null | undefined) {
+  return useQuery({ queryKey: bookingKeys.group(id ?? ''), queryFn: () => getGroup(id!), enabled: Boolean(id) })
+}
+
+/** Categories of the property (for new allotments). */
+export function useRoomTypeOptions(enabled = true) {
+  return useQuery({ queryKey: bookingKeys.roomTypes(), queryFn: getRoomTypes, enabled, staleTime: 5 * 60_000 })
 }
 
 export function useOnlineCheckin(reservationId: string | null, enabled = true) {

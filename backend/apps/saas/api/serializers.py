@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.core import integrations
 from apps.core.models import Property
 from apps.saas.models import Commission, CommissionSettlement, Plan, PlatformInvoice, Subscription
 
@@ -320,4 +321,6 @@ class PlatformBillingSettingsSerializer(serializers.Serializer):
     def validate_mode(self, value):
         if value not in ("real", "simulated"):
             raise serializers.ValidationError("Modo inválido (real o simulated)")
+        if not integrations.mode_allowed("saas_billing", value):  # production: only the real Wompi (P-INT)
+            raise serializers.ValidationError("El modo simulado no está disponible en este entorno")
         return value

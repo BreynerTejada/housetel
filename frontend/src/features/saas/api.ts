@@ -320,6 +320,8 @@ export interface OrganizationDetail extends OrganizationRow {
 export interface BillingSettings {
   mode: 'real' | 'simulated'
   enabled: boolean
+  /** P-INT: false = the daily billing cycle charges nobody (real mode without WOMPI_PLATFORM_* or switched off). */
+  collection_available?: boolean
   status: 'unknown' | 'ok' | 'error'
   status_message: string
   last_checked_at: string | null

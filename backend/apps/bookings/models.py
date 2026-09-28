@@ -56,6 +56,33 @@ class ReservationGroup(BaseModel):
         return self.name
 
 
+class GroupBlock(BaseModel):
+    """An allotment (cupo): `units` rooms — beds in a dorm — of `room_type` held for a group on the nights
+    `[start, end)`. The hold is kept in `InventoryDay.held_units` (`services.blocks`): stays created "from the
+    block" (`Stay.group_block`) consume it (pickup) and what is not picked up goes back to general inventory
+    when the block is released (`released_at`), by hand or on its `release_date` (automation
+    `bookings.release_group_blocks`)."""
+
+    group = models.ForeignKey(ReservationGroup, on_delete=models.CASCADE, related_name="blocks")
+    room_type = models.ForeignKey(RoomType, on_delete=models.RESTRICT, related_name="group_blocks")
+    start = models.DateField()
+    end = models.DateField()  # exclusive
+    units = models.PositiveSmallIntegerField()
+    release_date = models.DateField()
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["start", "created_at"]
+        constraints = [
+            models.CheckConstraint(condition=Q(end__gt=F("start")), name="group_block_dates_valid"),
+            models.CheckConstraint(condition=Q(units__gte=1), name="group_block_units_positive"),
+        ]
+        indexes = [models.Index(fields=["room_type", "start", "end"], name="group_block_type_range_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.group} · {self.units} × {self.room_type} {self.start}→{self.end}"
+
+
 class Reservation(BaseModel):
     Status = BookingStatus
 
@@ -68,6 +95,7 @@ class Reservation(BaseModel):
         MARKETPLACE = "marketplace", "Marketplace"
         OTA = "ota", "OTA"
         API = "api", "API"
+        IMPORT = "import", "Importación"  # migrated from another PMS (apps.imports)
 
     class Guarantee(models.TextChoices):
         NONE = "none", "Sin garantía"
@@ -154,6 +182,10 @@ class Stay(BaseModel):
     locked_room = models.BooleanField(default=False)
     checked_in_at = models.DateTimeField(null=True, blank=True)
     checked_out_at = models.DateTimeField(null=True, blank=True)
+    # Created "from the group's allotment": it consumes the block's held units (pickup), see services.blocks.
+    group_block = models.ForeignKey(
+        GroupBlock, null=True, blank=True, on_delete=models.SET_NULL, related_name="stays"
+    )
 
     class Meta:
         ordering = ["checkin_date", "created_at"]
@@ -189,8 +221,27 @@ class Stay(BaseModel):
         return nights(self.checkin_date, self.checkout_date)
 
 
+UNIT_COUNTERS = ("total_units", "sold_units", "blocked_units", "held_units")
+
+
+class InventoryDayQuerySet(models.QuerySet):
+    def only(self, *fields):
+        """`available` needs the four unit counters: a query that loads some of them (e.g. the rate grid's
+        `.only("room_type_id", "date", "total_units", "sold_units", "blocked_units")`, written before
+        `held_units` existed) loads them all, instead of one extra query per row for the deferred one."""
+        if any(name in UNIT_COUNTERS for name in fields):
+            fields = (*fields, *(name for name in UNIT_COUNTERS if name not in fields))
+        return super().only(*fields)
+
+
 class InventoryDay(BaseModel):
-    """Materialized availability per category and night (units = rooms, or beds for dorms)."""
+    """Materialized availability per category and night (units = rooms, or beds for dorms).
+
+    `blocked_units` are units out of order (room blocks: they leave the sellable inventory, and occupancy);
+    `held_units` are units held for group allotments not picked up yet (`GroupBlock`): not sellable to anyone
+    else, but still part of the inventory for occupancy figures."""
+
+    objects = InventoryDayQuerySet.as_manager()
 
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="inventory_days")
     room_type = models.ForeignKey(RoomType, on_delete=models.CASCADE, related_name="inventory_days")
@@ -198,6 +249,7 @@ class InventoryDay(BaseModel):
     total_units = models.PositiveIntegerField(default=0)
     sold_units = models.PositiveIntegerField(default=0)
     blocked_units = models.PositiveIntegerField(default=0)
+    held_units = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["date"]
@@ -210,4 +262,4 @@ class InventoryDay(BaseModel):
     @builtins.property  # the `property` FK shadows the builtin inside the class body
     def available(self) -> int:
         """May be negative when the category is overbooked."""
-        return self.total_units - self.sold_units - self.blocked_units
+        return self.total_units - self.sold_units - self.blocked_units - self.held_units

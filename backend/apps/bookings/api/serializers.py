@@ -5,7 +5,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.bookings.models import BookingStatus, Reservation, ReservationGroup, Stay
+from apps.bookings.models import BookingStatus, GroupBlock, Reservation, ReservationGroup, Stay
 from apps.bookings.services.policies import policy_snapshot
 from apps.bookings.services.pricing import money_str
 from apps.bookings.services.rooms import READY_STATUSES
@@ -116,6 +116,9 @@ class BookingStayBriefSerializer(serializers.ModelSerializer):
 
 class BookingStaySerializer(serializers.ModelSerializer):
     nights = serializers.SerializerMethodField()
+    group_block_id = serializers.UUIDField(
+        read_only=True, allow_null=True, help_text="Tomada del cupo de un grupo"
+    )
     room_type = BookingRoomTypeRefSerializer()
     rate_plan = BookingRatePlanRefSerializer()
     room = BookingRoomRefSerializer(allow_null=True)
@@ -144,6 +147,7 @@ class BookingStaySerializer(serializers.ModelSerializer):
             "checked_in_at",
             "checked_out_at",
             "occupants",
+            "group_block_id",
         ]
 
     def get_nights(self, obj) -> int:
@@ -325,10 +329,28 @@ class BookingOfferSerializer(serializers.Serializer):
     total = serializers.DecimalField(max_digits=14, decimal_places=2)
 
 
+class BookingGroupFiguresSerializer(serializers.Serializer):
+    """`services.groups.group_figures` (documentation only)."""
+
+    start = serializers.DateField(allow_null=True)
+    end = serializers.DateField(allow_null=True)
+    reservations = serializers.IntegerField()
+    rooms = serializers.IntegerField()
+    blocks = serializers.IntegerField()
+    blocked_units = serializers.IntegerField()
+    picked_rooms = serializers.IntegerField()
+    room_nights = serializers.IntegerField()
+    picked_room_nights = serializers.IntegerField()
+    pickup_pct = serializers.FloatField(allow_null=True)
+    balance = serializers.DecimalField(max_digits=14, decimal_places=2)
+    state = serializers.ChoiceField(choices=["upcoming", "in_house", "past", "empty"])
+
+
 class BookingGroupSerializer(serializers.ModelSerializer):
     contact_guest_id = serializers.UUIDField(required=False, allow_null=True, write_only=True)
     contact_guest = BookingGuestBriefSerializer(read_only=True, allow_null=True)
     reservations_count = serializers.SerializerMethodField()
+    figures = serializers.SerializerMethodField()
 
     class Meta:
         model = ReservationGroup
@@ -339,6 +361,7 @@ class BookingGroupSerializer(serializers.ModelSerializer):
             "contact_guest_id",
             "contact_guest",
             "reservations_count",
+            "figures",
             "created_at",
         ]
         read_only_fields = ["created_at"]
@@ -346,6 +369,11 @@ class BookingGroupSerializer(serializers.ModelSerializer):
     def get_reservations_count(self, obj) -> int:
         annotated = getattr(obj, "reservations_count", None)  # list/retrieve annotate it
         return annotated if annotated is not None else obj.reservations.count()
+
+    @extend_schema_field(BookingGroupFiguresSerializer(allow_null=True))
+    def get_figures(self, obj):
+        """Dates, rooms, pickup and balance (list and detail; computed per page in bulk by the view)."""
+        return (self.context.get("figures") or {}).get(obj.pk)
 
     def validate_contact_guest_id(self, value):
         if value is None:
@@ -414,10 +442,42 @@ class BookingStayRequestSerializer(serializers.Serializer):
     nightly_rates = BookingNightlyRateInputSerializer(
         many=True, required=False, allow_null=True, default=None
     )
+    group_block_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None, help_text="Tomada del cupo (allotment) de un grupo"
+    )
+
+
+def build_stay(prop, item: dict) -> tuple[StayRequest, GroupBlock | None]:
+    """A validated `BookingStayRequestSerializer` item → (StayRequest, block it is picked up from)."""
+    item = dict(item)
+    block_id = item.pop("group_block_id", None)
+    occupants = [guest_input(value) for value in item.pop("occupants", [])]
+    occupants += [_guest_by_id(prop, value) for value in item.pop("occupant_ids", [])]
+    rates = item.pop("nightly_rates", None)
+    stay = StayRequest(
+        **item,
+        occupants=occupants,
+        nightly_rates=[dict(rate) for rate in rates] if rates is not None else None,
+    )
+    return stay, (block_by_id(prop, block_id) if block_id else None)
+
+
+def block_by_id(prop, block_id) -> GroupBlock:
+    block = (
+        GroupBlock.objects.select_related("group", "room_type")
+        .filter(pk=block_id, group__property=prop)
+        .first()
+    )
+    if block is None:
+        raise BookingError("El cupo no existe en esta propiedad", code="invalid_block")
+    return block
 
 
 class ReservationCreateSerializer(serializers.Serializer):
-    """Body of `POST reservations/` = ReservationRequest in JSON (booker as GuestInput or `booker_id`)."""
+    """Body of `POST reservations/` = ReservationRequest in JSON (booker as GuestInput or `booker_id`).
+
+    Pilot plan P3: `group_name` creates a new `ReservationGroup` for it (the booker becomes its contact) and
+    `stays[].group_block_id` picks that room up from a group allotment."""
 
     booker = BookingGuestInputSerializer(required=False)
     booker_id = serializers.UUIDField(required=False)
@@ -437,35 +497,44 @@ class ReservationCreateSerializer(serializers.Serializer):
     hold_minutes = serializers.IntegerField(min_value=0, max_value=60 * 24 * 30, required=False, default=20)
     guarantee = serializers.ChoiceField(choices=Reservation.Guarantee.choices, required=False, default="none")
     group_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    group_name = serializers.CharField(
+        max_length=200,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Crea un grupo nuevo con este nombre",
+    )
     custom_values = serializers.DictField(required=False, default=dict)
 
     def validate(self, attrs):
         if not attrs.get("booker") and not attrs.get("booker_id"):
             raise serializers.ValidationError({"booker": ["Indica el huésped (booker o booker_id)"]})
+        if attrs.get("group_name", "").strip() and attrs.get("group_id"):
+            raise serializers.ValidationError(
+                {"group_name": ["Elige un grupo existente o uno nuevo, no ambos"]}
+            )
         return attrs
 
     def build(self, prop) -> ReservationRequest:
+        return self.build_all(prop)[0]
+
+    def build_all(self, prop) -> tuple[ReservationRequest, dict, str]:
+        """(ReservationRequest, {stay index: GroupBlock}, name of a new group or "")."""
         data = dict(self.validated_data)
+        group_name = data.pop("group_name", "").strip()
         booker = (
             _guest_by_id(prop, data.pop("booker_id"))
             if data.get("booker_id")
             else guest_input(data["booker"])
         )
         data.pop("booker", None)
-        stays = []
-        for item in data.pop("stays"):
-            item = dict(item)
-            occupants = [guest_input(value) for value in item.pop("occupants")]
-            occupants += [_guest_by_id(prop, value) for value in item.pop("occupant_ids")]
-            rates = item.pop("nightly_rates")
-            stays.append(
-                StayRequest(
-                    **item,
-                    occupants=occupants,
-                    nightly_rates=[dict(rate) for rate in rates] if rates is not None else None,
-                )
-            )
-        return ReservationRequest(property=prop, booker=booker, stays=stays, **data)
+        stays, blocks = [], {}
+        for index, item in enumerate(data.pop("stays")):
+            stay, block = build_stay(prop, item)
+            stays.append(stay)
+            if block is not None:
+                blocks[index] = block
+        return ReservationRequest(property=prop, booker=booker, stays=stays, **data), blocks, group_name
 
 
 def _guest_by_id(prop, guest_id) -> Guest:
@@ -608,3 +677,125 @@ class BookingRebuildSerializer(serializers.Serializer):
     start = serializers.DateField(required=False)
     end = serializers.DateField(required=False)
     room_type_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=list)
+
+
+# --- multi-room, groups and allotments (pilot plan P3) --------------------------------------------------
+
+
+class BookingQuoteSerializer(serializers.Serializer):
+    """Body of `POST reservations/quote/`: the stays to price (same shape as in `POST reservations/`)."""
+
+    stays = BookingStayRequestSerializer(many=True, allow_empty=False)
+    promo_code = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+    foreign = serializers.BooleanField(
+        required=False, default=False, help_text="Titular extranjero no residente"
+    )
+
+
+class BookingQuoteLineSerializer(serializers.Serializer):
+    index = serializers.IntegerField()
+    room_type_id = serializers.UUIDField()
+    rate_plan_id = serializers.UUIDField()
+    checkin = serializers.DateField()
+    checkout = serializers.DateField()
+    nights = serializers.IntegerField()
+    adults = serializers.IntegerField()
+    children = serializers.IntegerField()
+    units = serializers.IntegerField(help_text="Unidades (camas de dormitorio: una por huésped)")
+    total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    per_night = serializers.DecimalField(max_digits=14, decimal_places=2)
+    restrictions_ok = serializers.BooleanField()
+    violations = serializers.ListField(child=serializers.CharField())
+
+
+class BookingQuoteResultSerializer(serializers.Serializer):
+    """Response of `POST reservations/quote/` (documentation only)."""
+
+    currency = serializers.CharField()
+    total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    stays = BookingQuoteLineSerializer(many=True)
+
+
+class BookingAddStaySerializer(BookingStayRequestSerializer):
+    """Body of `POST reservations/{id}/stays/`: the offer of the new room (dates: the reservation's by
+    default)."""
+
+    checkin = serializers.DateField(required=False)
+    checkout = serializers.DateField(required=False)
+    allow_overbooking = serializers.BooleanField(required=False, default=False)
+    enforce_restrictions = serializers.BooleanField(required=False, default=False)
+
+
+class BookingStayCancelPreviewSerializer(serializers.Serializer):
+    """Response of `GET stays/{id}/cancel-preview/` (documentation only)."""
+
+    fee = serializers.DecimalField(max_digits=14, decimal_places=2)
+    currency = serializers.CharField()
+    reason = serializers.CharField()
+    free_until = serializers.DateTimeField(allow_null=True)
+    non_refundable = serializers.BooleanField()
+    policy = serializers.JSONField()
+    stay_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    cancels_reservation = serializers.BooleanField(
+        help_text="Última habitación activa: se cancela la reserva"
+    )
+    ends_reservation = serializers.BooleanField(
+        help_text="Las demás ya salieron: la reserva queda finalizada"
+    )
+
+
+class BookingRoomingSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+
+
+class BookingBlockSerializer(serializers.ModelSerializer):
+    """An allotment with its pickup (`services.blocks.pickup_summary`)."""
+
+    group_id = serializers.UUIDField(read_only=True)
+    room_type = BookingRoomTypeRefSerializer(read_only=True)
+    pickup = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GroupBlock
+        fields = [
+            "id",
+            "group_id",
+            "room_type",
+            "start",
+            "end",
+            "units",
+            "release_date",
+            "released_at",
+            "pickup",
+            "created_at",
+        ]
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_pickup(self, obj):
+        from apps.bookings.services.blocks import pickup_summary
+
+        return pickup_summary(obj)
+
+
+class BookingBlockCreateSerializer(serializers.Serializer):
+    room_type_id = serializers.UUIDField()
+    start = serializers.DateField()
+    end = serializers.DateField()
+    units = serializers.IntegerField(min_value=1, max_value=500)
+    release_date = serializers.DateField()
+    allow_overbooking = serializers.BooleanField(required=False, default=False)
+
+
+class BookingBlockUpdateSerializer(serializers.Serializer):
+    start = serializers.DateField(required=False)
+    end = serializers.DateField(required=False)
+    units = serializers.IntegerField(min_value=1, max_value=500, required=False)
+    release_date = serializers.DateField(required=False)
+    allow_overbooking = serializers.BooleanField(required=False, default=False)
+
+
+class BookingRoomOffersQuerySerializer(BookingDateRangeQuerySerializer):
+    promo_code = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+    foreign = serializers.BooleanField(required=False, default=False)
+    block = serializers.UUIDField(required=False, allow_null=True, default=None)

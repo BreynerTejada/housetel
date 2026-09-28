@@ -213,7 +213,16 @@
     "nothingHint": "The reservation has no posted charges yet. Nights are posted by the night audit and at check-out.",
     "finalConsumerHint": "The booker has no document on file: the invoice will be issued to Final consumer.",
     "taxes": "VAT",
-    "numbering": "It will be numbered {{prefix}}{{number}}"
+    "numbering": "It will be numbered {{prefix}}{{number}}",
+    "billTo": "Invoice to",
+    "guestFolio": "Guest",
+    "companyFolio": "Company",
+    "vatResponsible": "VAT registered",
+    "notVatResponsible": "Not VAT registered",
+    "onCredit_one": "Credit invoice: due {{count}} day after it is issued",
+    "onCredit_other": "Credit invoice: due {{count}} days after it is issued",
+    "submitCompany": "Invoice the company",
+    "doneTo": "Invoice issued to {{customer}} and validated."
   },
   "invoices": {
     "title": "Electronic invoices",
@@ -361,7 +370,11 @@
     "traCandidate": "Room {{room}} · arrived on {{date}} · no TRA",
     "sire": "SIRE",
     "sireNotYet": "The foreign guest's movements appear once the SIRE file for their dates is generated.",
-    "sireNotApplicable": "SIRE only reports foreign guests."
+    "sireNotApplicable": "SIRE only reports foreign guests.",
+    "perFolioHint": "One invoice per folio: each party gets its own.",
+    "billToGuest": "To the guest · {{name}}",
+    "billToCompany": "To the company · {{name}}",
+    "onCredit": "on credit"
   },
   "widget": {
     "title": "Legal to-dos",

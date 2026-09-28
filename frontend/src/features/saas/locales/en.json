@@ -340,7 +340,8 @@
         "cta": "Create a test booking",
         "text": "Make a test booking to see the whole flow: calendar, folio and check-in.",
         "summary_one": "{{count}} booking created",
-        "summary_other": "{{count}} bookings created"
+        "summary_other": "{{count}} bookings created",
+        "alt": "Import from another system"
       }
     },
     "profileFields": {
@@ -388,7 +389,7 @@
       "phoneHint": "Optional. To help you with the setup.",
       "password": "Password",
       "passwordHint": "At least {{min}} characters.",
-      "terms": "I accept the terms of service and the personal data policy (Colombian Law 1581 of 2012)."
+      "terms": "I accept the <terms>terms of service</terms>, the <privacy>personal data policy</privacy> and the <dpa>data processing agreement</dpa> for my hotel's guests (Colombian Law 1581 of 2012)."
     },
     "planHint": "At that size your plan is <strong>{{plan}}</strong> ({{price}}/month + VAT) once the trial ends.",
     "next": "Continue",
@@ -655,7 +656,13 @@
       "envHint": "They're server environment variables (.env) and are never shown here.",
       "webhook": "Events URL for the Wompi dashboard",
       "copyWebhook": "Copy events URL",
-      "copyFailed": "Couldn't copy"
+      "copyFailed": "Couldn't copy",
+      "simulatedOff": "Not available in this environment: simulations are off",
+      "enabled": "Automatic charging",
+      "enabledHint": "The daily 03:00 cycle charges renewals and expired trials.",
+      "enabledOn": "Automatic charging turned on",
+      "enabledOff": "Automatic charging turned off",
+      "collectionStopped": "The billing cycle is stopped: it charges nobody, converts no expired trial and marks no organization past due or suspended until charging is on and has its keys."
     },
     "commissions": {
       "title": "Commissions",
@@ -681,6 +688,27 @@
       "settled": "{{month}} settlement run",
       "settledCount_one": "{{count}} settlement",
       "settledCount_other": "{{count}} settlements"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal · Version {{version}} · Effective {{date}}",
+    "documents": "Legal documents",
+    "contents": "Contents",
+    "onThisPage": "On this page",
+    "inShort": "In short",
+    "fullTextBelow": "The summary does not replace the full text, which follows below.",
+    "questionsTitle": "Questions, or a request about your data?",
+    "questionsBody": "Write to us: we answer requests within 10 business days and complaints within 15.",
+    "whatsapp": "Message on WhatsApp",
+    "print": "Print or save as PDF",
+    "backToTop": "Back to top",
+    "spanishPrevails": "If the versions differ, the Spanish version prevails.",
+    "noEmail": "the support e-mail shown under “Help and support”",
+    "noWhatsapp": "(the number is under “Help and support”)",
+    "links": {
+      "terminos": "Terms and conditions",
+      "privacidad": "Personal data policy",
+      "encargo-datos": "Data processing agreement"
     }
   }
 }

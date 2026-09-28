@@ -353,7 +353,9 @@
     "openInbox": "Ver en la bandeja",
     "emptyChat": "Aún no hay mensajes. Saluda al hotel.",
     "newContact": "Número nuevo: al escribir se crea como contacto",
-    "reservation": "Reserva {{code}}"
+    "reservation": "Reserva {{code}}",
+    "unavailableTitle": "El simulador no existe en este entorno",
+    "unavailableHint": "El simulador de WhatsApp es una herramienta de demostración: aquí las simulaciones están apagadas. Conecta tu número real de WhatsApp Business en Configuración › Integraciones."
   },
   "commands": {
     "unread": "Ver mensajes sin leer"

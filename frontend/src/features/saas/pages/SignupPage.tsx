@@ -18,6 +18,8 @@ import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { usePublicPlans, useSignup, type PublicPlan } from '../api'
 import { KeyBoardPreview } from '../components/KeyBoardPreview'
+import { LegalLink } from '../components/LegalLink'
+import { LEGAL_PATHS } from '../legal/types'
 import { pickText } from '../helpers'
 
 const PROPERTY_TYPES = ['hotel', 'boutique', 'hostel', 'aparthotel', 'glamping'] as const
@@ -350,7 +352,15 @@ export default function SignupPage() {
                         className="mt-0.5"
                       />
                       <label htmlFor="signup-terms" className="text-sm leading-snug text-muted">
-                        {t('signup.fields.terms')}
+                        <Trans
+                          t={t}
+                          i18nKey="signup.fields.terms"
+                          components={{
+                            terms: <LegalLink to={LEGAL_PATHS.terminos} />,
+                            privacy: <LegalLink to={LEGAL_PATHS.privacidad} />,
+                            dpa: <LegalLink to={LEGAL_PATHS['encargo-datos']} />,
+                          }}
+                        />
                       </label>
                     </div>
                     {fieldState.error?.message && (

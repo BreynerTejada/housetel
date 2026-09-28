@@ -144,7 +144,8 @@
     "sendContact": "Enviar mis datos",
     "contactNeeded": "Déjanos un correo o un teléfono.",
     "contactSent": "Listo: recibimos tus datos y el equipo te contactará pronto.",
-    "poweredBy": "Asistente con IA de Housetel"
+    "poweredBy": "Asistente con IA de Housetel",
+    "privacy": "Usamos tus datos solo para responderte, según la <privacy>política de tratamiento de datos</privacy>."
   },
   "onboarding": {
     "title": "Configuración asistida",

@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { isApiError } from '@/lib/api'
 import { errorMessage } from '@/lib/errors'
 import { formatMoney, normalizeLang } from '@/lib/format'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { cn } from '@/lib/utils'
 import {
   createConnection,
@@ -43,6 +44,8 @@ import { ChannelMark } from './ChannelMark'
 type Step = 'channel' | 'setup' | 'mapping' | 'review'
 
 const CHANNEL_ORDER: ChannelCode[] = ['booksim', 'airsim', 'ical', 'channex']
+/** The OTA simulators: development/demo tools, absent where simulations are off (production). */
+const SIMULATOR_CHANNELS: ChannelCode[] = ['booksim', 'airsim']
 
 export interface ConnectionWizardProps {
   open: boolean
@@ -85,7 +88,12 @@ export function ConnectionWizard({ open, onOpenChange, options, channel, editing
   )
 
   const integration = draft ? integrationOf(draft.channel, options, editing) : null
-  const effectiveMode: IntegrationMode | null = integration ? (draft?.mode ?? integration.mode) : null
+  const storedMode: IntegrationMode | null = integration ? (draft?.mode ?? integration.mode) : null
+  // Modes this installation allows for the channel (production: only real). A stored mode that is not allowed
+  // any more (simulated where simulations are off) becomes the first allowed one, and is saved with the connection.
+  const allowedModes = draft ? (options.channels.find((item) => item.code === draft.channel)?.modes ?? []) : []
+  const effectiveMode: IntegrationMode | null =
+    storedMode && allowedModes.length && !allowedModes.includes(storedMode) ? allowedModes[0] : storedMode
   const setupProblems = draft ? setupIssues(draft, effectiveMode, integration?.secrets ?? []) : []
   const problems = draft ? mappingProblems(draft) : []
 
@@ -110,7 +118,8 @@ export function ConnectionWizard({ open, onOpenChange, options, channel, editing
 
   function submit() {
     if (!draft) return
-    save.mutate(buildConnectionInput(draft, { editing: Boolean(editing) }))
+    const mode = draft.mode ?? (integration && effectiveMode !== integration.mode ? effectiveMode : null)
+    save.mutate(buildConnectionInput({ ...draft, mode }, { editing: Boolean(editing) }))
   }
 
   const title = editing ? t('wizard.editTitle', { channel: editing.name }) : t('wizard.title')
@@ -242,10 +251,14 @@ function Stepper({ steps, current, onGo }: { steps: Step[]; current: number; onG
 
 function ChannelStep({ options, onPick }: { options: ChannelOptions; onPick: (code: ChannelCode) => void }) {
   const { t } = useTranslation('channels')
+  const { simulations_enabled: simulations } = useRuntimeConfig()
   const byCode = new Map(options.channels.map((item) => [item.code, item]))
+  // Only what the backend offers (it leaves BookSim/AirSim out where simulations are off), and never a
+  // simulator while this installation has simulations off.
+  const codes = CHANNEL_ORDER.filter((code) => byCode.has(code) && (simulations || !SIMULATOR_CHANNELS.includes(code)))
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {CHANNEL_ORDER.map((code) => {
+      {codes.map((code) => {
         const option = byCode.get(code)
         const taken = Boolean(option?.connected && !option.multiple)
         return (
@@ -303,6 +316,8 @@ function SetupStep({
   const nameId = useId()
   const hasIntegration = draft.channel === 'ical' || draft.channel === 'channex'
   const fields = draft.channel === 'channex' ? (options.integrations.channel_channex?.fields ?? []) : []
+  // modes this installation allows (production: only real)
+  const allowedModes = options.channels.find((item) => item.code === draft.channel)?.modes ?? ['simulated', 'real']
 
   return (
     <>
@@ -322,7 +337,7 @@ function SetupStep({
         <fieldset className="grid gap-2">
           <legend className="mb-1.5 text-[13px] font-semibold text-fg">{t('wizard.mode')}</legend>
           <RadioGroup value={mode} onValueChange={(value) => onChange({ mode: value as IntegrationMode })} className="gap-2 sm:grid-cols-2">
-            {(['simulated', 'real'] as const).map((value) => (
+            {(['simulated', 'real'] as const).filter((value) => allowedModes.includes(value)).map((value) => (
               <label
                 key={value}
                 className={cn(

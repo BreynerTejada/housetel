@@ -430,8 +430,10 @@ def _record(connection, booking, result) -> None:
             dedupe_key=dedupe_key,
             data={
                 "connection_id": str(connection.pk),
+                "connection": connection.name,
                 "external_id": booking.external_id,
                 "code": result.code,
+                "error": result.message,
             },
             source="distribution",
         )

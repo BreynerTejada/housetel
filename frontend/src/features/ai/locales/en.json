@@ -144,7 +144,8 @@
     "sendContact": "Send my details",
     "contactNeeded": "Leave us an email or a phone number.",
     "contactSent": "Done: we got your details and the team will contact you soon.",
-    "poweredBy": "AI assistant by Housetel"
+    "poweredBy": "AI assistant by Housetel",
+    "privacy": "We only use your details to get back to you, under the <privacy>data processing policy</privacy>."
   },
   "onboarding": {
     "title": "Guided setup",

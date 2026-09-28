@@ -22,9 +22,11 @@ from apps.accounts.services import add_member, ensure_system_roles
 from apps.core.models import Organization, Property
 from apps.core.signals import seeding
 
-SEED_ORDER = ["inventory", "rates", "guests", "bookings", "finance", "housekeeping", "distribution",
-              "marketplace", "guestportal", "messaging", "compliance", "revenue", "ai", "saas",
-              "frontdesk", "reports", "control"]  # fmt: skip
+# Phase P (P-INT): `corporate` right after `bookings` (P4: the finance seed then charges the guests' part
+# and the compliance seed invoices the company folios in date order), `imports` last (P5: needs the guests).
+SEED_ORDER = ["inventory", "rates", "guests", "bookings", "corporate", "finance", "housekeeping",
+              "distribution", "marketplace", "guestportal", "messaging", "compliance", "revenue", "ai",
+              "saas", "frontdesk", "reports", "control", "imports"]  # fmt: skip
 
 DEMO_PASSWORD = "housetel123"
 RNG_SEED = 20260925

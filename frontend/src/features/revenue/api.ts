@@ -129,9 +129,14 @@ export interface RuleReason {
 
 export interface LimitReason {
   type: 'limit'
-  kind: 'max_daily_change' | 'min_price' | 'max_price'
+  /** `rounding`: the commercial rounding to a multiple of `step` (from the price in `from`). */
+  kind: 'max_daily_change' | 'min_price' | 'max_price' | 'rounding'
+  /** The resulting price; for the daily cap it is the final, rounded price (`rounded: true`). */
   price: string
   percent?: string
+  rounded?: boolean
+  step?: string
+  from?: string
 }
 
 export type Reason = RuleReason | LimitReason

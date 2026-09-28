@@ -3,7 +3,9 @@
     "users": "Usuarios",
     "usersHint": "Invita a tu equipo y elige a qué hoteles entra cada persona.",
     "roles": "Roles y permisos",
-    "rolesHint": "Qué puede ver y hacer cada rol."
+    "rolesHint": "Qué puede ver y hacer cada rol.",
+    "account": "Mi cuenta y seguridad",
+    "accountHint": "Tu contraseña y la verificación de tu correo."
   },
   "pages": {
     "invite": "Aceptar invitación"
@@ -145,5 +147,123 @@
     "passwordTooShort": "Crea una contraseña de al menos {{min}} caracteres",
     "signedInAs": "Tienes abierta la sesión de {{current}}. Al unirte, entrarás como {{email}}.",
     "alreadyMember": "Ya eres parte de {{organization}}."
+  },
+  "auth": {
+    "forgotLink": "¿Olvidaste tu contraseña?"
+  },
+  "errors": {
+    "throttled": "Hiciste muchos intentos seguidos. Espera unos minutos e intenta de nuevo."
+  },
+  "password": {
+    "show": "Mostrar contraseña",
+    "hide": "Ocultar contraseña",
+    "tooShort": "Usa al menos 8 caracteres.",
+    "onlyNumbers": "Incluye letras o símbolos, no solo números.",
+    "confirmRequired": "Repite la contraseña nueva.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "rules": {
+      "length": "{{min}} caracteres o más",
+      "notOnlyNumbers": "No solo números",
+      "match": "Las dos coinciden",
+      "met": "cumplido",
+      "pending": "pendiente"
+    }
+  },
+  "scene": {
+    "sleeve": "Llave de Housetel",
+    "account": "Cuenta",
+    "accountPlaceholder": "tu correo",
+    "sent": "Enviada",
+    "newKey": "Llave nueva",
+    "void": "Anulada",
+    "recodeCaption": "Al guardar la contraseña nueva, las llaves anteriores dejan de abrir: cerramos tu sesión en los demás dispositivos.",
+    "verified": "Verificado",
+    "expired": "Vencido",
+    "invalid": "No válido"
+  },
+  "forgot": {
+    "eyebrow": "Recuperar el acceso",
+    "title": "¿Olvidaste tu contraseña?",
+    "subtitle": "Escribe el correo con el que entras a Housetel y te enviamos un enlace para elegir una nueva.",
+    "email": "Correo",
+    "emailPlaceholder": "tu@hotel.co",
+    "submit": "Enviar enlace",
+    "sentTitle": "Revisa tu correo",
+    "sentText": "Si {{email}} corresponde a una cuenta de Housetel, te enviamos un enlace para elegir una contraseña nueva.",
+    "tipOnce": "El enlace sirve una sola vez. Si pides otro, abre el más reciente.",
+    "tipSpam": "¿No llega en unos minutos? Revisa las carpetas de spam y promociones.",
+    "resend": "Enviar de nuevo",
+    "resendIn": "Enviar de nuevo en {{seconds}} s",
+    "otherEmail": "Usar otro correo",
+    "throttled": "Hiciste muchas solicitudes seguidas. Espera unos minutos e intenta de nuevo.",
+    "backToLogin": "Volver a iniciar sesión",
+    "devMailbox": "En desarrollo los correos llegan a Mailpit:"
+  },
+  "reset": {
+    "eyebrow": "Llave nueva",
+    "checking": "Revisando el enlace…",
+    "title": "Elige una contraseña nueva",
+    "subtitle": "Para la cuenta {{email}}.",
+    "password": "Contraseña nueva",
+    "confirm": "Repite la contraseña nueva",
+    "sessionsNote": "Al guardarla entras a Housetel y cerramos tu sesión en los demás dispositivos.",
+    "submit": "Guardar y entrar",
+    "done": "Contraseña actualizada. Cerramos tu sesión en los demás dispositivos.",
+    "invalidTitle": "Este enlace ya no sirve",
+    "invalidText": "Los enlaces para restablecer la contraseña sirven una sola vez y vencen. Pide uno nuevo y abre el último que te llegue.",
+    "requestNew": "Pedir un enlace nuevo"
+  },
+  "verify": {
+    "checking": "Confirmando tu correo…",
+    "doneTitle": "Correo confirmado",
+    "doneText": "Listo: {{email}} quedó verificado.",
+    "alreadyText": "{{email}} ya estaba verificado. No tienes que hacer nada más.",
+    "expiredTitle": "Este enlace venció",
+    "expiredText": "Los enlaces para confirmar el correo duran 7 días. Pide uno nuevo y ábrelo desde tu correo.",
+    "invalidTitle": "Este enlace no es válido",
+    "invalidText": "Revisa que el enlace esté completo: a veces el correo lo parte en dos líneas. Si sigue sin funcionar, pide uno nuevo.",
+    "goToApp": "Ir a Housetel",
+    "login": "Iniciar sesión",
+    "loginToResend": "Inicia sesión para pedir otro"
+  },
+  "verification": {
+    "resend": "Reenviar enlace",
+    "resendIn": "Reenviar en {{seconds}} s",
+    "sent": "Te enviamos un enlace nuevo a {{email}}.",
+    "alreadyVerified": "Tu correo ya está verificado.",
+    "throttled": "Ya pediste varios enlaces. Espera un rato antes de pedir otro.",
+    "emailUnavailable": "No pudimos enviar el correo. Intenta de nuevo en unos minutos."
+  },
+  "chip": {
+    "label": "Verifica tu correo",
+    "title": "Confirma tu correo",
+    "text": "Te enviamos un enlace a {{email}}. Ábrelo para confirmar que el correo es tuyo y que te llegan los avisos de tu cuenta.",
+    "account": "Mi cuenta"
+  },
+  "account": {
+    "title": "Mi cuenta y seguridad",
+    "description": "Tu correo, tu contraseña y cómo recuperas el acceso.",
+    "email": {
+      "title": "Correo",
+      "description": "Con este correo entras a Housetel y recibes los avisos de tu cuenta.",
+      "verified": "Verificado",
+      "unverified": "Sin verificar",
+      "verifiedOn": "Verificado el {{date}}.",
+      "pending": "Te enviamos un enlace a este correo. Ábrelo para confirmar que es tuyo y que te llegan los avisos de tu cuenta, como los enlaces para recuperar el acceso."
+    },
+    "password": {
+      "title": "Contraseña",
+      "description": "Cámbiala cuando quieras; te pedimos la actual para confirmar que eres tú.",
+      "current": "Contraseña actual",
+      "new": "Contraseña nueva",
+      "confirm": "Repite la contraseña nueva",
+      "submit": "Cambiar contraseña",
+      "changed": "Contraseña cambiada. Cerramos tu sesión en los demás dispositivos.",
+      "wrongCurrent": "La contraseña actual no es correcta.",
+      "samePassword": "La contraseña nueva debe ser distinta de la actual.",
+      "currentRequired": "Escribe tu contraseña actual.",
+      "sessionsNote": "Al cambiarla sigues conectado aquí, cerramos tu sesión en los demás dispositivos y te avisamos por correo.",
+      "forgot": "¿Olvidaste tu contraseña actual?"
+    }
   }
 }

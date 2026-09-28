@@ -1,20 +1,26 @@
-"""End-to-end smoke through the Vite proxy, like the SPA: cookie jar + CSRF (plan B-INT/C-INT; `make smoke`).
+"""End-to-end smoke through the Vite proxy, like the SPA: cookie jar + CSRF (B-INT/C-INT/P-INT; `make smoke`).
 
 login owner@casaaurora.co → Today board (C1) → rooms → rate grid → offers → create a tentative reservation →
 its folio → simulated payment link → the public simulated gateway approves it → the reservation is confirmed
 and the payment recorded → its guest-portal link opens the public portal (C5) → BookSim books two nights and
 the reservation arrives in the PMS through the channel, then the OTA cancels it (C3) → a WhatsApp message from
-the simulator lands in the inbox (C6) → logout. Standard library only, runs on the host:
-`python3 backend/scripts/smoke_proxy.py [base_url]`.
+the simulator lands in the inbox (C6) → phase P: runtime config and readiness (P1); forgot password and email
+verification (P2); a 2-room booking that opens a group, an allotment, a pickup from it and its release (P3);
+companies, a statement and the receivables (P4); a guests import in dry-run, then discarded (P5); the
+retention automation, the revenue rounding reason, the iCal SSRF guard and a legal page (P6) → logout.
+Standard library only, runs on the host: `python3 backend/scripts/smoke_proxy.py [base_url]`.
 It leaves in the demo data one confirmed reservation (booker "Smoke Integración", 30 % deposit), one cancelled
-BookSim reservation ("Smoke Canal") and one WhatsApp conversation (+57 300 555 0101, "Smoke WhatsApp").
+BookSim reservation ("Smoke Canal"), one WhatsApp conversation (+57 300 555 0101, "Smoke WhatsApp") and two
+cancelled group reservations (booker "Smoke Grupo"; their group is deleted).
 """
 
 import http.cookiejar
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
+import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -57,6 +63,59 @@ def call_status(method, path, body=None, *, prop=None, expect=(200,)):
         print("    ", json.dumps(payload, ensure_ascii=False)[:600])
         raise SystemExit(1)
     return status, payload
+
+
+def call_multipart(path, fields, files, *, prop=None, expect=(201,)):
+    """POST multipart/form-data (the importer's upload): `files` = {name: (filename, bytes, content type)}."""
+    global requests_made
+    boundary = uuid.uuid4().hex
+    parts = []
+    for name, value in fields.items():
+        parts.append(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
+        )
+    for name, (filename, content, content_type) in files.items():
+        head = (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+            f"Content-Type: {content_type}\r\n\r\n"
+        )
+        parts.append(head.encode() + content + b"\r\n")
+    data = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    headers = {
+        "Accept": "application/json",
+        "Origin": BASE,
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+        "X-CSRFToken": cookie("csrftoken") or "",
+    }
+    if prop:
+        headers["X-Property-Id"] = prop
+    request = urllib.request.Request(BASE + path, data=data, headers=headers, method="POST")
+    try:
+        with opener.open(request, timeout=60) as response:
+            status, raw = response.status, response.read()
+    except urllib.error.HTTPError as error:
+        status, raw = error.code, error.read()
+    requests_made += 1
+    payload = json.loads(raw) if raw[:1] in (b"{", b"[") else raw.decode(errors="replace")[:200]
+    print(f"{'OK ' if status in expect else 'ERR'} {status} POST {path} (multipart)")
+    if status not in expect:
+        print("    ", json.dumps(payload, ensure_ascii=False)[:600])
+        raise SystemExit(1)
+    return payload
+
+
+def page_status(path):
+    """Status of an SPA page as a browser asks for it (Accept: text/html)."""
+    global requests_made
+    request = urllib.request.Request(BASE + path, headers={"Accept": "text/html"})
+    try:
+        with opener.open(request, timeout=60) as response:
+            status = response.status
+    except urllib.error.HTTPError as error:
+        status = error.code
+    requests_made += 1
+    print(f"{'OK ' if status == 200 else 'ERR'} {status} GET {path} (page)")
+    return status
 
 
 def check(condition, message):
@@ -153,6 +212,7 @@ def main():
     print(f"    {after['code']} confirmed · paid {deposit} ({method}) · balance {after['balance']}")
 
     phase_c(pid, today, after)
+    phase_p(pid, today, after)
 
     call("POST", "/api/v1/accounts/auth/logout/", expect=(204,))
     call("GET", "/api/v1/accounts/me/", expect=(401,))
@@ -217,6 +277,173 @@ def phase_c(pid, today, reservation):
     check(thread["channel"] == "whatsapp", "the message landed in a non-WhatsApp thread")
     print(
         f"    WhatsApp inbox: {unread['conversations']} unread conversations, {unread['messages']} messages"
+    )
+
+
+def phase_p(pid, today, reservation):
+    """Phase P (pilot): a few steps per task, read-only or cleaned up (P-INT)."""
+    # P1: the runtime facts the SPA reads, and the readiness probe (database + Redis).
+    config = call("GET", "/api/v1/public/core/config/")
+    check(
+        "simulations_enabled" in config and config["environment"] in ("development", "production"),
+        "the runtime config does not answer",
+    )
+    ready = call("GET", "/api/v1/public/core/health/ready/")
+    check(ready["status"] == "ok", "the readiness probe is not ok")
+    print(
+        f"    runtime: {config['environment']} · simulations {config['simulations_enabled']} · "
+        f"public URL {config['public_base_url']} · ready"
+    )
+
+    # P2: "forgot password" answers the same whether the account exists or not; demo users are verified and a
+    # resend sends nothing; a tampered verification link is rejected.
+    same = call("POST", "/api/v1/public/accounts/password/forgot/", {"email": "nadie-smoke@example.com"})
+    check("detail" in same, "forgot password does not answer 200")
+    me = call("GET", "/api/v1/accounts/me/")
+    check(me.get("email_verified") is True, "the demo owner is not verified")
+    resent = call("POST", "/api/v1/accounts/me/verify-email/resend/")
+    check(resent["sent"] is False and resent["email_verified"] is True, "a verified account got a new link")
+    bad = call("POST", "/api/v1/public/accounts/verify-email/", {"token": "x"}, expect=(400,))
+    check(bad["code"] == "invalid_token", "a tampered verification link was accepted")
+    print("    accounts: forgot password 200 · owner verified · tampered link rejected")
+
+    # P3: a 2-room booking that opens a group → an allotment of 2 → a room picked up from it (general
+    # availability does not move) → release (the unpicked unit goes back on sale) → clean up.
+    def free_units(room_type_id, checkin, checkout):
+        query = f"checkin={checkin}&checkout={checkout}"
+        offers = call("GET", f"/api/v1/bookings/room-offers/?{query}", prop=pid)
+        units = [o["available_units"] for o in offers if o["room_type_id"] == room_type_id]
+        return max(units) if units else 0
+
+    offer, checkin = None, today
+    for days in range(120, 240, 7):
+        checkin = today + timedelta(days=days)
+        query = f"checkin={checkin}&checkout={checkin + timedelta(days=2)}"
+        offers = call("GET", f"/api/v1/bookings/room-offers/?{query}", prop=pid)
+        offer = next(
+            (o for o in offers if o["available_units"] >= 5 and o["room_type"]["kind"] == "private"), None
+        )
+        if offer:
+            break
+    check(offer is not None, "no category with 5 free rooms in the next 240 days")
+    checkout = checkin + timedelta(days=2)
+    room_type_id = offer["room_type_id"]
+    baseline = free_units(room_type_id, checkin, checkout)
+    stay = {
+        "room_type_id": room_type_id,
+        "rate_plan_id": offer["rate_plan_id"],
+        "checkin": str(checkin),
+        "checkout": str(checkout),
+        "adults": 2,
+    }
+    booker = {
+        "first_name": "Smoke",
+        "last_name": "Grupo",
+        "email": "smoke.grupo@example.com",
+        "phone": "+573001112244",
+        "document_type": "CC",
+        "document_number": "1012345699",
+        "nationality": "CO",
+        "country_of_residence": "CO",
+        "data_processing_consent": True,
+    }
+    body = {"booker": booker, "stays": [stay, stay], "source": "phone", "group_name": "Smoke Grupo Fase P"}
+    grouped = call("POST", "/api/v1/bookings/reservations/", body, prop=pid, expect=(201,))
+    check(len(grouped["stays"]) == 2 and grouped["group"], "the 2-room booking did not open its group")
+    group_id = grouped["group"]["id"]
+    block_body = {
+        "room_type_id": room_type_id,
+        "start": str(checkin),
+        "end": str(checkout),
+        "units": 2,
+        "release_date": str(max(today, checkin - timedelta(days=7))),
+    }
+    block = call("POST", f"/api/v1/bookings/groups/{group_id}/blocks/", block_body, prop=pid, expect=(201,))
+    held = free_units(room_type_id, checkin, checkout)
+    check(held == baseline - 4, f"the allotment did not hold 2 rooms ({baseline} → {held})")
+    pickup_body = {
+        "booker_id": grouped["booker"]["id"],
+        "stays": [{**stay, "group_block_id": block["id"]}],
+        "source": "phone",
+        "enforce_restrictions": False,
+    }
+    pickup = call("POST", "/api/v1/bookings/reservations/", pickup_body, prop=pid, expect=(201,))
+    check(free_units(room_type_id, checkin, checkout) == held, "a pickup took general availability")
+    detail = call("GET", f"/api/v1/bookings/groups/{group_id}/", prop=pid)
+    picked = detail["blocks"][0]["pickup"]["picked_rooms"]
+    check(picked == 1 and len(detail["rooming"]) == 3, "the group does not show its pickup and rooming list")
+    call("POST", f"/api/v1/bookings/blocks/{block['id']}/release/", {}, prop=pid)
+    check(
+        free_units(room_type_id, checkin, checkout) == held + 1, "the release did not free the unpicked room"
+    )
+    cancel = {"reason": "Smoke Fase P", "waive_fee": True, "confirm": True}
+    for reservation_id in (grouped["id"], pickup["id"]):
+        call("POST", f"/api/v1/bookings/reservations/{reservation_id}/cancel/", cancel, prop=pid)
+    call("DELETE", f"/api/v1/bookings/groups/{group_id}/", prop=pid, expect=(204,))
+    check(free_units(room_type_id, checkin, checkout) == baseline, "the availability did not come back")
+    print(
+        f"    group: {grouped['code']} (2 rooms) + allotment of 2 + pickup {pickup['code']} → released, "
+        "cancelled and deleted; availability back to the start"
+    )
+
+    # P4: the seed's companies, one statement with its aging, the receivables and a reservation's billing tab.
+    companies = call("GET", "/api/v1/corporate/companies/", prop=pid)["results"]
+    check(companies, "the corporate seed left no companies")
+    statement = call("GET", f"/api/v1/corporate/companies/{companies[0]['id']}/statement/", prop=pid)
+    check({"current", "d31_60", "d61_90", "d90_plus"} <= set(statement["aging"]), "a statement without aging")
+    receivables = call("GET", "/api/v1/corporate/receivables/", prop=pid)
+    check(receivables["companies"], "no company in the receivables")
+    billing = call("GET", f"/api/v1/corporate/reservations/{reservation['id']}/billing/", prop=pid)
+    check(billing["billing"]["bill_to"] in ("guest", "company"), "no billing tab for the reservation")
+    print(
+        f"    corporate: {len(companies)} companies · receivables {receivables['totals']['balance']} · "
+        f"billing tab of {reservation['code']}: {billing['billing']['bill_to']}"
+    )
+
+    # P5: a small guests CSV through the importer's dry-run (nothing is saved), then the job is discarded.
+    csv = "Nombre;Apellido;Email;Documento\nSmoke;Importación;smoke.import@example.com;1099887766\n".encode()
+    job = call_multipart(
+        "/api/v1/imports/jobs/",
+        {"kind": "guests", "preset": "generic", "source_label": "Smoke"},
+        {"file": ("smoke-huespedes.csv", csv, "text/csv")},
+        prop=pid,
+    )
+    job = call("PATCH", f"/api/v1/imports/jobs/{job['id']}/", {"mapping": job["mapping"]}, prop=pid)
+    check(job["status"] == "validated" and job["counts"].get("error", 0) == 0, "the import did not validate")
+    call("POST", f"/api/v1/imports/jobs/{job['id']}/dry-run/", {}, prop=pid, expect=(202,))
+    for _ in range(60):
+        job = call("GET", f"/api/v1/imports/jobs/{job['id']}/", prop=pid)
+        if job["status"] == "validated" and job["dry_run_at"]:
+            break
+        time.sleep(1)
+    summary = job.get("dry_run_summary") or {}
+    check(job["dry_run_at"] and summary.get("fail", 0) == 0, "the import dry-run did not finish cleanly")
+    call("DELETE", f"/api/v1/imports/jobs/{job['id']}/", prop=pid, expect=(204,))
+    print(f"    import: guests CSV dry-run {summary} → discarded")
+
+    # P6: Habeas Data retention (180 days by default), the revenue rounding reason, the iCal guard against
+    # internal addresses and the public legal pages.
+    retention = call("GET", "/api/v1/control/automations/guests.purge_identity_documents/", prop=pid)
+    days = (retention.get("params") or {}).get("retention_days")
+    check(days == 180, f"retention_days is {days}, not 180")
+    simulated = call("POST", "/api/v1/revenue/simulate/", {}, prop=pid)
+    rounded = [
+        rec
+        for rec in simulated["recommendations"]
+        if any(reason.get("kind") == "rounding" for reason in rec.get("reasons") or [])
+    ]
+    check(rounded, "no recommendation explains its rounding")
+    ical = {
+        "channel_code": "ical",
+        "name": "Smoke iCal interno",
+        "room_mappings": [{"room_type": room_type_id, "ical_import_url": "https://10.0.0.5/cal.ics"}],
+    }
+    refused = call("POST", "/api/v1/distribution/connections/", ical, prop=pid, expect=(400,))
+    check("red interna" in json.dumps(refused, ensure_ascii=False), "an internal iCal URL was accepted")
+    check(page_status("/legal/privacidad") == 200, "the privacy policy page does not open")
+    print(
+        f"    P6: retention {days} days · {len(rounded)} recommendations with rounding · "
+        "iCal to 10.0.0.5 refused · /legal/privacidad 200"
     )
 
 

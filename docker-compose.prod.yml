@@ -1,0 +1,158 @@
+# Housetel — production stack (docs/deploy.md).
+#
+#   make prod-build && make prod-up        # project "housetel-prod", http://localhost:${HOUSETEL_HTTP_PORT:-8080}
+#   make prod-down
+#
+# Every value comes from the env file (PROD_ENV_FILE, default .env.prod; template: deploy/env.prod.example), passed
+# with --env-file for the ${...} below and loaded into the application containers. Only nginx publishes a port;
+# put TLS in front of it (Caddy, a cloud load balancer, Cloudflare…) or terminate it in nginx.
+name: housetel-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+# One image for the API (gunicorn), the Celery worker and Celery beat: built once by the `backend` service
+# (`make prod-build`), reused by the other two.
+x-app: &app
+  image: housetel-backend:prod
+  pull_policy: never
+  env_file:
+    - path: ${PROD_ENV_FILE:-.env.prod}
+      required: true
+  environment:
+    DJANGO_ENV: production
+    DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-housetel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-housetel}}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    MEDIA_ROOT: /data/media
+    PRIVATE_MEDIA_ROOT: /data/private
+    STATIC_ROOT: /app/staticfiles
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-housetel}
+      POSTGRES_USER: ${POSTGRES_USER:-housetel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the prod env file}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "300", "10"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    logging: *logging
+
+  backend:
+    <<: *app
+    build:
+      context: ./backend
+      dockerfile: ../deploy/backend/Dockerfile
+    command:
+      - sh
+      - -c
+      - python manage.py migrate --noinput && python manage.py collectstatic --noinput --verbosity 0
+        && exec gunicorn config.wsgi:application -c config/gunicorn_conf.py
+    environment:
+      DJANGO_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-housetel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-housetel}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      MEDIA_ROOT: /data/media
+      PRIVATE_MEDIA_ROOT: /data/private
+      STATIC_ROOT: /app/staticfiles
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+    volumes:
+      - media:/data/media
+      - private_media:/data/private
+      - static:/app/staticfiles
+    healthcheck:
+      # Liveness through gunicorn with a Host header Django accepts (the first DJANGO_ALLOWED_HOSTS entry).
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request as u; h = (os.environ.get('DJANGO_ALLOWED_HOSTS') or os.environ.get('FRONTEND_URL', '').split('//')[-1].split('/')[0] or 'localhost').split(',')[0].strip().lstrip('.'); h = 'localhost' if h in ('', '*') else h; u.urlopen(u.Request('http://127.0.0.1:8000/api/v1/public/core/health/', headers={'Host': h}), timeout=5)"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  worker:
+    <<: *app
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency", "${CELERY_CONCURRENCY:-2}"]
+    volumes:
+      - media:/data/media
+      - private_media:/data/private
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME -t 10 | grep -q pong"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+  beat:
+    <<: *app
+    command: ["celery", "-A", "config", "beat", "-l", "info", "--schedule", "/tmp/celerybeat-schedule"]
+
+  nginx:
+    image: housetel-web:prod
+    pull_policy: never
+    build:
+      context: ./frontend
+      dockerfile: ../deploy/nginx/Dockerfile
+    environment:
+      # Only these variables are substituted in deploy/nginx/templates (nginx's own $variables stay as they are).
+      NGINX_ENVSUBST_FILTER: "^(NGINX_|CSP_)"
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-25m}
+      NGINX_HSTS: ${NGINX_HSTS:-max-age=31536000; includeSubDomains; preload}
+      # Extra CSP sources, e.g. the S3/CDN domain of public photos: "https://media.example.com".
+      NGINX_CSP_IMG_SRC: ${NGINX_CSP_IMG_SRC:-}
+      NGINX_CSP_CONNECT_SRC: ${NGINX_CSP_CONNECT_SRC:-}
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - static:/srv/static:ro
+      - media:/srv/media:ro
+    ports:
+      - "${HOUSETEL_HTTP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  pgdata: {}
+  redisdata: {}
+  media: {}
+  private_media: {}
+  static: {}

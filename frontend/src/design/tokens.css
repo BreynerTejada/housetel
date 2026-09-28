@@ -20,8 +20,10 @@
   --border: #e7e2da;
   --border-strong: #d5cdc2;
   --text: #1f1c19;
-  --text-muted: #6e675e;
-  --text-subtle: #948c81;
+  /* WCAG AA (≥ 4.5:1) on --bg, --surface, --surface-2, --surface-3 and the -soft tints, in both themes;
+     subtle stays one step lighter than muted (hints, placeholders, secondary metadata) */
+  --text-muted: #5f5850;
+  --text-subtle: #6c655c;
 
   --accent: #b4583b;
   --accent-hover: #9a4a31;
@@ -67,8 +69,8 @@
   --border: #35312c;
   --border-strong: #4a453e;
   --text: #eeeae4;
-  --text-muted: #a59e94;
-  --text-subtle: #7f786f;
+  --text-muted: #b0a99f;
+  --text-subtle: #9a938a;
 
   --accent: #d4775c;
   --accent-hover: #e08a70;
@@ -113,8 +115,8 @@
     --border: #35312c;
     --border-strong: #4a453e;
     --text: #eeeae4;
-    --text-muted: #a59e94;
-    --text-subtle: #7f786f;
+    --text-muted: #b0a99f;
+    --text-subtle: #9a938a;
 
     --accent: #d4775c;
     --accent-hover: #e08a70;

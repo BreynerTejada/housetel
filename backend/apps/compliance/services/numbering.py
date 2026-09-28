@@ -166,6 +166,12 @@ def _check_runway(property, kind, resolution, number, on_date):
             "remaining": remaining,
             "days_left": days_left,
             "used_percent": round(used * 100 / total, 1),
+            # P-INT: what the translated text needs (control:alertText.invoice_resolution)
+            "prefix": resolution.prefix,
+            "total": total,
+            "valid_to": resolution.valid_to.isoformat(),
+            "running_out": running_out,
+            "expiring": expiring,
         },
         source="compliance",
     )

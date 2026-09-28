@@ -51,6 +51,10 @@ export interface InvoiceSummary {
   has_pdf: boolean
   is_exempt: boolean
   created_at: string
+  /** P4: invoices to a company with credit ("a crédito") fall due this day. */
+  due_date?: string | null
+  /** P4: invoiced to a company's NIT (company folio). */
+  is_company?: boolean
 }
 
 export interface InvoiceCustomer {
@@ -69,6 +73,13 @@ export interface InvoiceCustomer {
   city: string
   country: string
   nationality: string
+  /** P4 (company customers): the company, its trade name, VAT regime, DIAN responsibilities and payment terms. */
+  company_id?: string
+  trade_name?: string
+  vat_responsible?: boolean
+  tax_responsibilities?: string[]
+  payment_form?: 'cash' | 'credit'
+  payment_terms_days?: number
 }
 
 export interface InvoiceLine {
@@ -403,6 +414,21 @@ export interface ReservationLegal {
   }[]
   warnings: ('final_consumer' | 'invoice_failed' | 'tra_pending' | 'sire_missing')[]
   resolution: ResolutionHealth
+  preview: InvoicePreview | null
+  /** P4 ("Facturar a"): one row per customer — the guest side and each company folio — with what is pending. */
+  folios?: LegalFolio[]
+}
+
+export interface LegalFolio {
+  /** Issue this row with `POST invoices/issue/ {folio_id}`. */
+  folio_id: string
+  folio_ids: string[]
+  folio_type: 'guest' | 'company'
+  status: 'open' | 'closed'
+  company_id: string | null
+  customer: InvoiceCustomer
+  uninvoiced: { count: number; total: Money }
+  can_issue: boolean
   preview: InvoicePreview | null
 }
 

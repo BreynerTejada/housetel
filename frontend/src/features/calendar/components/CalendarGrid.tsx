@@ -40,7 +40,7 @@ import type { BarDragData } from './StayBar'
 import { GridRow, type PriceIndex, type RowHandlers } from './GridRow'
 
 /** Height of the sticky row of day headers (px). */
-export const HEADER_HEIGHT = 56
+export const HEADER_HEIGHT = 60
 const LABEL_WIDTH = { phone: 104, wide: 212 } as const
 /** A click right after a drag ends is the release of that drag, not a request to open the booking. */
 const CLICK_AFTER_DRAG_MS = 300
@@ -685,20 +685,19 @@ const DayHeader = memo(function DayHeader({
       aria-label={label}
       title={holiday}
       className={cn(
-        'relative flex shrink-0 flex-col items-center justify-end pb-1.5',
+        'relative flex shrink-0 flex-col items-center pt-1 pb-1.5',
         isWeekendNight(date) && 'bg-surface-2/80',
         holiday && 'bg-accent-soft/45',
         isToday && 'shadow-[inset_0_3px_0_var(--accent)]',
       )}
       style={{ width }}
     >
-      {showMonth && (
-        <span aria-hidden className="absolute top-1 left-1.5 text-2xs leading-4 font-bold text-muted uppercase">
-          {formatDate(date, 'MMM', lang)}
-        </span>
-      )}
+      {/* The month has its own line above the weekday, so "SEP"/"OCT" never sits on top of "DOM"/"JUE". */}
+      <span aria-hidden className="h-3.5 self-stretch truncate pr-3 pl-1.5 text-left text-2xs leading-3.5 font-bold text-muted uppercase">
+        {showMonth ? formatDate(date, 'MMM', lang) : null}
+      </span>
       {holiday && <span aria-hidden className="absolute top-2 right-1.5 size-1.5 rounded-full bg-accent" />}
-      <span aria-hidden className={cn('eyebrow', (holiday || isToday) && '!text-accent-ink')}>
+      <span aria-hidden className={cn('eyebrow mt-auto', (holiday || isToday) && '!text-accent-ink')}>
         {formatDate(date, 'EEE', lang)}
       </span>
       <span aria-hidden className={cn('num text-base leading-5 font-bold tracking-[-0.02em]', isToday ? 'text-accent-ink' : 'text-fg')}>

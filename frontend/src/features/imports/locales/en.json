@@ -1,0 +1,475 @@
+{
+  "nav": {
+    "import": "Import data",
+    "importHint": "Bring guests, reservations and rooms over from your previous system"
+  },
+  "commands": {
+    "import": "Import data from another system"
+  },
+  "page": {
+    "title": "Import data",
+    "description": "Bring your guests, reservations and rooms over from your previous system: upload the Cloudbeds export or a spreadsheet, review it row by row and confirm.",
+    "forbidden": "You don't have permission to import data",
+    "forbiddenHint": "Ask the hotel owner for the “Import data from another system” permission."
+  },
+  "steps": {
+    "label": "Import steps",
+    "done": "(done)",
+    "kind": "Type",
+    "file": "File",
+    "map": "Map",
+    "review": "Review",
+    "import": "Import",
+    "result": "Result"
+  },
+  "kinds": {
+    "reservations": {
+      "label": "Reservations",
+      "title": "Import reservations",
+      "noun": "reservations",
+      "description": "Upcoming and in-house, with category, room and what was already paid."
+    },
+    "guests": {
+      "label": "Guests",
+      "title": "Import guests",
+      "noun": "guests",
+      "description": "Profiles with ID document, contact details, nationality and birth date."
+    },
+    "room_types": {
+      "label": "Categories",
+      "title": "Import categories",
+      "noun": "categories",
+      "description": "Room types with capacity, room numbers and base price."
+    },
+    "rooms": {
+      "label": "Rooms",
+      "title": "Import rooms",
+      "noun": "rooms",
+      "description": "Room numbers with their category, floor and beds."
+    }
+  },
+  "presets": {
+    "cloudbeds": {
+      "label": "Cloudbeds export",
+      "description": "The file you download from Cloudbeds: we recognize its columns, its statuses and its multi-room reservations."
+    },
+    "generic": {
+      "label": "Excel or CSV",
+      "description": "From another system, your own spreadsheet or Housetel's template."
+    }
+  },
+  "howto": {
+    "cloudbeds": {
+      "reservations": "In Cloudbeds, open Reservations, filter the ones arriving from today on and the ones in house, and use Export (.xlsx). Include the reservation number, guest, dates, room type, room, rate plan, status, grand total and balance due.",
+      "guests": "In Cloudbeds, open Guests and use Export. If you have the ID document, nationality and birth date, include them: you need them for TRA and SIRE.",
+      "room_types": "For categories use the template: copy your Cloudbeds room types with their capacity, room numbers and base price. We also recognize Cloudbeds' English column titles.",
+      "rooms": "For rooms use the template: copy the number and room type of each Cloudbeds room. We also recognize Cloudbeds' English column titles."
+    }
+  },
+  "start": {
+    "title": "New import",
+    "kindStep": "1 · What are you importing?",
+    "kindLabel": "Kind of data",
+    "optional": "Optional",
+    "order": "Suggested order: categories and rooms (if you haven't created them yet), then guests and reservations last.",
+    "presetStep": "Where does the file come from?",
+    "presetLabel": "File source",
+    "sourceLabel": "Name of the previous system",
+    "sourcePlaceholder": "E.g. front desk spreadsheet, Little Hotelier",
+    "sourceHint": "If you import from the same system again, Housetel updates what it brought before instead of duplicating it.",
+    "fileStep": "2 · Upload the file",
+    "privacy": "We keep the file only to review and import it: its data is erased 30 days after it finishes (Habeas Data). No emails or messages are sent to guests."
+  },
+  "upload": {
+    "drop": "Drop your CSV or Excel (.xlsx) file here",
+    "release": "Release the file to upload it",
+    "limits": "Up to 15 MB and 10,000 rows. The first row must hold the column titles.",
+    "choose": "Choose file",
+    "uploading": "Reading {{name}}…",
+    "errors": {
+      "xls": ".xls files (Excel 97-2003) can't be read: open it in Excel and save it as .xlsx or .csv.",
+      "type": "Upload a .csv or .xlsx file.",
+      "size": "The file is larger than 15 MB: split it into several files.",
+      "empty": "The file is empty."
+    }
+  },
+  "templates": {
+    "button": "Templates and example",
+    "empty": "{{kind}} template (empty)",
+    "esXlsx": "Spanish · Excel (.xlsx)",
+    "esCsv": "Spanish · CSV",
+    "enXlsx": "English · Excel (.xlsx)",
+    "enCsv": "English · CSV",
+    "exampleLabel": "To try it out",
+    "example": "Example file with your categories",
+    "exampleCloudbeds": "Example in the Cloudbeds format"
+  },
+  "history": {
+    "title": "Previous imports",
+    "count_one": "{{count}} import",
+    "count_other": "{{count}} imports",
+    "empty": "You haven't imported anything yet",
+    "emptyHint": "Once you upload a file, its result and report stay here.",
+    "rows_one": "{{formatted}} row",
+    "rows_other": "{{formatted}} rows",
+    "doneSummary": "{{created}} created · {{updated}} updated · {{failed}} failed",
+    "reviewSummary": "{{valid}} ready · {{error}} with errors",
+    "page": "Page {{page}} of {{pages}}",
+    "previous": "Previous page",
+    "next": "Next page"
+  },
+  "job": {
+    "backToImports": "Back to Import data",
+    "discard": "Discard",
+    "discardTitle": "Discard this import?",
+    "discardDescription": "“{{name}}” and its review are deleted. Nothing was imported yet.",
+    "uploadedBy": "uploaded by {{name}} {{when}}",
+    "purged": "The file's data was already erased (Habeas Data, 30 days after it finished): the results stay."
+  },
+  "jobStatus": {
+    "uploaded": "To map",
+    "validated": "Reviewed",
+    "queued": "Queued",
+    "running": "In progress",
+    "completed": "Completed",
+    "failed": "Stopped",
+    "reverted": "Rolled back",
+    "stale": "Stalled"
+  },
+  "jobPhase": {
+    "dry_run": "Simulating",
+    "run": "Importing",
+    "revert": "Rolling back"
+  },
+  "rowStatus": {
+    "pending": "Not reviewed",
+    "valid": "Ready",
+    "warning": "With warnings",
+    "error": "With errors",
+    "skip": "Skipped"
+  },
+  "dryOutcome": {
+    "create": "Would create",
+    "update": "Would update",
+    "skip": "Would skip",
+    "fail": "Would fail"
+  },
+  "outcome": {
+    "created": "Created",
+    "updated": "Updated",
+    "skipped": "Skipped",
+    "failed": "Failed",
+    "reverted": "Rolled back"
+  },
+  "ledgerLabels": {
+    "valid": "Ready",
+    "warning": "With warnings",
+    "error": "With errors",
+    "skip": "Skipped",
+    "create": "Would create",
+    "update": "Would update",
+    "skipDry": "Would skip",
+    "fail": "Would fail",
+    "created": "Created",
+    "updated": "Updated",
+    "skipped": "Skipped",
+    "failed": "Failed",
+    "reverted": "Rolled back"
+  },
+  "ledger": {
+    "rows_one": "{{formatted}} row",
+    "rows_other": "{{formatted}} rows",
+    "filter": "Show only these rows",
+    "showingOnly": "Showing only these rows; tap again to see them all"
+  },
+  "groups": {
+    "main": "Identification",
+    "stay": "Stay",
+    "guest": "Guest",
+    "money": "Amounts",
+    "extra": "Other data"
+  },
+  "fields": {
+    "external_id": "Number or id in your system",
+    "full_name": "Full name",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "document_type": "ID document type",
+    "document_number": "ID document number",
+    "nationality": "Nationality",
+    "country_of_residence": "Country of residence",
+    "city_of_residence": "City",
+    "birth_date": "Birth date",
+    "gender": "Gender",
+    "language": "Language",
+    "address": "Address",
+    "status": "Status",
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "nights": "Nights",
+    "adults": "Adults",
+    "children": "Children",
+    "room_type": "Category",
+    "room_number": "Room",
+    "bed": "Bed",
+    "rate_plan": "Rate plan",
+    "total_amount": "Total",
+    "paid_amount": "Paid",
+    "balance_due": "Balance due",
+    "source": "Source or channel",
+    "third_party_id": "Channel number",
+    "booked_at": "Booking date",
+    "eta": "Arrival time",
+    "special_requests": "Special requests",
+    "notes": "Notes",
+    "code": "Code",
+    "name": "Name",
+    "name_en": "English name",
+    "kind": "Type",
+    "base_occupancy": "Base occupancy",
+    "max_adults": "Max adults",
+    "max_children": "Max children",
+    "max_occupancy": "Max occupancy",
+    "beds_per_room": "Beds per room",
+    "room_numbers": "Room numbers",
+    "base_price": "Base price per night",
+    "description": "Description",
+    "number": "Room number",
+    "floor": "Floor",
+    "beds": "Beds",
+    "building": "Building"
+  },
+  "fieldHints": {
+    "external_id": "Avoids duplicates: importing again updates instead of repeating.",
+    "full_name": "When it comes in one column; otherwise use First name and Last name.",
+    "document_type": "CC, CE, passport, PEP, PPT…",
+    "nationality": "Country name, code (CO, COL) or demonym.",
+    "language": "When missing, the guest's country language is used.",
+    "status": "Confirmed, not confirmed, in house… Cancelled and checked-out ones are not imported.",
+    "checkout": "Or map the nights column.",
+    "nights": "Used when there is no check-out date.",
+    "room_type": "Next you choose which Housetel category each value is.",
+    "room_number": "When present, that room is assigned.",
+    "bed": "For dorms sold by bed.",
+    "rate_plan": "When missing, the plan you choose is used.",
+    "total_amount": "What the guest pays for the stay; that price is kept.",
+    "paid_amount": "Recorded as an “Imported balance” payment.",
+    "balance_due": "What is still owed: when there is no paid column, it is worked out.",
+    "source": "Booking.com, Expedia, direct… Kept in the reservation notes.",
+    "third_party_id": "The reservation code at the OTA.",
+    "code": "When missing, it is built from the name.",
+    "kind": "Private or dorm (sold by bed).",
+    "room_numbers": "E.g. 101-105, 201, 202",
+    "base_price": "Added to your rate plans.",
+    "beds_per_room": "Required for dorms.",
+    "beds": "For dorm rooms."
+  },
+  "map": {
+    "detected_one": "We recognized {{count}} of the file's {{total}} columns. Check the rest and map what's missing.",
+    "detected_other": "We recognized {{count}} of the file's {{total}} columns. Check the rest and map what's missing.",
+    "restore": "Back to automatic detection",
+    "missing": "Still to map: {{fields}}",
+    "required": "Required",
+    "oneOf": "(or {{fields}})",
+    "oneOfList": "{{a}} or {{b}}",
+    "none": "— Don't import —",
+    "usedBy": "already in “{{field}}”",
+    "auto": "Detected",
+    "emptyColumn": "Empty column in the first rows",
+    "notImported": "This value is not imported",
+    "unused_one": "{{count}} column of the file is not imported",
+    "unused_other": "{{count}} columns of the file are not imported",
+    "assigned_one": "{{count}} value mapped",
+    "assigned_other": "{{count}} values mapped",
+    "next": "Continue",
+    "showAll_one": "Show {{count}} more unmapped value",
+    "showAll_other": "Show {{count}} more unmapped values",
+    "hideEmpty": "Hide unmapped values",
+    "assignThem": "Map one of these columns",
+    "detectedAll_one": "We recognized the file's only column. Check it goes to the right value.",
+    "detectedAll_other": "We recognized all {{count}} columns of the file. Check each one goes to the right value."
+  },
+  "values": {
+    "roomTypes": "Categories in the file",
+    "roomTypesHint": "Tell us which Housetel category each value is. Rows with unmapped values are not imported.",
+    "ratePlans": "Rate plans in the file",
+    "ratePlansHint": "Each plan in the file must match a Housetel plan that includes the category.",
+    "rows_one": "{{formatted}} row",
+    "rows_other": "{{formatted}} rows",
+    "auto": "Matched automatically",
+    "mapTo": "Housetel match for “{{value}}”",
+    "none": "Not mapped (those rows are not imported)",
+    "capacity": "max {{adults}} adults, {{total}} people",
+    "dorm": "dorm sold by bed",
+    "unassigned_one": "{{count}} value not mapped: its rows will fail.",
+    "unassigned_other": "{{count}} values not mapped: their rows will fail.",
+    "back": "Columns",
+    "next": "Review rows"
+  },
+  "options": {
+    "title": "How to read the file",
+    "defaultPlan": "Plan for rows without one",
+    "defaultPlanHint": "Used when a row has no rate plan.",
+    "defaultPlanAuto": "Automatic: {{plan}}",
+    "defaultPlanNone": "Automatic (no active plans)",
+    "dateFormat": "Date format",
+    "dateFormatHint": "How numeric dates such as 05/10/2026 are written.",
+    "dateAutoDetected": "Automatic · we detected {{format}}",
+    "dateFormats": {
+      "auto": "Automatic",
+      "dmy": "day/month/year",
+      "mdy": "month/day/year",
+      "ymd": "year-month-day"
+    },
+    "dateAmbiguous": "Every date can be read as day/month or as month/day: we use day/month/year. If your system uses month/day, pick it here.",
+    "includesTax": "Amounts include taxes",
+    "includesTaxHint": "Turn it on when the file's total already includes VAT, as in Cloudbeds. Non-resident foreigners pay no lodging VAT.",
+    "onExisting": "If it was imported before",
+    "onExistingHint": "Applies to what you already brought over from {{source}}.",
+    "existing": {
+      "update": "Update",
+      "updateHint": "Fills in data, changes dates and records new payments.",
+      "skip": "Skip",
+      "skipHint": "Leaves what already exists in Housetel untouched."
+    },
+    "source": "Source system",
+    "sourceHint": "Name of the previous system. Importing twice from the same system duplicates nothing."
+  },
+  "review": {
+    "caption": "Review, row by row",
+    "dryCaption": "Dry run of {{date}}",
+    "lens": "What to see",
+    "lensDry": "Dry run",
+    "lensReview": "Review",
+    "errors_one": "{{formatted}} row has errors and won't be imported. Fix it in the file or check the value mapping.",
+    "errors_other": "{{formatted}} rows have errors and won't be imported. Fix them in the file or check the value mapping.",
+    "fixMapping": "Check the mapping",
+    "dryHint": {
+      "reservations": "Simulate first: Housetel tries every reservation against the real availability and rooms without saving anything. Nothing is overbooked.",
+      "guests": "Simulate first: you'll see which guests would be created and which already exist (same ID document or email).",
+      "room_types": "Simulate first: you'll see which categories would be created and which updated.",
+      "rooms": "Simulate first: you'll see which rooms would be created and which updated."
+    },
+    "back": "Mapping",
+    "dry": "Simulate import",
+    "dryAgain": "Simulate again",
+    "run_one": "Import {{formatted}} row",
+    "run_other": "Import {{formatted}} rows",
+    "confirmTitle_one": "Import {{formatted}} row?",
+    "confirmTitle_other": "Import {{formatted}} rows?",
+    "confirm": {
+      "reservations": "Reservations are created with source “Import” ({{source}}). What was paid is recorded as an “Imported balance” payment and in-house reservations are checked in. No emails or messages are sent to guests, and you can roll it back.",
+      "guests": "New guests are created and existing ones with the same ID document or email are filled in. No emails are sent.",
+      "room_types": "Categories are created or updated with their rooms; the base price is added to your rate plans.",
+      "rooms": "Rooms are created or updated."
+    },
+    "confirmButton": "Import",
+    "noDryWarning": "You haven't simulated it yet: rows without availability will fail (nothing is overbooked)."
+  },
+  "rows": {
+    "label": "Rows of the file",
+    "all_one": "{{formatted}} row",
+    "all_other": "{{formatted}} rows",
+    "filtered_one": "{{formatted}} row with this result",
+    "filtered_other": "{{formatted}} rows with this result",
+    "search": "Search row, number or code",
+    "clearSearch": "Clear search",
+    "noMatch": "No row matches the search",
+    "none": "No rows with this result",
+    "row": "Row {{number}}",
+    "noData": "No data",
+    "open": "Open",
+    "page": "Page {{page}} of {{pages}}",
+    "previous": "Previous page",
+    "next": "Next page"
+  },
+  "progress": {
+    "label": "Progress",
+    "title": {
+      "dry_run": "Simulating the {{kind}} import…",
+      "run": "Importing {{kind}}…",
+      "revert": "Rolling back the import…"
+    },
+    "hint": {
+      "dry_run": "Every row goes through the same services as the real import, without saving anything.",
+      "run": "Rows are saved one by one: if one fails, the rest go on.",
+      "revert": "Reservations nobody touched since the import are cancelled with no fee."
+    },
+    "queued": "Queued: waiting for the server…",
+    "stale": "No progress from the server for a few minutes. You can relaunch it: it resumes where it stopped.",
+    "leave": "You can leave this page: the process keeps running on the server and you'll see it in the history.",
+    "relaunch": "Relaunch",
+    "units": {
+      "reservations_one": "reservation",
+      "reservations_other": "reservations",
+      "guests_one": "guest",
+      "guests_other": "guests",
+      "room_types_one": "category",
+      "room_types_other": "categories",
+      "rooms_one": "room",
+      "rooms_other": "rooms",
+      "revert_one": "reservation",
+      "revert_other": "reservations"
+    }
+  },
+  "result": {
+    "caption": "Result, row by row",
+    "failed": "The import stopped before finishing. Rows already imported are not repeated when you resume it.",
+    "resume": "Resume import",
+    "reverted": "Rolled back on {{date}} by {{name}}",
+    "revertReasons": {
+      "revert_in_house_one": "{{count}} in house",
+      "revert_in_house_other": "{{count}} in house",
+      "revert_activity_one": "{{count}} with later activity",
+      "revert_activity_other": "{{count}} with later activity",
+      "revert_not_active_one": "{{count}} no longer active",
+      "revert_not_active_other": "{{count}} no longer active",
+      "revert_missing_one": "{{count}} no longer exists",
+      "revert_missing_other": "{{count}} no longer exist"
+    },
+    "next": "Next step:",
+    "links": {
+      "reservations": "See reservations",
+      "calendar": "See calendar",
+      "guests": "See guests",
+      "roomTypes": "See categories",
+      "rates": "See rates",
+      "rooms": "See rooms"
+    },
+    "fixFailed_one": "{{formatted}} row was not imported. Download the error report, fix it in your file and upload it again: what was already imported is skipped.",
+    "fixFailed_other": "{{formatted}} rows were not imported. Download the error report, fix them in your file and upload it again: what was already imported is skipped.",
+    "newImport": "New import",
+    "revertedCount_one": "{{count}} reservation cancelled",
+    "revertedCount_other": "{{count}} reservations cancelled",
+    "keptCount_one": "{{count}} not rolled back",
+    "keptCount_other": "{{count}} not rolled back"
+  },
+  "revert": {
+    "button": "Roll back import",
+    "title": "Roll back this import?",
+    "description": "Reservations created by this import that nobody touched since are cancelled with no fee, and their imported payments are voided. It stays in the audit log.",
+    "word": "ROLLBACK",
+    "confirm": "Roll back",
+    "loading": "Working out what can be rolled back…",
+    "revertible_one": "{{formatted}} reservation will be cancelled.",
+    "revertible_other": "{{formatted}} reservations will be cancelled.",
+    "inHouse_one": "{{count}} is in house: not rolled back.",
+    "inHouse_other": "{{count}} are in house: not rolled back.",
+    "activity_one": "{{count}} has later activity (payments, charges or changes): not rolled back.",
+    "activity_other": "{{count}} have later activity (payments, charges or changes): not rolled back.",
+    "notActive_one": "{{count}} is no longer active.",
+    "notActive_other": "{{count}} are no longer active.",
+    "missing_one": "{{count}} no longer exists.",
+    "missing_other": "{{count}} no longer exist."
+  },
+  "report": {
+    "button": "Report",
+    "label": "CSV report (opens in Excel)",
+    "issues": "Only rows with errors or warnings",
+    "all": "All rows",
+    "issuesOther": "Errors and warnings, in Spanish",
+    "purged": "The file's data was already erased: the report only has the results."
+  }
+}

@@ -9,12 +9,13 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apps.bookings.api.filters import ReservationFilter
-from apps.bookings.models import Reservation, Stay
+from apps.bookings.models import Reservation, ReservationGroup, Stay
+from apps.bookings.services.groups import rooming_list
 from apps.bookings.services.queries import with_balance
 from apps.core.tenancy import PropertyScopedAPIView, PropertyScopedMixin
 from apps.frontdesk.api.serializers import NightAuditReportSerializer, NightAuditRunSerializer
 from apps.frontdesk.models import NightAuditReport
-from apps.frontdesk.services.export import reservations_csv
+from apps.frontdesk.services.export import reservations_csv, rooming_csv
 from apps.frontdesk.services.night_audit import preview_night_audit, run_manual
 from apps.frontdesk.services.today import last_report, online_checkin_state, today_board
 
@@ -99,7 +100,7 @@ class ReservationExportView(PropertyScopedAPIView):
         stays = Stay.objects.select_related("room", "bed", "room_type").order_by("checkin_date", "created_at")
         queryset = (
             with_balance(Reservation.objects.filter(property=request.property))
-            .select_related("booker")
+            .select_related("booker", "group")
             .prefetch_related(Prefetch("stays", queryset=stays))
         )
         filterset = ReservationFilter(request.query_params, queryset=queryset, request=request)
@@ -112,6 +113,24 @@ class ReservationExportView(PropertyScopedAPIView):
             lang=request.query_params.get("lang", "es"),
             business_date=request.property.business_date,
         )
+
+
+class GroupRoomingExportView(PropertyScopedAPIView):
+    """`GET groups/{id}/rooming-list/?lang=es|en` → the group's rooming list as CSV (one row per room: who
+    holds it, where, when, the guest in it and whether it came from the allotment)."""
+
+    required_permissions = {"get": BOOKINGS_VIEW}
+
+    @extend_schema(
+        operation_id="frontdesk_group_rooming_export",
+        parameters=[OpenApiParameter("lang", str, enum=["es", "en"])],
+        responses={(200, "text/csv"): OpenApiTypes.STR},
+    )
+    def get(self, request, group_id):
+        group = ReservationGroup.objects.filter(pk=group_id, property=request.property).first()
+        if group is None:
+            raise NotFound("Grupo no encontrado")
+        return rooming_csv(group, rooming_list(group), lang=request.query_params.get("lang", "es"))
 
 
 class OnlineCheckinView(PropertyScopedAPIView):

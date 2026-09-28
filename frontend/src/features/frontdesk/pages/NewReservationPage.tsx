@@ -19,8 +19,10 @@ import {
   getRoomOptions,
   getToday,
   useExtras,
-  useOffers,
+  useGroup,
   useRefreshFrontDesk,
+  useRoomOffers,
+  useStaysQuote,
   type ReservationDetail,
 } from '../api'
 import { occupiedUnits, orderUnits } from '../lib/units'
@@ -32,9 +34,13 @@ import { StepPayment } from '../components/wizard/StepPayment'
 import { WizardSteps, WizardSummary } from '../components/wizard/WizardParts'
 import {
   buildReservationPayload,
+  depositPercent,
+  expandSelection,
   firstInvalidStep,
   initialWizardState,
-  offerQuery,
+  quoteInput,
+  roomOffersQuery,
+  suggestedAmount,
   validateStep,
   WIZARD_STEPS,
   type StepErrors,
@@ -43,10 +49,12 @@ import {
 } from '../lib/wizard'
 
 /**
- * `/app/reservations/new?checkin&checkout&room_id&room_type_id[&walk_in=1]` (plan C1): the five-step wizard —
- * dates & guests → rate → guest (GuestPicker) → extras & notes → guarantee & payment. Walk-in mode arrives today
- * and checks the guest in as soon as the reservation exists. After creating it, the extras and the payment go to
- * its folio; if one of those fails the reservation is kept and the desk is told what is left to do.
+ * `/app/reservations/new?checkin&checkout&room_id&room_type_id[&walk_in=1][&group=<id>[&block=<id>]]` (plan C1,
+ * multi-room since pilot P3): the five-step wizard — dates & guests (and group) → rooms & rates (how many of
+ * each offer, the guests of each room) → guest (GuestPicker) → extras & notes → guarantee & payment. With
+ * `block` the rooms are picked up from that group allotment. Walk-in mode arrives today and checks every room
+ * in as soon as the reservation exists. After creating it, the extras and the payment go to its folio; if one
+ * of those fails the reservation is kept and the desk is told what is left.
  */
 export default function NewReservationPage() {
   const { property } = useActiveProperty()
@@ -68,12 +76,14 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const offers = useOffers(offerQuery(state), step >= 1)
+  const offers = useRoomOffers(roomOffersQuery(state), step >= 1)
+  const units = useMemo(() => expandSelection(state.selection, offers.data), [state.selection, offers.data])
+  const quote = useStaysQuote(quoteInput(state, offers.data), step >= 1)
   const extras = useExtras(step >= 3)
-  const chosenOffer = useMemo(
-    () => offers.data?.find((offer) => offer.room_type_id === state.offer?.roomTypeId && offer.rate_plan_id === state.offer?.ratePlanId),
-    [offers.data, state.offer],
-  )
+  const group = useGroup(state.groupId)
+  const groupLabel = state.groupId ? group.data?.name : state.groupMode && state.groupName.trim() ? state.groupName.trim() : undefined
+  const block = state.blockId ? group.data?.blocks.find((item) => item.id === state.blockId) : undefined
+  const suggested = suggestedAmount(quote.data?.stays, offers.data, currency)
 
   function update(patch: Partial<WizardState>) {
     setState((current) => ({ ...current, ...patch }))
@@ -89,7 +99,7 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
   }
 
   function next() {
-    const stepErrors = validateStep(step, state, bd)
+    const stepErrors = validateStep(step, state, bd, offers.data)
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
       return
@@ -129,17 +139,17 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
   }
 
   async function submit() {
-    const invalid = firstInvalidStep(state, bd)
+    const invalid = firstInvalidStep(state, bd, offers.data)
     if (invalid !== null) {
       go(invalid)
-      setErrors(validateStep(invalid, state, bd))
+      setErrors(validateStep(invalid, state, bd, offers.data))
       return
     }
     setSubmitting(true)
     setSubmitError(null)
     let created
     try {
-      created = await createReservation(buildReservationPayload(state))
+      created = await createReservation(buildReservationPayload(state, offers.data))
     } catch (error) {
       setSubmitting(false)
       setSubmitError(errorMessage(error, t))
@@ -180,7 +190,10 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
     }
     await refresh()
     setSubmitting(false)
-    toast.success(t(state.walkIn && pending.length === 0 ? 'wizard.createdAndIn' : 'wizard.created', { code: created.code }))
+    toast.success(
+      t(state.walkIn && pending.length === 0 ? 'wizard.createdAndIn' : 'wizard.created', { code: created.code }) +
+        (created.stays.length > 1 ? ` · ${t('wizard.createdRooms', { count: created.stays.length })}` : ''),
+    )
     for (const message of pending) toast.warning(message, { duration: 10_000 })
     navigate(`/app/reservations/${created.id}`)
   }
@@ -210,11 +223,20 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
             </h2>
           </header>
           <div className="px-5 py-5">
-            {step === 0 && <StepDates state={state} update={update} errors={errors} bd={bd} />}
-            {step === 1 && <StepOffers state={state} update={update} errors={errors} />}
+            {step === 0 && <StepDates state={state} update={update} errors={errors} bd={bd} groupLabel={group.data?.name} block={block} />}
+            {step === 1 && <StepOffers state={state} update={update} errors={errors} offers={offers} lines={quote.data?.stays} />}
             {step === 2 && <StepGuest state={state} update={update} errors={errors} />}
             {step === 3 && <StepExtras state={state} update={update} errors={errors} currency={currency} />}
-            {step === 4 && <StepPayment state={state} update={update} errors={errors} currency={currency} />}
+            {step === 4 && (
+              <StepPayment
+                state={state}
+                update={update}
+                errors={errors}
+                currency={currency}
+                suggested={suggested}
+                deposit={depositPercent(units, offers.data)}
+              />
+            )}
             {submitError && (
               <p role="alert" className="mt-5 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-ink">
                 {submitError}
@@ -248,7 +270,16 @@ function Wizard({ bd, currency }: { bd: string; currency: string }) {
             </Button>
           </footer>
         </section>
-        <WizardSummary state={state} offer={chosenOffer} extras={extras.data?.results ?? []} currency={currency} />
+        <WizardSummary
+          state={state}
+          units={units}
+          offers={offers.data}
+          quote={quote}
+          extras={extras.data?.results ?? []}
+          currency={currency}
+          groupLabel={groupLabel}
+          fromBlock={Boolean(state.blockId)}
+        />
       </div>
     </div>
   )

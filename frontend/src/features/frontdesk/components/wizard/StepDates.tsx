@@ -1,12 +1,16 @@
 import { addDays } from 'date-fns'
+import { UsersRound } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateRangePicker } from '@/components/DatePicker'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { formatDate, nightsBetween, normalizeLang, parseDate, toISODate } from '@/lib/format'
+import { formatDate, formatDateRange, nightsBetween, normalizeLang, parseDate, toISODate } from '@/lib/format'
+import type { GroupBlock } from '../../api'
+import { tr } from '../../lib/labels'
 import type { StepErrors, WizardState } from '../../lib/wizard'
 import { Counter } from '../Counter'
 import { FieldError } from './FieldError'
@@ -17,32 +21,56 @@ function plusDays(day: string, days: number): string {
   return toISODate(addDays(parseDate(day) ?? new Date(), days))
 }
 
-/** Step 1 — when and who: dates (or nights for a walk-in), adults, children with their ages, promo, IVA. */
+/**
+ * Step 1 — when and who: dates (or nights for a walk-in), adults, children with their ages, promo, IVA, and
+ * whether it is a group reservation (a new group, or the existing one the group page opened the wizard for).
+ */
 export function StepDates({
   state,
   update,
   errors,
   bd,
+  groupLabel,
+  block,
 }: {
   state: WizardState
   update: (patch: Partial<WizardState>) => void
   errors: StepErrors
   bd: string
+  /** Name of the existing group (`?group=`), once loaded. */
+  groupLabel?: string
+  /** The allotment the rooms are picked up from (`?block=`), once loaded. */
+  block?: GroupBlock
 }) {
   const { t, i18n } = useTranslation('frontdesk')
   const lang = normalizeLang(i18n.language)
-  const ids = { walkIn: useId(), dates: useId(), promo: useId(), foreign: useId(), datesError: useId(), agesError: useId() }
+  const ids = {
+    walkIn: useId(),
+    group: useId(),
+    groupName: useId(),
+    groupError: useId(),
+    dates: useId(),
+    promo: useId(),
+    foreign: useId(),
+    datesError: useId(),
+    agesError: useId(),
+  }
   const nights = Math.max(1, nightsBetween(state.checkin, state.checkout))
 
-  /** Anything that changes the price invalidates the chosen offer. */
+  /** New dates or a promo change the offers: the rooms picked are dropped. */
   function change(patch: Partial<WizardState>) {
-    update({ ...patch, offer: null })
+    update({ ...patch, selection: {}, split: null })
+  }
+
+  /** Other guests keep the rooms picked, split again automatically. */
+  function changeParty(patch: Partial<WizardState>) {
+    update({ ...patch, split: null })
   }
 
   function setChildren(children: number) {
     const ages = [...state.childrenAges.slice(0, children)]
     while (ages.length < children) ages.push(null)
-    change({ children, childrenAges: ages })
+    changeParty({ children, childrenAges: ages })
   }
 
   return (
@@ -60,6 +88,63 @@ export function StepDates({
           onCheckedChange={(walkIn) => change(walkIn ? { walkIn, checkin: bd, checkout: plusDays(bd, nights) } : { walkIn })}
         />
       </div>
+
+      {state.groupId ? (
+        <div className="flex items-center gap-3 rounded-lg border border-accent/40 bg-accent-soft/40 px-4 py-3">
+          <UsersRound aria-hidden className="size-4 shrink-0 text-accent-ink" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-fg">{t('wizard.group.existing')}</p>
+            <p className="truncate text-[13px] text-muted">{groupLabel ?? '…'}</p>
+            {state.blockId && (
+              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-fg">
+                {block && <span aria-hidden className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: block.room_type.color }} />}
+                <span className="truncate">
+                  {block
+                    ? t('wizard.group.fromBlock', {
+                        units: block.units,
+                        type: tr(block.room_type.name, i18n.language),
+                        dates: formatDateRange(block.start, block.end, lang),
+                      })
+                    : t('wizard.group.fromBlockLoading')}
+                </span>
+              </p>
+            )}
+          </div>
+          <Badge tone="accent" className="ml-auto shrink-0">
+            {state.blockId ? t('wizard.group.blockBadge') : t('wizard.group.badge')}
+          </Badge>
+        </div>
+      ) : (
+        <div className="grid gap-3 rounded-lg border border-border bg-surface-2/60 px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor={ids.group} className="font-semibold">
+                {t('wizard.group.toggle')}
+              </Label>
+              <p className="text-[13px] text-muted">{t('wizard.group.hint')}</p>
+            </div>
+            <Switch id={ids.group} checked={state.groupMode} onCheckedChange={(groupMode) => update({ groupMode })} />
+          </div>
+          {state.groupMode && (
+            <div className="grid gap-1.5">
+              <Label htmlFor={ids.groupName} className="text-[13px] font-semibold">
+                {t('wizard.group.name')}
+              </Label>
+              <Input
+                id={ids.groupName}
+                value={state.groupName}
+                onChange={(event) => update({ groupName: event.target.value })}
+                placeholder={t('wizard.group.namePlaceholder')}
+                maxLength={200}
+                aria-invalid={Boolean(errors.group)}
+                aria-describedby={errors.group ? ids.groupError : undefined}
+                className="bg-surface"
+              />
+              <FieldError id={ids.groupError} error={errors.group} />
+            </div>
+          )}
+        </div>
+      )}
 
       {state.walkIn ? (
         <div className="grid gap-3">
@@ -102,8 +187,8 @@ export function StepDates({
           label={t('wizard.adults')}
           value={state.adults}
           min={1}
-          max={20}
-          onChange={(adults) => change({ adults })}
+          max={60}
+          onChange={(adults) => changeParty({ adults })}
           addLabel={t('wizard.addAdult')}
           removeLabel={t('wizard.removeAdult')}
         />
@@ -113,7 +198,7 @@ export function StepDates({
           hint={t('wizard.childrenHint')}
           value={state.children}
           min={0}
-          max={10}
+          max={20}
           onChange={setChildren}
           addLabel={t('wizard.addChild')}
           removeLabel={t('wizard.removeChild')}
@@ -127,7 +212,7 @@ export function StepDates({
                 onValueChange={(value) => {
                   const ages = [...state.childrenAges]
                   ages[index] = Number(value)
-                  change({ childrenAges: ages })
+                  changeParty({ childrenAges: ages })
                 }}
               >
                 <SelectTrigger aria-label={t('wizard.childAge', { number: index + 1 })} aria-invalid={age === null && Boolean(errors.childrenAges)}>
@@ -165,7 +250,7 @@ export function StepDates({
           <Label htmlFor={ids.foreign} className="text-[13px] font-semibold">
             {t('wizard.foreign')}
           </Label>
-          <Switch id={ids.foreign} checked={state.foreign} onCheckedChange={(foreign) => change({ foreign })} />
+          <Switch id={ids.foreign} checked={state.foreign} onCheckedChange={(foreign) => update({ foreign })} />
         </div>
       </div>
     </div>

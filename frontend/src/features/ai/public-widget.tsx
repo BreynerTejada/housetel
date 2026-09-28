@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUp, BedDouble, MessageCircle, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router'
 import type { PublicWidgetProps } from '@/app/extensions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { isApiError } from '@/lib/api'
+import { LegalLink } from '@/features/saas/components/LegalLink'
 import { formatMoney, normalizeLang } from '@/lib/format'
+import { useMediaQuery } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import {
   chatBase,
@@ -19,6 +22,7 @@ import {
   type Handoff,
 } from './api'
 import { Markdown } from './components/Markdown'
+import { CHAT_OFFSET_VAR } from './lib/chat-offset'
 
 const HEX = /^#[0-9a-f]{6}$/i
 
@@ -53,6 +57,42 @@ function saveSession(key: string, value: string) {
 }
 
 /**
+ * Pages where the guest fills a form or pays: the portal and its check-in (`/g/…`) and both checkouts
+ * (`/book/…`, `/h/<slug>/book`). On phones the bubble gets smaller there and steps aside while the guest scrolls
+ * down, so it never sits on a field or on the pay / confirm button (plan P6).
+ */
+const FLOW_PAGES = /^\/(g\/|book\/|h\/[^/]+\/book)/
+/** Space the bubble takes at the bottom of the screen; pages pad their end with `var(--public-chat-inset)`. */
+const CHAT_INSET_VAR = '--public-chat-inset'
+
+/** True after the page scrolled down (hidden), false again on the way up, near the top or at the very end. */
+function useScrolledAway(enabled: boolean): boolean {
+  const [away, setAway] = useState(false)
+  useEffect(() => {
+    if (!enabled) return
+    let last = window.scrollY
+    let frame = 0
+    const onScroll = () => {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        const y = window.scrollY
+        const atEnd = window.innerHeight + y >= document.documentElement.scrollHeight - 32
+        if (y < 80 || atEnd) setAway(false)
+        else if (y > last + 8) setAway(true)
+        else if (y < last - 8) setAway(false)
+        last = y
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.cancelAnimationFrame(frame)
+    }
+  }, [enabled])
+  return enabled && away
+}
+
+/**
  * The hotel's chat bubble on public pages (plan C9 · `PublicChatSlot`): only on pages of one hotel (booking
  * engine, hotel page, guest portal) and only when the hotel's chatbot is on (the config answers 404 if not).
  */
@@ -74,15 +114,47 @@ function ChatWidget({ target }: { target: ChatTarget }) {
     staleTime: Infinity,
   })
   const [open, setOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
   const panelId = useId()
+  const { pathname } = useLocation()
+  const phone = useMediaQuery('(max-width: 639px)')
+  const compact = phone && FLOW_PAGES.test(pathname)
+  const enabled = Boolean(config.data?.enabled)
+  const hidden = useScrolledAway(compact && enabled && !open) && !focused
+
+  // Tell the page how much room the bubble takes at the bottom (its last content can scroll above it).
+  useEffect(() => {
+    if (!enabled) return
+    const root = document.documentElement
+    root.style.setProperty(CHAT_INSET_VAR, compact ? '4.25rem' : '5.5rem')
+    return () => {
+      root.style.removeProperty(CHAT_INSET_VAR)
+    }
+  }, [enabled, compact])
 
   if (!config.data?.enabled) return null
   const hotel = config.data.property.name
   const brand = HEX.test(config.data.property.primary_color) ? config.data.property.primary_color : ''
-  const style = (brand ? { '--chat-brand': brand, '--chat-ink': inkOn(brand) } : {}) as CSSProperties
+  const edge = compact ? '0.5rem' : phone ? '0.75rem' : '1.25rem'
+  const style = {
+    ...(brand ? { '--chat-brand': brand, '--chat-ink': inkOn(brand) } : {}),
+    right: edge,
+    // above a bar glued to the bottom of the page (the checkout's confirm button) and the phone's home bar
+    bottom: `calc(max(${edge}, env(safe-area-inset-bottom)) + var(${CHAT_OFFSET_VAR}, 0px))`,
+  } as CSSProperties
 
   return (
-    <div style={style} className="fixed right-3 bottom-3 z-40 flex flex-col items-end gap-3 sm:right-5 sm:bottom-5">
+    <div
+      style={style}
+      className={cn(
+        'fixed z-40 flex flex-col items-end gap-3 transition-[translate,opacity] duration-200 ease-out',
+        hidden && 'pointer-events-none translate-x-[calc(100%+1rem)] opacity-0',
+      )}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
+      }}
+    >
       {open && (
         <ChatPanel
           id={panelId}
@@ -105,11 +177,12 @@ function ChatWidget({ target }: { target: ChatTarget }) {
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'grid size-14 place-items-center rounded-full shadow-lg transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 focus-visible:ring-offset-2 focus-visible:ring-offset-bg motion-safe:hover:scale-105',
+          'grid place-items-center rounded-full shadow-lg transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 focus-visible:ring-offset-2 focus-visible:ring-offset-bg motion-safe:hover:scale-105',
+          compact ? 'size-11' : 'size-14',
           brand ? 'bg-[var(--chat-brand)] text-[var(--chat-ink)]' : 'bg-accent text-on-accent',
         )}
       >
-        {open ? <X aria-hidden className="size-6" /> : <MessageCircle aria-hidden className="size-6" />}
+        {open ? <X aria-hidden className={compact ? 'size-5' : 'size-6'} /> : <MessageCircle aria-hidden className={compact ? 'size-5' : 'size-6'} />}
       </button>
     </div>
   )
@@ -195,7 +268,8 @@ function ChatPanel({
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      className="flex h-[min(34rem,calc(100dvh-6.5rem))] w-[min(23rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-bg text-[15px] shadow-lg motion-safe:animate-pop-in"
+      style={{ height: `min(34rem, calc(100dvh - 6.5rem - var(${CHAT_OFFSET_VAR}, 0px)))` }}
+      className="flex w-[min(23rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-border bg-bg text-[15px] shadow-lg motion-safe:animate-pop-in"
     >
       <header className="flex items-start gap-3 border-b border-border bg-surface px-4 py-3">
         <span aria-hidden className="mt-1 size-2.5 shrink-0 rounded-full border border-border-strong bg-bg" />
@@ -405,6 +479,9 @@ function HandoffForm({ target, session, onSent }: { target: ChatTarget; session:
       <Button type="submit" size="sm" loading={sending}>
         {t('widget.sendContact')}
       </Button>
+      <p className="text-[11.5px] leading-4 text-muted">
+        <Trans t={t} i18nKey="widget.privacy" components={{ privacy: <LegalLink to="/legal/privacidad" /> }} />
+      </p>
     </form>
   )
 }

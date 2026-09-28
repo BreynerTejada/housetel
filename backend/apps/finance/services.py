@@ -10,10 +10,20 @@ Money rules:
 Risky actions (void a charge or a payment, refund, complete a manual refund) require `confirm=True` and are
 audited. Cash taken or given back requires the actor's open cash shift (`apps.finance.cash`) unless the
 property sets `settings["require_cash_shift"] = False`.
+
+Split folios (pilot plan P4): a reservation can have a guest folio and a company folio (`folio_type=company`).
+`post_charge` on the reservation's guest folio routes the charge with `corporate.services.target_folio`
+(the reservation's billing rules) unless the caller chose the folio explicitly (`explicit_folio()`), and
+`reservation_balance` leaves out what a company with credit will pay (see `company_parts`).
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from django.db import transaction
 from django.db.models import F, Sum
@@ -29,7 +39,9 @@ from apps.finance.cash import current_cash_shift, money_str
 from apps.finance.errors import (
     AlreadyVoidedError,
     CashShiftRequired,
+    ChargeInvoicedError,
     FolioClosedError,
+    FolioMismatchError,
     IntegrationMisconfigured,
     IntentClosed,
     OnlinePaymentsDisabled,
@@ -57,6 +69,21 @@ PAYMENT_LINK_HOURS = 24  # default lifetime of a payment link (property.settings
 
 def _user(actor):
     return actor if getattr(actor, "is_authenticated", False) else None
+
+
+# Set by `explicit_folio()`: the caller chose the folio (a staff member posting on a folio tab), so
+# `post_charge` must not apply the reservation's billing rules.
+_explicit_folio: ContextVar[bool] = ContextVar("finance_explicit_folio", default=False)
+
+
+@contextmanager
+def explicit_folio() -> Iterator[None]:
+    """Inside this block `post_charge` posts on the folio it receives (no routing to the company folio)."""
+    token = _explicit_folio.set(True)
+    try:
+        yield
+    finally:
+        _explicit_folio.reset(token)
 
 
 # --- Folios -------------------------------------------------------------------------------------------
@@ -87,6 +114,63 @@ def get_or_create_folio(reservation, *, stay=None) -> Folio:
     return folio
 
 
+def get_or_create_company_folio(reservation, company) -> Folio:
+    """The company's folio of a reservation (one per company and reservation, P4). A closed one is returned as
+    it is (posting on it answers `folio_closed`)."""
+    from apps.bookings.models import Reservation
+
+    with transaction.atomic():
+        Reservation.objects.select_for_update().filter(pk=reservation.pk).first()
+        folio = Folio.objects.filter(
+            reservation=reservation, company=company, folio_type=Folio.FolioType.COMPANY
+        ).first()
+        if folio is None:
+            folio = Folio.objects.create(
+                property=reservation.property,
+                reservation=reservation,
+                company=company,
+                folio_type=Folio.FolioType.COMPANY,
+                currency=reservation.currency,
+            )
+            audit.record(
+                action="finance.folio_created",
+                target=folio,
+                source="system",
+                property=reservation.property,
+                summary=f"Folio de {company.legal_name} en la reserva {reservation.code}",
+            )
+    return folio
+
+
+def folio_label(folio) -> str:
+    """Human name of a folio for audit summaries ("huésped", "ACME S.A.S.", "casa")."""
+    if folio.folio_type == Folio.FolioType.COMPANY and folio.company_id:
+        return folio.company.legal_name
+    if folio.label:
+        return folio.label
+    return {Folio.FolioType.GUEST: "huésped", Folio.FolioType.MASTER: "maestro"}.get(folio.folio_type, "casa")
+
+
+def _route(folio, kind):
+    """Where a charge posted on `folio` goes: the reservation's guest folio follows the billing rules of the
+    reservation (`corporate.services.target_folio`); any other folio, or an explicit post, stays put."""
+    if (
+        _explicit_folio.get()
+        or folio.folio_type != Folio.FolioType.GUEST
+        or folio.reservation_id is None
+        or folio.stay_id is not None
+    ):
+        return folio
+    from apps.corporate.routing import billing_of, routes_kind
+
+    # Not routed: the guest folio, what `target_folio` would return, without locking the reservation again.
+    if not routes_kind(billing_of(folio.reservation), kind):
+        return folio
+    from apps.corporate.services import target_folio
+
+    return target_folio(folio.reservation, kind)
+
+
 # --- Charges ------------------------------------------------------------------------------------------
 
 
@@ -109,10 +193,14 @@ def post_charge(
     """Post a charge. `amount` is the NET unit price;
     `tax_amount = quantize(amount × quantity × tax.rate / 100)` unless `tax_exempt` (the tax stays
     referenced with 0, e.g. foreign non-resident lodging). Only `adjustment` charges may be negative
-    (credits). Audited as `finance.charge_posted`."""
-    _ensure_open(folio)
+    (credits). Audited as `finance.charge_posted`.
+
+    P4: a charge posted on a reservation's guest folio goes to the folio its billing rules say (the company
+    folio for the routed kinds); `explicit_folio()` keeps it on the given folio."""
     if kind not in Charge.Kind.values:
         raise DomainError(f"Tipo de cargo inválido: {kind}", code="invalid_kind")
+    folio = _route(folio, kind)
+    _ensure_open(folio)
     if int(quantity) < 1:
         raise DomainError("La cantidad debe ser al menos 1", code="invalid_quantity")
     if D(amount) < 0 and kind != Charge.Kind.ADJUSTMENT:
@@ -138,10 +226,12 @@ def post_charge(
             posted_by=_user(actor),
             source=source,
         )
+        on_company = folio.folio_type == Folio.FolioType.COMPANY
         audit.record(
             action="finance.charge_posted",
             target=charge,
-            summary=f"Cargo «{charge.description}» por {_money(charge.total, currency)}",
+            summary=f"Cargo «{charge.description}» por {_money(charge.total, currency)}"
+            + (f" al folio de {folio_label(folio)}" if on_company else ""),
             actor=actor,
             source=source,
             property=folio.property,
@@ -150,6 +240,7 @@ def post_charge(
                 "quantity": charge.quantity,
                 "amount": money_str(charge.amount),
                 "tax_amount": money_str(tax_amount),
+                **({"folio": folio_label(folio)} if on_company else {}),
             },
         )
     return charge
@@ -239,6 +330,216 @@ def post_extra_charge(folio, extra, *, quantity=None, actor=None, source="user")
         actor=actor,
         source=source,
     )
+
+
+# --- Moving charges and payments between folios (P4) -------------------------------------------------
+
+
+def _ensure_movable(source, target) -> None:
+    if source.pk == target.pk:
+        raise FolioMismatchError("Elige otro folio", code="same_folio")
+    if (
+        source.reservation_id is None
+        or source.reservation_id != target.reservation_id
+        or source.property_id != target.property_id
+    ):
+        raise FolioMismatchError("Solo se mueven cargos y pagos entre folios de la misma reserva")
+    _ensure_open(source)
+    _ensure_open(target)
+
+
+def _ensure_not_invoiced(charge) -> None:
+    """A charge in an electronic invoice (any status but annulled) stays where the invoice says."""
+    invoice = charge.invoices.filter(kind="invoice").exclude(status="cancelled").first()
+    if invoice is not None:
+        number = invoice.full_number or "en borrador"
+        raise ChargeInvoicedError(
+            f"El cargo está en la factura {number}: anúlala con una nota crédito para moverlo",
+            invoice=number,
+        )
+
+
+def transfer_charge(charge, *, to_folio, actor=None, reason="") -> Charge:
+    """Move a charge (not voided, not invoiced) to another open folio of the same reservation. The row keeps
+    its amounts and dates; the move is audited (`finance.charge_transferred`)."""
+    with transaction.atomic():
+        charge = (
+            Charge.objects.select_for_update(of=("self",)).select_related("folio__company").get(pk=charge.pk)
+        )
+        target = Folio.objects.select_for_update(of=("self",)).select_related("company").get(pk=to_folio.pk)
+        source = charge.folio
+        if charge.voided_at is not None:
+            raise AlreadyVoidedError("Un cargo anulado no se mueve")
+        _ensure_movable(source, target)
+        _ensure_not_invoiced(charge)
+        charge.folio = target
+        charge.save(update_fields=["folio", "updated_at"])
+        audit.record(
+            action="finance.charge_transferred",
+            target=charge,
+            summary=(
+                f"Movió «{charge.description}» ({_money(charge.total, source.currency)}) del folio de "
+                f"{folio_label(source)} al de {folio_label(target)}"
+            ),
+            actor=actor,
+            property=source.property,
+            changes={
+                "folio": [str(source.pk), str(target.pk)],
+                "folio_label": [folio_label(source), folio_label(target)],
+                "reason": (reason or "").strip(),
+            },
+        )
+    return charge
+
+
+def split_charge(charge, *, amount, to_folio=None, actor=None, reason="") -> tuple[Charge, Charge]:
+    """Split a charge in two: `amount` (total with tax) goes to a new charge on `to_folio` (default: the same
+    folio), the rest stays in another new charge. The original is voided ("Dividido…") so every posted amount
+    stays in the record; net and tax are split in proportion and the two parts add up exactly to the
+    original. Returns `(rest, part)`. Audited as `finance.charge_split`."""
+    reason = (reason or "").strip()
+    with transaction.atomic():
+        charge = (
+            Charge.objects.select_for_update(of=("self",))
+            .select_related("folio__property", "folio__company", "tax")
+            .get(pk=charge.pk)
+        )
+        source = charge.folio
+        target = (
+            Folio.objects.select_for_update(of=("self",)).select_related("company").get(pk=to_folio.pk)
+            if to_folio is not None
+            else source
+        )
+        if charge.voided_at is not None:
+            raise AlreadyVoidedError("Un cargo anulado no se divide")
+        if target.pk != source.pk:
+            _ensure_movable(source, target)
+        else:
+            _ensure_open(source)
+        _ensure_not_invoiced(charge)
+        currency = source.currency
+        total = charge.amount + charge.tax_amount
+        part_total = quantize(amount, currency)
+        if total <= 0 or part_total <= 0 or part_total >= total:
+            raise DomainError(
+                f"El monto a separar debe ser mayor que cero y menor que {_money(total, currency)}",
+                code="invalid_amount",
+            )
+        part_tax = quantize(charge.tax_amount * part_total / total, currency) if charge.tax_amount else ZERO
+        part_net = part_total - part_tax
+        rest_net, rest_tax = charge.amount - part_net, charge.tax_amount - part_tax
+        if part_net <= 0 or rest_net <= 0:
+            raise DomainError("No se puede dividir este cargo por ese monto", code="invalid_amount")
+        now = timezone.now()
+        charge.voided_at, charge.voided_by = now, _user(actor)
+        charge.void_reason = f"Dividido en dos cargos{f': {reason}' if reason else ''}"[:1000]
+        charge.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
+
+        def clone(folio, net, tax, description):
+            return Charge.objects.create(
+                folio=folio,
+                business_date=charge.business_date,
+                kind=charge.kind,
+                description=description[:255],
+                quantity=1,
+                unit_price=net,
+                amount=net,
+                tax=charge.tax,
+                tax_amount=tax,
+                stay=charge.stay,
+                night_date=charge.night_date,
+                extra=charge.extra,
+                posted_by=_user(actor),
+                source=charge.source,
+            )
+
+        rest = clone(source, rest_net, rest_tax, charge.description)
+        part = clone(target, part_net, part_tax, f"{charge.description} (dividido)")
+        audit.record(
+            action="finance.charge_split",
+            target=charge,
+            summary=(
+                f"Dividió «{charge.description}» ({_money(total, currency)}): "
+                f"{_money(part_total, currency)} al folio de {folio_label(target)}"
+            ),
+            actor=actor,
+            property=source.property,
+            changes={
+                "total": money_str(total),
+                "part": money_str(part_total),
+                "rest_charge_id": str(rest.pk),
+                "part_charge_id": str(part.pk),
+                "folio": [str(source.pk), str(target.pk)],
+                "reason": reason,
+            },
+        )
+    return rest, part
+
+
+def transfer_payment(payment, *, to_folio, actor=None, reason="") -> Payment:
+    """Move an approved payment without refunds to another open folio of the same reservation (e.g. a deposit
+    the guest paid before the stay was billed to a company). Audited as `finance.payment_transferred`."""
+    with transaction.atomic():
+        payment = (
+            Payment.objects.select_for_update(of=("self",))
+            .select_related("folio__company")
+            .get(pk=payment.pk)
+        )
+        target = Folio.objects.select_for_update(of=("self",)).select_related("company").get(pk=to_folio.pk)
+        source = payment.folio
+        if payment.status != Payment.Status.APPROVED:
+            raise PaymentNotVoidable("Solo se mueven pagos aprobados", code="payment_not_movable")
+        if payment.refunds.exclude(status=Refund.Status.FAILED).exists():
+            raise PaymentNotVoidable(
+                "El pago tiene reembolsos; no se puede mover", code="payment_not_movable"
+            )
+        if hasattr(payment, "account_allocation"):
+            raise PaymentNotVoidable(
+                "Es la aplicación de un pago a cuenta: anúlalo desde la cartera", code="payment_not_movable"
+            )
+        _ensure_movable(source, target)
+        payment.folio = target
+        payment.save(update_fields=["folio", "updated_at"])
+        audit.record(
+            action="finance.payment_transferred",
+            target=payment,
+            summary=(
+                f"Movió un pago de {_money(payment.amount, source.currency)} del folio de "
+                f"{folio_label(source)} al de {folio_label(target)}"
+            ),
+            actor=actor,
+            property=source.property,
+            changes={
+                "folio": [str(source.pk), str(target.pk)],
+                "folio_label": [folio_label(source), folio_label(target)],
+                "reason": (reason or "").strip(),
+            },
+        )
+    return payment
+
+
+def reopen_folio(folio, *, actor=None, reason="") -> Folio:
+    """Reopen a closed folio (e.g. to annul the payment that settled it); `finance.folio_reopened`."""
+    with transaction.atomic():
+        folio = (
+            Folio.objects.select_for_update(of=("self",))
+            .select_related("property", "company")
+            .get(pk=folio.pk)
+        )
+        if folio.status == Folio.Status.OPEN:
+            return folio
+        folio.status, folio.closed_at = Folio.Status.OPEN, None
+        folio.save(update_fields=["status", "closed_at", "updated_at"])
+        audit.record(
+            action="finance.folio_reopened",
+            target=folio,
+            actor=actor,
+            source="user" if _user(actor) else "system",
+            property=folio.property,
+            summary=f"Folio de {folio_label(folio)} reabierto{f': {reason}' if reason else ''}",
+            changes={"reason": (reason or "").strip()},
+        )
+    return folio
 
 
 # --- Payments -----------------------------------------------------------------------------------------
@@ -469,7 +770,11 @@ def _alert_refund(refund, *, kind, severity, title, message) -> None:
         message=message or refund.reason,
         link=f"/app/reservations/{reservation_id}" if reservation_id else "/app/cashier",
         dedupe_key=f"refund:{refund.pk}",
-        data={"refund_id": str(refund.pk), "payment_id": str(refund.payment_id)},
+        data={
+            "refund_id": str(refund.pk),
+            "payment_id": str(refund.payment_id),
+            "amount": money_str(refund.amount),  # P-INT: control:alertText.refund_pending|refund_failed
+        },
         source="finance",
     )
 
@@ -624,6 +929,7 @@ def _record_intent_payment(intent, result: dict) -> None:
             "El monto pagado no coincide con el link",
             f"Se esperaban {_money(intent.amount, intent.currency)} y se pagaron "
             f"{_money(amount, intent.currency)}.",
+            data={"expected": money_str(intent.amount), "paid": money_str(amount)},
         )
 
 
@@ -653,7 +959,7 @@ def _void_intent_payment(intent) -> None:
     )
 
 
-def _alert_intent(intent, kind: str, title: str, message: str) -> None:
+def _alert_intent(intent, kind: str, title: str, message: str, *, data: dict | None = None) -> None:
     reservation_id = intent.folio.reservation_id
     alerts.raise_alert(
         property=intent.property,
@@ -663,7 +969,7 @@ def _alert_intent(intent, kind: str, title: str, message: str) -> None:
         message=message,
         link=f"/app/reservations/{reservation_id}" if reservation_id else "/app/cashier",
         dedupe_key=f"intent:{intent.reference}:{kind}",
-        data={"intent_id": str(intent.pk), "reference": intent.reference},
+        data={"intent_id": str(intent.pk), "reference": intent.reference, **(data or {})},
         source="finance",
     )
 
@@ -798,37 +1104,70 @@ def sync_open_intents(property, *, now=None) -> dict:
 # --- Folio closing ------------------------------------------------------------------------------------
 
 DEPARTED_STAY_STATUSES = {"checked_out", "cancelled", "no_show"}
+FINISHED_RESERVATION_STATUSES = ("checked_out", "cancelled", "no_show")
+
+
+def departed(reservation) -> bool:
+    """Every stay left (at least one checked out; the rest cancelled / no-show)."""
+    statuses = set(reservation.stays.values_list("status", flat=True))
+    return "checked_out" in statuses and statuses <= DEPARTED_STAY_STATUSES
 
 
 def close_settled_folios(reservation) -> list[Folio]:
-    """Close every open folio of the reservation when all its stays left (at least one checked out), the
-    reservation balance is exactly 0 and no refund is still on its way (`pending`). Emits `folio_closed`
-    per folio after commit."""
-    statuses = set(reservation.stays.values_list("status", flat=True))
-    if "checked_out" not in statuses or not statuses <= DEPARTED_STAY_STATUSES:
-        return []
-    if reservation_balance(reservation) != 0:
+    """When all the reservation's stays left (at least one checked out) and no refund is still on its way
+    (`pending`), close the folios whose part is exactly 0: the guest folios when the guest's part is 0 and
+    each company folio when that company's part is 0 (P4: a company folio with a balance stays open — it is a
+    receivable). Emits `folio_closed` per folio after commit."""
+    if not departed(reservation):
         return []
     if Refund.objects.filter(payment__folio__reservation=reservation, status=Refund.Status.PENDING).exists():
         return []
+    parts = company_parts(reservation)
+    guest_due = reservation_total_balance(reservation) - sum((part.expected for part in parts), ZERO)
+    settled_companies = {part.company.pk for part in parts if part.expected == 0}
     closed = []
     with transaction.atomic():
         for folio in Folio.objects.select_for_update().filter(
             reservation=reservation, status=Folio.Status.OPEN
         ):
-            folio.status = Folio.Status.CLOSED
-            folio.closed_at = timezone.now()
-            folio.save(update_fields=["status", "closed_at", "updated_at"])
-            audit.record(
-                action="finance.folio_closed",
-                target=folio,
-                source="system",
-                property=folio.property,
-                summary=f"Folio de la reserva {reservation.code} cerrado con saldo 0",
-            )
-            signals.send_on_commit(signals.folio_closed, folio=folio)
+            if folio.folio_type == Folio.FolioType.COMPANY:
+                if folio.company_id not in settled_companies:
+                    continue
+            elif guest_due != 0:
+                continue
+            _close(folio, summary=f"Folio de la reserva {reservation.code} cerrado con saldo 0")
             closed.append(folio)
     return closed
+
+
+def close_folio_if_settled(folio) -> bool:
+    """Close one folio whose own part is 0 once its reservation left (company folios after a payment on
+    account; opening balances have no reservation). Returns True when it closed it."""
+    folio = Folio.objects.select_related("reservation", "company", "property").get(pk=folio.pk)
+    if folio.status == Folio.Status.CLOSED:
+        return False
+    if folio.reservation_id is not None and folio.reservation.status not in FINISHED_RESERVATION_STATUSES:
+        return False
+    if Refund.objects.filter(payment__folio=folio, status=Refund.Status.PENDING).exists():
+        return False
+    if folio_expected_balance(folio) != 0:
+        return False
+    with transaction.atomic():
+        locked = Folio.objects.select_for_update().get(pk=folio.pk)
+        if locked.status == Folio.Status.CLOSED:
+            return False
+        _close(locked, summary=f"Folio de {folio_label(folio)} cerrado con saldo 0")
+    return True
+
+
+def _close(folio, *, summary: str) -> None:
+    folio.status = Folio.Status.CLOSED
+    folio.closed_at = timezone.now()
+    folio.save(update_fields=["status", "closed_at", "updated_at"])
+    audit.record(
+        action="finance.folio_closed", target=folio, source="system", property=folio.property, summary=summary
+    )
+    signals.send_on_commit(signals.folio_closed, folio=folio)
 
 
 # --- Balances -----------------------------------------------------------------------------------------
@@ -841,12 +1180,12 @@ def folio_balance(folio) -> Decimal:
     return charges - payments + refunds
 
 
-def reservation_balance(reservation) -> Decimal:
-    """What the reservation still owes across all its folios.
+def reservation_total_balance(reservation) -> Decimal:
+    """What the whole reservation still owes across all its folios (guest and companies together).
 
     Σ total_amount of billable stays (all but cancelled/no-show; stay totals include taxes) + non-room charges
     (with tax, not voided) − approved payments + approved refunds. Posted `room` charges consume the
-    expected stay total and are never added twice.
+    expected stay total and are never added twice. (Before P4 this was `reservation_balance`.)
     """
     stays = _sum(reservation.stays.filter(status__in=BILLABLE_STAY_STATUSES), F("total_amount"))
     other_charges = _sum(
@@ -863,6 +1202,112 @@ def reservation_balance(reservation) -> Decimal:
         F("amount"),
     )
     return stays + other_charges - payments + refunds
+
+
+def unposted_lodging(reservation) -> Decimal:
+    """Lodging expected but not posted yet: Σ billable stay totals − Σ non-voided room charges (all folios).
+    With it, `reservation_total_balance` = Σ folio balances + unposted lodging (exactly)."""
+    stays = _sum(reservation.stays.filter(status__in=BILLABLE_STAY_STATUSES), F("total_amount"))
+    posted = _sum(
+        Charge.objects.filter(folio__reservation=reservation, kind=Charge.Kind.ROOM, voided_at__isnull=True),
+        F("amount") + F("tax_amount"),
+    )
+    return stays - posted
+
+
+@dataclass
+class CompanyPart:
+    """What one company owes on a reservation: its folios' balances plus the lodging not posted yet when the
+    reservation's lodging is routed to it."""
+
+    company: Any
+    folios: list = field(default_factory=list)
+    posted: Decimal = ZERO
+    unposted: Decimal = ZERO
+
+    @property
+    def expected(self) -> Decimal:
+        return self.posted + self.unposted
+
+    @property
+    def credit(self) -> bool:
+        return bool(self.company.credit_enabled)
+
+
+def company_parts(reservation) -> list[CompanyPart]:
+    """The companies' parts of a reservation (P4): one per company with a folio in it, plus the company the
+    lodging is routed to (its folio may not exist yet: nothing posted)."""
+    from apps.corporate.routing import lodging_company
+
+    folios = list(
+        Folio.objects.filter(reservation=reservation, folio_type=Folio.FolioType.COMPANY).select_related(
+            "company"
+        )
+    )
+    lodging_to = lodging_company(reservation)
+    if not folios and lodging_to is None:
+        return []
+    parts: dict = {}
+    for folio in folios:
+        part = parts.setdefault(folio.company_id, CompanyPart(company=folio.company))
+        part.folios.append(folio)
+        part.posted += folio_balance(folio)
+    if lodging_to is not None:
+        part = parts.setdefault(lodging_to.pk, CompanyPart(company=lodging_to))
+        part.unposted = unposted_lodging(reservation)
+    return list(parts.values())
+
+
+def guest_part(reservation, parts=None) -> Decimal:
+    """What the guest side owes: the whole reservation minus every company's part."""
+    parts = company_parts(reservation) if parts is None else parts
+    return reservation_total_balance(reservation) - sum((part.expected for part in parts), ZERO)
+
+
+def reservation_balance(reservation) -> Decimal:
+    """What the reservation still owes before the guest can leave: the whole reservation
+    (`reservation_total_balance`) minus the part of every company **with credit** (P4: that part goes to
+    receivables and never blocks the guest's check-out). A company without credit must be paid too, so its
+    part stays in."""
+    parts = company_parts(reservation)
+    total = reservation_total_balance(reservation)
+    return total - sum((part.expected for part in parts if part.credit), ZERO)
+
+
+def folio_expected_balance(folio) -> Decimal:
+    """What a folio will owe: its posted balance plus the lodging not posted yet that goes to it (the main
+    guest folio, or the company folio the lodging is routed to). The main guest folio gets the whole minus
+    the companies' parts."""
+    if folio.reservation_id is None or folio.stay_id is not None:
+        return folio_balance(folio)
+    reservation = folio.reservation
+    if folio.folio_type == Folio.FolioType.COMPANY:
+        part = next((p for p in company_parts(reservation) if p.company.pk == folio.company_id), None)
+        return part.expected if part is not None else folio_balance(folio)
+    if folio.folio_type == Folio.FolioType.GUEST:
+        main = get_main_guest_folio_id(reservation)
+        if main == folio.pk:
+            return guest_part(reservation) - _other_guest_side_balance(reservation, folio)
+    return folio_balance(folio)
+
+
+def get_main_guest_folio_id(reservation):
+    return (
+        Folio.objects.filter(reservation=reservation, stay=None, folio_type=Folio.FolioType.GUEST)
+        .order_by("created_at")
+        .values_list("pk", flat=True)
+        .first()
+    )
+
+
+def _other_guest_side_balance(reservation, main_folio) -> Decimal:
+    """Balances of the reservation's other non-company folios (per-stay guest folios, house, master)."""
+    others = (
+        Folio.objects.filter(reservation=reservation)
+        .exclude(folio_type=Folio.FolioType.COMPANY)
+        .exclude(pk=main_folio.pk)
+    )
+    return sum((folio_balance(other) for other in others), ZERO)
 
 
 # --- Helpers ------------------------------------------------------------------------------------------

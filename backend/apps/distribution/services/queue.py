@@ -312,7 +312,12 @@ def _failed_push(connection, rows, exc, payload, summary) -> None:
             ),
             link="/app/channels",
             dedupe_key=f"distribution:ari:{connection.pk}",
-            data={"connection_id": str(connection.pk), "error": message},
+            data={
+                "connection_id": str(connection.pk),
+                "connection": connection.name,
+                "attempts": MAX_ATTEMPTS,
+                "error": message,
+            },
             source="distribution",
         )
 

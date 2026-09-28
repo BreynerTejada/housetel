@@ -23,7 +23,8 @@ export type PaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'er
 export type RefundStatus = 'pending' | 'approved' | 'failed'
 export type IntentStatus = 'created' | 'pending' | 'approved' | 'declined' | 'expired' | 'error'
 export type ChargeKind = 'room' | 'extra' | 'tax' | 'fee' | 'cancellation_fee' | 'adjustment' | 'other'
-export type ManualChargeKind = 'extra' | 'fee' | 'adjustment' | 'other'
+/** `tax`: a lodging tax or levy posted apart (seguro hotelero, tasa turística); billing rules can route it (P4). */
+export type ManualChargeKind = 'extra' | 'fee' | 'adjustment' | 'other' | 'tax'
 export type ExtraChargeType = 'per_stay' | 'per_night' | 'per_person' | 'per_person_night'
 export type LinkChannel = 'email' | 'whatsapp'
 export type SimOutcome = 'approved' | 'declined' | 'expired'
@@ -77,7 +78,15 @@ export interface FolioTotals {
   refunds_total: Money
   /** Posted charges − approved payments + approved refunds (this folio only). */
   balance: Money
-  /** Whole reservation (stays not yet posted included); only in the folio detail. */
+  /**
+   * P4: what this folio will owe — its balance plus the lodging not posted yet that goes to it (the guest's or the
+   * company's part). In the folio detail and in the folios of one reservation.
+   */
+  expected_balance?: Money
+  /**
+   * What must be paid before the guest leaves: the whole reservation minus the part of companies with credit;
+   * only in the folio detail.
+   */
   reservation_balance?: Money | null
 }
 
@@ -165,15 +174,29 @@ export interface PaymentIntent {
   payment_id: string | null
 }
 
+/** P4: the company of a company folio. */
+export interface FolioCompanyRef {
+  id: string
+  legal_name: string
+  trade_name: string
+  nit_display: string
+  credit_enabled: boolean
+  payment_terms_days: number
+}
+
 export interface FolioSummary {
   id: string
-  folio_type: 'guest' | 'master' | 'house'
+  folio_type: 'guest' | 'master' | 'house' | 'company'
   status: 'open' | 'closed'
   currency: string
+  /** P4: free label of folios without reservation (e.g. an opening balance's legacy invoice number). */
+  label?: string
   closed_at: string | null
   created_at: string
   reservation: ReservationRef | null
   guest: GuestRef | null
+  /** P4: the company of a company folio (null otherwise). */
+  company?: FolioCompanyRef | null
   totals: FolioTotals
 }
 
@@ -351,6 +374,18 @@ export const postCharge = (folioId: string, input: ChargeInput) =>
 
 export const voidCharge = (chargeId: string, reason: string) =>
   api.post<Charge>(`/finance/charges/${chargeId}/void/`, { reason, confirm: true })
+
+/** P4: move a charge to another open folio of the same reservation (audited). */
+export const transferCharge = (chargeId: string, toFolioId: string, reason = '') =>
+  api.post<Charge>(`/finance/charges/${chargeId}/transfer/`, { to_folio_id: toFolioId, reason })
+
+/** P4: split a charge — `amount` (total with tax) goes to a new charge on `toFolioId` (default: the same folio). */
+export const splitCharge = (chargeId: string, amount: Money, toFolioId: string | null, reason = '') =>
+  api.post<{ rest: Charge; part: Charge }>(`/finance/charges/${chargeId}/split/`, { amount, to_folio_id: toFolioId, reason })
+
+/** P4: move an approved payment without refunds to another open folio of the same reservation. */
+export const transferPayment = (paymentId: string, toFolioId: string, reason = '') =>
+  api.post<Payment>(`/finance/payments/${paymentId}/transfer/`, { to_folio_id: toFolioId, reason })
 
 export interface ManualPaymentInput {
   amount: Money

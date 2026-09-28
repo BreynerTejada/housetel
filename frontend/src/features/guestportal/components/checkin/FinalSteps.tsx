@@ -1,13 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { MoneyText } from '@/components/Money'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LegalLink } from '@/features/saas/components/LegalLink'
 import { isApiError } from '@/lib/api'
 import { formatDate, normalizeLang } from '@/lib/format'
 import {
@@ -176,7 +177,7 @@ export function SignatureStep({
             className="mt-0.5"
           />
           <Label htmlFor="accept-terms" className="leading-5 font-medium">
-            {t('checkin.signature.accept')}
+            <Trans t={t} i18nKey="checkin.signature.accept" components={{ privacy: <LegalLink to="/legal/privacidad" /> }} />
           </Label>
         </div>
         {tried && !accept && (

@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.bookings.models import Reservation
+from apps.bookings.services.blocks import release_due_blocks
 from apps.bookings.services.inventory import rebuild_inventory
 from apps.bookings.services.reservations import auto_assign_rooms, cancel_reservation
 from apps.bookings.types import BookingError
@@ -14,6 +15,21 @@ from apps.core import alerts
 from apps.core.automation import Automation, RunResult, register
 
 DRIFT_ALERT = "bookings:inventory_drift"
+
+
+def release_group_blocks(property, params) -> RunResult:
+    """Group allotments whose release date arrived (≤ business date) give back what the group did not pick
+    up; the rooms picked up keep their reservations."""
+    released = release_due_blocks(property)
+    if not released:
+        return RunResult(status="skipped", summary="Ningún cupo de grupo llega hoy a su fecha de liberación")
+    freed = sum(item["freed"] for item in released)
+    return RunResult(
+        summary=(
+            f"{len(released)} cupo(s) de grupo liberado(s): {freed} noche(s)-habitación vuelven a la venta"
+        ),
+        details={"released": released, "freed_room_nights": freed},
+    )
 
 
 def auto_assign(property, params) -> RunResult:
@@ -126,6 +142,24 @@ register(
         ),
         schedule=crontab(minute="*/15"),
         handler=release_expired_tentative,
+    )
+)
+register(
+    Automation(
+        code="bookings.release_group_blocks",
+        app="bookings",
+        name_es="Liberar cupos de grupos",
+        name_en="Release group allotments",
+        description_es=(
+            "En la fecha de liberación de cada cupo de grupo, devuelve a la venta las habitaciones que el "
+            "grupo no tomó. Las reservas del grupo no cambian."
+        ),
+        description_en=(
+            "On each group allotment's release date, puts back on sale the rooms the group did not pick up. "
+            "The group's reservations do not change."
+        ),
+        schedule=crontab(hour=2, minute=30),  # after the night audit (02:00) moved the business date
+        handler=release_group_blocks,
     )
 )
 register(

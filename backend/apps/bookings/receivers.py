@@ -59,6 +59,9 @@ def confirm_on_payment(sender, payment=None, **kwargs):
             "reservation_id": str(reservation.pk),
             "payment_id": str(payment.pk),
             "credit": money_str(credit),
+            # P-INT: what the translated text needs (control:alertText.payment_after_cancellation)
+            "code": reservation.code,
+            "amount": money_str(payment.amount),
         },
         source="system",
     )

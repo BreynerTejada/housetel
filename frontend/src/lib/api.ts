@@ -126,9 +126,25 @@ async function readBody(response: Response, responseType: RequestOpts['responseT
   }
 }
 
+/**
+ * The UI language (`<html lang>`, kept in sync by src/lib/i18n), sent as `Accept-Language` so the backend
+ * answers errors in the language on screen (plan P1; signed-in users get their profile language, which the UI
+ * follows too). Read from the document to avoid importing i18n here (i18n imports this module).
+ */
+function uiLanguage(): string | null {
+  if (typeof document === 'undefined') return null
+  const lang = document.documentElement.getAttribute('lang')
+  return lang === 'es' || lang === 'en' ? lang : null
+}
+
 export async function request<T>(method: string, path: string, opts: RequestOpts = {}): Promise<T> {
   const verb = method.toUpperCase()
-  const headers: Record<string, string> = { Accept: 'application/json', ...opts.headers }
+  const language = uiLanguage()
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...(language ? { 'Accept-Language': language } : {}),
+    ...opts.headers,
+  }
   let body: BodyInit | undefined
 
   if (opts.formData) {

@@ -213,7 +213,16 @@
     "nothingHint": "La reserva todavía no tiene cargos publicados. Las noches se publican con la auditoría nocturna y al hacer el check-out.",
     "finalConsumerHint": "El titular no tiene documento registrado: la factura saldrá a nombre de Consumidor final.",
     "taxes": "IVA",
-    "numbering": "Se numerará como {{prefix}}{{number}}"
+    "numbering": "Se numerará como {{prefix}}{{number}}",
+    "billTo": "Facturar a",
+    "guestFolio": "Huésped",
+    "companyFolio": "Empresa",
+    "vatResponsible": "Responsable de IVA",
+    "notVatResponsible": "No responsable de IVA",
+    "onCredit_one": "Factura a crédito: vence {{count}} día después de emitida",
+    "onCredit_other": "Factura a crédito: vence {{count}} días después de emitida",
+    "submitCompany": "Facturar a la empresa",
+    "doneTo": "Factura emitida a {{customer}} y validada."
   },
   "invoices": {
     "title": "Facturas electrónicas",
@@ -361,7 +370,11 @@
     "traCandidate": "Habitación {{room}} · llegó el {{date}} · sin TRA",
     "sire": "SIRE",
     "sireNotYet": "Los movimientos del huésped extranjero aparecerán cuando se genere el archivo SIRE de sus fechas.",
-    "sireNotApplicable": "El SIRE solo reporta huéspedes extranjeros."
+    "sireNotApplicable": "El SIRE solo reporta huéspedes extranjeros.",
+    "perFolioHint": "Una factura por folio: cada quien recibe la suya.",
+    "billToGuest": "Al huésped · {{name}}",
+    "billToCompany": "A la empresa · {{name}}",
+    "onCredit": "a crédito"
   },
   "widget": {
     "title": "Pendientes legales",

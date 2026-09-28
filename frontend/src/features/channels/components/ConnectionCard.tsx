@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { errorMessage } from '@/lib/errors'
 import { formatNumber, formatRelative, normalizeLang, type Lang } from '@/lib/format'
+import { useRuntimeConfig } from '@/lib/runtime'
 import {
   deleteConnection,
   fullSync,
@@ -49,6 +50,7 @@ export function ConnectionCard({
   onEdit: (connection: Connection) => void
 }) {
   const { t, i18n } = useTranslation('channels')
+  const { simulations_enabled: simulations } = useRuntimeConfig()
   const titleId = useId()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const ical = connection.channel_code === 'ical'
@@ -131,7 +133,7 @@ export function ConnectionCard({
               <DropdownMenuItem onSelect={() => onEdit(connection)}>
                 <Pencil aria-hidden /> {t('card.editMapping')}
               </DropdownMenuItem>
-              {connection.simulated && (
+              {connection.simulated && simulations && (
                 <DropdownMenuItem asChild>
                   <Link to={`/app/simulators/ota?connection=${connection.id}`}>
                     <FlaskConical aria-hidden /> {t('card.openSimulator')}
@@ -203,7 +205,7 @@ export function ConnectionCard({
             <Button size="sm" variant="ghost" onClick={() => check.mutate(undefined, { onError })} loading={check.isPending}>
               <PlugZap aria-hidden /> {t('card.test')}
             </Button>
-            {connection.simulated && (
+            {connection.simulated && simulations && (
               <Button size="sm" variant="ghost" asChild>
                 <Link to={`/app/simulators/ota?connection=${connection.id}`}>
                   <FlaskConical aria-hidden /> {t('card.simulator')}

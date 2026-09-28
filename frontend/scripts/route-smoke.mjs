@@ -186,6 +186,9 @@ try {
   const roomId = (rooms.results ?? rooms)[0].id
   const link = (await api(`/api/v1/guestportal/reservations/${reservationId}/link/`, { property: pid })).data
   const portalToken = link.url.replace(/\/$/, '').split('/').pop()
+  // Phase P: a group (P3) and a company (P4) of the seed
+  const groupId = (await api('/api/v1/bookings/groups/?when=all', { property: pid })).data.results?.[0]?.id
+  const companyId = (await api('/api/v1/corporate/companies/', { property: pid })).data.results?.[0]?.id
 
   const appRoutes = [
     '/app', '/app/calendar', '/app/reservations', '/app/reservations/new', `/app/reservations/${reservationId}`,
@@ -200,6 +203,10 @@ try {
     '/app/settings/roles', '/app/settings/integrations', '/app/settings/automations', '/app/settings/audit',
     '/app/settings/billing', '/app/settings/messaging', '/app/settings/compliance', '/app/settings/housekeeping',
     '/app/settings/guest-portal', '/app/settings/chatbot', '/app/settings/ai',
+    // Phase P: groups and allotments (P3), companies and receivables (P4), import (P5), account (P2)
+    '/app/groups', ...(groupId ? [`/app/groups/${groupId}`] : []), '/app/companies',
+    ...(companyId ? [`/app/companies/${companyId}`] : []), '/app/receivables',
+    `/app/reservations/${reservationId}?tab=corporate-billing`, '/app/settings/import', '/app/settings/account',
   ] // prettier-ignore
   console.log(`\n== staff · owner@casaaurora.co · ${prop.name} · ${today} · ${WIDTH}px`)
   for (const path of appRoutes) await visit(path)
@@ -225,7 +232,7 @@ try {
   const orgs = (await api('/api/v1/saas/admin/organizations/')).data
   console.log('\n== super-admin · admin@housetel.co')
   for (const path of ['/admin', '/admin/organizations', `/admin/organizations/${orgs.results[0].id}`, '/admin/plans',
-    '/admin/billing', '/admin/commissions']) await visit(path) // prettier-ignore
+    '/admin/billing', '/admin/commissions', '/admin/account']) await visit(path) // prettier-ignore
 
   // ---- Public (no session) -----------------------------------------------------------------------------------
   await send('Network.clearBrowserCookies')
@@ -241,6 +248,9 @@ try {
   // GET /me answers 401 before logging in (A3): expected on the pages that look for a session.
   await visit('/signup', { expectHttp: [401] })
   await visit('/login', { expectHttp: [401] })
+  // Phase P: account recovery (P2) and Housetel's legal pages (P6)
+  await visit('/forgot-password', { expectHttp: [401] })
+  for (const doc of ['terminos', 'privacidad', 'encargo-datos']) await visit(`/legal/${doc}`, { expectHttp: [401] })
 } finally {
   ws.close()
   cleanup()

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation } from 'react-router'
 import { findActiveNav, useNav } from '@/app/extensions'
+import { DemoBanner } from '@/app/shell/DemoBanner'
 import { LanguageMenu } from '@/app/shell/LanguageMenu'
 import { ThemeMenu } from '@/app/shell/ThemeMenu'
 import { UserMenu } from '@/app/shell/UserMenu'
@@ -73,6 +74,7 @@ export function AdminLayout() {
         </SheetContent>
       </Sheet>
       <div className="flex min-w-0 flex-1 flex-col">
+        <DemoBanner />
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-bg/85 px-2 backdrop-blur-md sm:px-4 lg:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" aria-label={t('nav.openMenu')} onClick={() => setDrawerOpen(true)}>
             <Menu aria-hidden />

@@ -1,0 +1,122 @@
+# Housetel — production nginx (rendered at start-up by the official image's envsubst: only the variables allowed by
+# NGINX_ENVSUBST_FILTER are replaced, so nginx's own $variables stay untouched).
+#
+#   /api/, /django-admin/  → gunicorn (Django adds its own security headers; the admin is 404 unless enabled)
+#   /static/               → collectstatic volume (Django admin, Swagger UI assets)
+#   /media/photos|branding|booking-engine/ → public media volume; any other /media/ path → 404
+#   everything else        → the compiled SPA (index.html for client-side routes)
+#
+# Private files (identity documents, signatures, invoices, SIRE files, damage photos) live in a volume this
+# container never mounts: they are only reachable through authenticated API views.
+
+map $http_x_forwarded_proto $housetel_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
+# HSTS only over HTTPS (an empty value means nginx does not send the header). NGINX_HSTS defaults to one year with
+# subdomains and preload, like Django's (DJANGO_HSTS_SECONDS): every subdomain must then serve HTTPS.
+map $housetel_proto $housetel_hsts {
+    https   "${NGINX_HSTS}";
+    default "";
+}
+
+log_format housetel_json escape=json
+    '{"time":"$time_iso8601","request_id":"$request_id","remote_addr":"$remote_addr",'
+    '"forwarded_for":"$http_x_forwarded_for","method":"$request_method","uri":"$request_uri",'
+    '"status":$status,"bytes":$body_bytes_sent,"duration":$request_time,'
+    '"upstream_duration":"$upstream_response_time","referer":"$http_referer","user_agent":"$http_user_agent"}';
+
+upstream housetel_backend {
+    server backend:8000;
+    keepalive 16;
+}
+
+server {
+    listen 8080 default_server;
+    listen [::]:8080 default_server;
+    server_name _;
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    access_log /dev/stdout housetel_json;
+    error_log /dev/stderr warn;
+
+    client_max_body_size ${NGINX_CLIENT_MAX_BODY_SIZE};
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/calendar application/javascript application/json
+               application/xml application/manifest+json image/svg+xml font/ttf font/otf;
+
+    # Content-Security-Policy of the SPA. The inline theme/language script of index.html is allowed by hash
+    # (computed when the image is built); styles allow 'unsafe-inline' because Radix/sonner inject <style> tags.
+    # Wompi's API is reachable from the browser: card tokenization for the SaaS subscription.
+    set $housetel_csp "default-src 'self'; script-src 'self' ${CSP_SCRIPT_HASHES}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: ${NGINX_CSP_IMG_SRC}; font-src 'self' data:; connect-src 'self' https://production.wompi.co https://sandbox.wompi.co ${NGINX_CSP_CONNECT_SRC}; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # ---- API and Django admin ---------------------------------------------------------------------------------
+    location /api/ {
+        proxy_pass http://housetel_backend;
+        include /etc/nginx/conf.d/snippets/housetel-proxy.conf;
+    }
+
+    location /django-admin/ {
+        proxy_pass http://housetel_backend;
+        include /etc/nginx/conf.d/snippets/housetel-proxy.conf;
+    }
+
+    # ---- Static files and public media ----------------------------------------------------------------------
+    location /static/ {
+        alias /srv/static/;
+        access_log off;
+        add_header Cache-Control "public, max-age=604800";
+        include /etc/nginx/conf.d/snippets/housetel-headers.conf;
+    }
+
+    location ~ ^/media/(photos|branding|booking-engine)/ {
+        root /srv;
+        access_log off;
+        add_header Cache-Control "public, max-age=2592000";
+        include /etc/nginx/conf.d/snippets/housetel-headers.conf;
+    }
+
+    location /media/ {
+        return 404;
+    }
+
+    # ---- The SPA ------------------------------------------------------------------------------------------------
+    # Hashed bundles never change: cache them for a year.
+    location /assets/ {
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/conf.d/snippets/housetel-headers.conf;
+        try_files $uri =404;
+    }
+
+    # The booking widget is meant to be embedded in the hotels' own websites (any origin may frame it).
+    location /embed/ {
+        add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy "$housetel_csp; frame-ancestors *" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Strict-Transport-Security $housetel_hsts always;
+        try_files /index.html =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy "$housetel_csp; frame-ancestors 'self'" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        include /etc/nginx/conf.d/snippets/housetel-headers.conf;
+        try_files $uri /index.html;
+    }
+}

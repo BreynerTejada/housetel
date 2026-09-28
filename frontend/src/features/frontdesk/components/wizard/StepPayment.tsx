@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { isExistingGuest } from '@/features/guests/api'
 import { useCurrentShift } from '@/features/finance/api'
 import { cn } from '@/lib/utils'
-import { suggestedAmount, type ManualMethod, type PaymentMode, type StepErrors, type WizardState } from '../../lib/wizard'
+import type { ManualMethod, PaymentMode, StepErrors, WizardState } from '../../lib/wizard'
 import { FieldError } from './FieldError'
 
 const MODES: PaymentMode[] = ['none', 'payment', 'link']
@@ -21,21 +21,26 @@ export function StepPayment({
   update,
   errors,
   currency,
+  suggested,
+  deposit,
 }: {
   state: WizardState
   update: (patch: Partial<WizardState>) => void
   errors: StepErrors
   currency: string
+  /** What to charge by default: each room's deposit, else the whole stay ('' until priced). */
+  suggested: string
+  /** The deposit % of the plans picked (null: none asks; 'mixed': they differ). */
+  deposit: number | 'mixed' | null
 }) {
   const { t } = useTranslation('frontdesk')
   const ids = { mode: useId(), amount: useId(), amountError: useId(), method: useId(), reference: useId(), send: useId(), tentative: useId() }
   const payment = state.payment
   const shift = useCurrentShift(payment.mode === 'payment' && payment.method === 'cash')
   const email = state.guest && (isExistingGuest(state.guest) ? state.guest.email : state.guest.email)
-  const deposit = Number(state.offer?.depositPercent ?? 0)
 
   function setMode(mode: PaymentMode) {
-    update({ payment: { ...payment, mode, amount: payment.amount || suggestedAmount(state, currency) } })
+    update({ payment: { ...payment, mode, amount: payment.amount || suggested } })
   }
 
   return (
@@ -88,9 +93,10 @@ export function StepPayment({
               aria-invalid={Boolean(errors.amount)}
               aria-describedby={errors.amount ? ids.amountError : undefined}
             />
-            {deposit > 0 && state.offer && (
+            {deposit !== null && suggested && (
               <p className="text-xs text-muted">
-                {t('wizard.depositHint', { percent: deposit })} <MoneyText value={suggestedAmount(state, currency)} currency={currency} />
+                {deposit === 'mixed' ? t('wizard.depositMixed') : t('wizard.depositHint', { percent: deposit })}{' '}
+                <MoneyText value={suggested} currency={currency} />
               </p>
             )}
             <FieldError id={ids.amountError} error={errors.amount} />

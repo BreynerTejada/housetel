@@ -387,20 +387,20 @@
       "payAtHotel": "Pagar en el hotel",
       "payAtHotelBody": "No pagas nada ahora: pagas al llegar.",
       "payDepositBody": "Pagas ahora el depósito de {{amount}} que pide tu tarifa y el resto en el hotel.",
-      "offline": "Este hotel recibe el pago al llegar.",
+      "offline": "Este hotel recibe el pago al llegar: no pagas nada en línea.",
       "secure": "Pagas en la pasarela del hotel (Wompi). Housetel no guarda los datos de tu tarjeta.",
       "hold": "Tu reserva queda apartada mientras pagas."
     },
     "consent": {
       "title": "Autorizaciones",
-      "data": "Autorizo a {{hotel}} y a Housetel a tratar mis datos personales para gestionar esta reserva (Ley 1581 de 2012).",
+      "data": "Autorizo a {{hotel}} y a Housetel a tratar mis datos personales para gestionar esta reserva, según la <privacy>política de tratamiento de datos</privacy> (Ley 1581 de 2012).",
       "dataRequired": "Necesitamos tu autorización para gestionar la reserva.",
       "marketing": "Quiero recibir novedades y ofertas de {{hotel}}.",
       "terms": "Condiciones del hotel"
     },
     "submitPay": "Reservar y pagar {{amount}}",
     "submit": "Confirmar reserva",
-    "legal": "Al reservar aceptas las condiciones del hotel y la política de cancelación de tu tarifa.",
+    "legal": "Al reservar aceptas los <terms>términos de Housetel</terms>, las condiciones del hotel y la política de cancelación de tu tarifa.",
     "summary": {
       "title": "Resumen de tu reserva",
       "units_one": "{{count}} habitación",
@@ -414,7 +414,9 @@
       "total": "Total",
       "dueNow": "Pagas ahora",
       "dueLater": "Pagas en el hotel",
-      "updating": "Actualizando el precio…"
+      "updating": "Actualizando el precio…",
+      "toggle": "Ver el detalle del precio",
+      "dueNowShort": "pagas ahora {{amount}}"
     },
     "errors": {
       "noAvailabilityTitle": "Ya no hay disponibilidad para tu selección",

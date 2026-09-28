@@ -9,6 +9,7 @@ import { errorMessage } from '@/lib/errors'
 import { formatRelative, normalizeLang } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAlertCount, useResolveAlerts, type Alert } from '../api'
+import { useAlertText } from '../lib/alert-text'
 import { SeverityIcon } from './severity'
 
 /**
@@ -21,6 +22,7 @@ export function AlertBell() {
   const [open, setOpen] = useState(false)
   const counts = useAlertCount()
   const resolve = useResolveAlerts()
+  const textOf = useAlertText()
   const total = counts.data?.open ?? 0
   const critical = counts.data?.by_severity.critical ?? 0
   const status = total ? t('bell.count', { count: total }) : t('bell.none')
@@ -59,35 +61,38 @@ export function AlertBell() {
         </div>
         {counts.data && counts.data.latest.length > 0 ? (
           <ul className="max-h-[min(24rem,60dvh)] divide-y divide-border overflow-y-auto">
-            {counts.data.latest.map((alert) => (
-              <li key={alert.id} className="flex items-start gap-3 px-4 py-3">
-                <SeverityIcon severity={alert.severity} className="mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  {alert.link ? (
-                    <Link
-                      to={alert.link}
-                      onClick={() => setOpen(false)}
-                      className="line-clamp-2 rounded-sm text-[13px] leading-5 font-semibold text-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55"
-                    >
-                      {alert.title}
-                    </Link>
-                  ) : (
-                    <p className="line-clamp-2 text-[13px] leading-5 font-semibold text-fg">{alert.title}</p>
-                  )}
-                  <p className="mt-0.5 text-xs text-muted">{formatRelative(alert.updated_at, lang)}</p>
-                </div>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => void resolveOne(alert)}
-                  disabled={resolve.isPending}
-                  aria-label={t('bell.resolve', { title: alert.title })}
-                  title={t('alerts.resolve')}
-                >
-                  <Check aria-hidden />
-                </Button>
-              </li>
-            ))}
+            {counts.data.latest.map((alert) => {
+              const { title } = textOf(alert)
+              return (
+                <li key={alert.id} className="flex items-start gap-3 px-4 py-3">
+                  <SeverityIcon severity={alert.severity} className="mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    {alert.link ? (
+                      <Link
+                        to={alert.link}
+                        onClick={() => setOpen(false)}
+                        className="line-clamp-2 rounded-sm text-[13px] leading-5 font-semibold text-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55"
+                      >
+                        {title}
+                      </Link>
+                    ) : (
+                      <p className="line-clamp-2 text-[13px] leading-5 font-semibold text-fg">{title}</p>
+                    )}
+                    <p className="mt-0.5 text-xs text-muted">{formatRelative(alert.updated_at, lang)}</p>
+                  </div>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => void resolveOne(alert)}
+                    disabled={resolve.isPending}
+                    aria-label={t('bell.resolve', { title })}
+                    title={t('alerts.resolve')}
+                  >
+                    <Check aria-hidden />
+                  </Button>
+                </li>
+              )
+            })}
           </ul>
         ) : (
           <div className="flex flex-col items-center gap-1 px-4 py-8 text-center">

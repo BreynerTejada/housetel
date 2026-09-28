@@ -10,7 +10,8 @@ from apps.finance.models import CashShift, Charge, Folio, Payment, PaymentIntent
 from apps.rates.models import Extra, Tax
 
 MONEY = {"max_digits": 14, "decimal_places": 2}
-MANUAL_CHARGE_KINDS = ["extra", "fee", "adjustment", "other"]
+# P4: `tax` = a lodging tax or levy posted apart (seguro hotelero, tasa turística); routable on its own.
+MANUAL_CHARGE_KINDS = ["extra", "fee", "adjustment", "other", "tax"]
 MANUAL_PAYMENT_METHODS = ["cash", "card_terminal", "bank_transfer", "other"]
 LINK_CHANNELS = ["email", "whatsapp"]
 
@@ -60,7 +61,34 @@ class FolioTotalsSerializer(serializers.Serializer):
     payments_total = serializers.DecimalField(**MONEY)
     refunds_total = serializers.DecimalField(**MONEY)
     balance = serializers.DecimalField(**MONEY)
+    expected_balance = serializers.DecimalField(
+        **MONEY, required=False, help_text="P4: balance + lodging not posted yet that goes to this folio"
+    )
     reservation_balance = serializers.DecimalField(**MONEY, allow_null=True, required=False)
+
+
+class FolioCompanyRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    legal_name = serializers.CharField()
+    trade_name = serializers.CharField()
+    nit_display = serializers.CharField()
+    credit_enabled = serializers.BooleanField()
+    payment_terms_days = serializers.IntegerField()
+
+
+def company_ref(company) -> dict | None:
+    if company is None:
+        return None
+    from apps.corporate.nit import format_nit
+
+    return {
+        "id": str(company.pk),
+        "legal_name": company.legal_name,
+        "trade_name": company.trade_name,
+        "nit_display": format_nit(company.nit, company.dv),
+        "credit_enabled": company.credit_enabled,
+        "payment_terms_days": company.payment_terms_days,
+    }
 
 
 # --- Lines -------------------------------------------------------------------------------------------
@@ -264,9 +292,10 @@ class PaymentIntentSerializer(serializers.ModelSerializer):
 class FolioSummarySerializer(serializers.ModelSerializer):
     # Plain strings (not enums) so the schema has no colliding "status" enum names across apps.
     status = serializers.CharField(read_only=True, help_text="open | closed")
-    folio_type = serializers.CharField(read_only=True, help_text="guest | master | house")
+    folio_type = serializers.CharField(read_only=True, help_text="guest | master | house | company")
     reservation = serializers.SerializerMethodField()
     guest = serializers.SerializerMethodField()
+    company = serializers.SerializerMethodField()
     totals = serializers.SerializerMethodField()
 
     class Meta:
@@ -276,13 +305,19 @@ class FolioSummarySerializer(serializers.ModelSerializer):
             "folio_type",
             "status",
             "currency",
+            "label",
             "closed_at",
             "created_at",
             "reservation",
             "guest",
+            "company",
             "totals",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(FolioCompanyRefSerializer(allow_null=True))
+    def get_company(self, obj):
+        return company_ref(obj.company if obj.company_id else None)
 
     @extend_schema_field(ReservationRefSerializer(allow_null=True))
     def get_reservation(self, obj):
@@ -430,6 +465,26 @@ class ChargeCreateSerializer(serializers.Serializer):
 class ReasonConfirmSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=1000)
     confirm = serializers.BooleanField(required=False, default=False)
+
+
+class TransferSerializer(serializers.Serializer):
+    """P4: move a charge or a payment to another folio of the same reservation."""
+
+    to_folio_id = serializers.UUIDField()
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=500)
+
+
+class SplitChargeSerializer(serializers.Serializer):
+    """P4: `amount` (total with tax) goes to a new charge on `to_folio_id` (default: the same folio)."""
+
+    amount = serializers.DecimalField(**MONEY, min_value=Decimal("0.01"))
+    to_folio_id = serializers.UUIDField(required=False, allow_null=True)
+    reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=500)
+
+
+class SplitResultSerializer(serializers.Serializer):
+    rest = ChargeSerializer()
+    part = ChargeSerializer()
 
 
 class ManualPaymentSerializer(serializers.Serializer):

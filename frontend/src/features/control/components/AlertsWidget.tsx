@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { formatNumber, formatRelative, normalizeLang } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAlertCount, type Severity } from '../api'
+import { useAlertText } from '../lib/alert-text'
 import { SeverityDot, SeverityIcon } from './severity'
 
 const SHOWN = 4
@@ -18,6 +19,7 @@ export default function AlertsWidget() {
   const lang = normalizeLang(i18n.language)
   const id = useId()
   const query = useAlertCount()
+  const textOf = useAlertText()
 
   return (
     <section aria-labelledby={id} className="grid h-full content-start gap-4 rounded-xl border border-border bg-surface p-4 shadow-xs sm:p-5">
@@ -64,7 +66,7 @@ export default function AlertsWidget() {
                 >
                   <SeverityIcon severity={alert.severity} className="mt-0.5" />
                   <span className="min-w-0 flex-1">
-                    <span className="line-clamp-1 text-sm text-fg">{alert.title}</span>
+                    <span className="line-clamp-1 text-sm text-fg">{textOf(alert).title}</span>
                     <span className="block text-xs text-muted">{formatRelative(alert.updated_at, lang)}</span>
                   </span>
                 </Link>

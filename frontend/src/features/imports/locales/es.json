@@ -1,0 +1,475 @@
+{
+  "nav": {
+    "import": "Importar datos",
+    "importHint": "Trae huéspedes, reservas y habitaciones desde tu sistema anterior"
+  },
+  "commands": {
+    "import": "Importar datos desde otro sistema"
+  },
+  "page": {
+    "title": "Importar datos",
+    "description": "Trae tus huéspedes, reservas y habitaciones desde tu sistema anterior: sube el export de Cloudbeds o un Excel, revisa fila por fila y confirma.",
+    "forbidden": "No tienes permiso para importar datos",
+    "forbiddenHint": "Pídele al dueño del hotel el permiso «Importar datos desde otro sistema»."
+  },
+  "steps": {
+    "label": "Pasos de la importación",
+    "done": "(hecho)",
+    "kind": "Tipo",
+    "file": "Archivo",
+    "map": "Mapear",
+    "review": "Revisar",
+    "import": "Importar",
+    "result": "Resultado"
+  },
+  "kinds": {
+    "reservations": {
+      "label": "Reservas",
+      "title": "Importar reservas",
+      "noun": "reservas",
+      "description": "Futuras y en casa, con categoría, habitación y lo que ya pagaron."
+    },
+    "guests": {
+      "label": "Huéspedes",
+      "title": "Importar huéspedes",
+      "noun": "huéspedes",
+      "description": "Perfiles con documento, contacto, nacionalidad y fecha de nacimiento."
+    },
+    "room_types": {
+      "label": "Categorías",
+      "title": "Importar categorías",
+      "noun": "categorías",
+      "description": "Tipos de habitación con capacidad, números de habitación y precio base."
+    },
+    "rooms": {
+      "label": "Habitaciones",
+      "title": "Importar habitaciones",
+      "noun": "habitaciones",
+      "description": "Números de habitación con su categoría, piso y camas."
+    }
+  },
+  "presets": {
+    "cloudbeds": {
+      "label": "Export de Cloudbeds",
+      "description": "El archivo que descargas en Cloudbeds: reconocemos sus columnas, sus estados y sus reservas de varias habitaciones."
+    },
+    "generic": {
+      "label": "Excel o CSV",
+      "description": "De otro sistema, de tu propia hoja de cálculo o de la plantilla de Housetel."
+    }
+  },
+  "howto": {
+    "cloudbeds": {
+      "reservations": "En Cloudbeds entra a Reservas, filtra las que llegan desde hoy y las que están en casa, y usa Exportar (.xlsx). Incluye el número de reserva, el huésped, las fechas, el tipo de habitación, la habitación, el plan, el estado, el total y el saldo.",
+      "guests": "En Cloudbeds entra a Huéspedes y usa Exportar. Si tienes el documento, la nacionalidad y la fecha de nacimiento, inclúyelos: los necesitas para la TRA y el SIRE.",
+      "room_types": "Para las categorías usa la plantilla: copia tus tipos de habitación de Cloudbeds con su capacidad, sus números de habitación y su precio base. También reconocemos los títulos en inglés de Cloudbeds.",
+      "rooms": "Para las habitaciones usa la plantilla: copia el número y el tipo de cada habitación de Cloudbeds. También reconocemos los títulos en inglés de Cloudbeds."
+    }
+  },
+  "start": {
+    "title": "Nueva importación",
+    "kindStep": "1 · ¿Qué vas a importar?",
+    "kindLabel": "Tipo de datos",
+    "optional": "Opcional",
+    "order": "Orden recomendado: categorías y habitaciones (si todavía no las creaste), luego huéspedes y al final reservas.",
+    "presetStep": "¿De dónde viene el archivo?",
+    "presetLabel": "Origen del archivo",
+    "sourceLabel": "Nombre del sistema anterior",
+    "sourcePlaceholder": "Ej.: Excel de recepción, Little Hotelier",
+    "sourceHint": "Si vuelves a importar desde el mismo sistema, Housetel actualiza lo que ya trajo en vez de duplicarlo.",
+    "fileStep": "2 · Sube el archivo",
+    "privacy": "Guardamos el archivo solo para revisarlo e importarlo: sus datos se borran 30 días después de terminar (Habeas Data). No se envían correos ni mensajes a los huéspedes."
+  },
+  "upload": {
+    "drop": "Arrastra aquí tu archivo CSV o Excel (.xlsx)",
+    "release": "Suelta el archivo para subirlo",
+    "limits": "Hasta 15 MB y 10.000 filas. La primera fila debe tener los títulos de las columnas.",
+    "choose": "Elegir archivo",
+    "uploading": "Leyendo {{name}}…",
+    "errors": {
+      "xls": "Los archivos .xls (Excel 97-2003) no se pueden leer: ábrelo en Excel y guárdalo como .xlsx o .csv.",
+      "type": "Sube un archivo .csv o .xlsx.",
+      "size": "El archivo pesa más de 15 MB: divídelo en varios.",
+      "empty": "El archivo está vacío."
+    }
+  },
+  "templates": {
+    "button": "Plantillas y ejemplo",
+    "empty": "Plantilla de {{kind}} (vacía)",
+    "esXlsx": "Español · Excel (.xlsx)",
+    "esCsv": "Español · CSV",
+    "enXlsx": "Inglés · Excel (.xlsx)",
+    "enCsv": "Inglés · CSV",
+    "exampleLabel": "Para probar",
+    "example": "Archivo de ejemplo con tus categorías",
+    "exampleCloudbeds": "Ejemplo con el formato de Cloudbeds"
+  },
+  "history": {
+    "title": "Importaciones anteriores",
+    "count_one": "{{count}} importación",
+    "count_other": "{{count}} importaciones",
+    "empty": "Todavía no has importado nada",
+    "emptyHint": "Cuando subas un archivo, aquí quedan su resultado y su reporte.",
+    "rows_one": "{{formatted}} fila",
+    "rows_other": "{{formatted}} filas",
+    "doneSummary": "{{created}} creadas · {{updated}} actualizadas · {{failed}} con error",
+    "reviewSummary": "{{valid}} listas · {{error}} con errores",
+    "page": "Página {{page}} de {{pages}}",
+    "previous": "Página anterior",
+    "next": "Página siguiente"
+  },
+  "job": {
+    "backToImports": "Volver a Importar datos",
+    "discard": "Descartar",
+    "discardTitle": "¿Descartar esta importación?",
+    "discardDescription": "Se borra «{{name}}» con su revisión. Todavía no se importó nada.",
+    "uploadedBy": "subido por {{name}} {{when}}",
+    "purged": "Los datos del archivo ya se borraron (Habeas Data, 30 días después de terminar): quedan los resultados."
+  },
+  "jobStatus": {
+    "uploaded": "Por mapear",
+    "validated": "Revisada",
+    "queued": "En cola",
+    "running": "En proceso",
+    "completed": "Completada",
+    "failed": "Se detuvo",
+    "reverted": "Revertida",
+    "stale": "Detenida"
+  },
+  "jobPhase": {
+    "dry_run": "Simulando",
+    "run": "Importando",
+    "revert": "Revirtiendo"
+  },
+  "rowStatus": {
+    "pending": "Sin revisar",
+    "valid": "Lista",
+    "warning": "Con advertencias",
+    "error": "Con errores",
+    "skip": "Se omite"
+  },
+  "dryOutcome": {
+    "create": "Se crearía",
+    "update": "Se actualizaría",
+    "skip": "Se omitiría",
+    "fail": "Fallaría"
+  },
+  "outcome": {
+    "created": "Creada",
+    "updated": "Actualizada",
+    "skipped": "Omitida",
+    "failed": "Con error",
+    "reverted": "Revertida"
+  },
+  "ledgerLabels": {
+    "valid": "Listas",
+    "warning": "Con advertencias",
+    "error": "Con errores",
+    "skip": "Se omiten",
+    "create": "Se crearían",
+    "update": "Se actualizarían",
+    "skipDry": "Se omitirían",
+    "fail": "Fallarían",
+    "created": "Creadas",
+    "updated": "Actualizadas",
+    "skipped": "Omitidas",
+    "failed": "Con error",
+    "reverted": "Revertidas"
+  },
+  "ledger": {
+    "rows_one": "{{formatted}} fila",
+    "rows_other": "{{formatted}} filas",
+    "filter": "Mostrar solo estas filas",
+    "showingOnly": "Mostrando solo estas filas; vuelve a tocar para ver todas"
+  },
+  "groups": {
+    "main": "Identificación",
+    "stay": "Estadía",
+    "guest": "Huésped",
+    "money": "Montos",
+    "extra": "Otros datos"
+  },
+  "fields": {
+    "external_id": "Número o id en tu sistema",
+    "full_name": "Nombre completo",
+    "first_name": "Nombre",
+    "last_name": "Apellidos",
+    "email": "Email",
+    "phone": "Teléfono",
+    "document_type": "Tipo de documento",
+    "document_number": "Número de documento",
+    "nationality": "Nacionalidad",
+    "country_of_residence": "País de residencia",
+    "city_of_residence": "Ciudad",
+    "birth_date": "Fecha de nacimiento",
+    "gender": "Género",
+    "language": "Idioma",
+    "address": "Dirección",
+    "status": "Estado",
+    "checkin": "Llegada",
+    "checkout": "Salida",
+    "nights": "Noches",
+    "adults": "Adultos",
+    "children": "Niños",
+    "room_type": "Categoría",
+    "room_number": "Habitación",
+    "bed": "Cama",
+    "rate_plan": "Plan tarifario",
+    "total_amount": "Total",
+    "paid_amount": "Pagado",
+    "balance_due": "Saldo pendiente",
+    "source": "Origen o canal",
+    "third_party_id": "Número del canal",
+    "booked_at": "Fecha de reserva",
+    "eta": "Hora de llegada",
+    "special_requests": "Solicitudes especiales",
+    "notes": "Notas",
+    "code": "Código",
+    "name": "Nombre",
+    "name_en": "Nombre en inglés",
+    "kind": "Tipo",
+    "base_occupancy": "Ocupación base",
+    "max_adults": "Máx. adultos",
+    "max_children": "Máx. niños",
+    "max_occupancy": "Ocupación máxima",
+    "beds_per_room": "Camas por habitación",
+    "room_numbers": "Números de habitación",
+    "base_price": "Precio base por noche",
+    "description": "Descripción",
+    "number": "Número de habitación",
+    "floor": "Piso",
+    "beds": "Camas",
+    "building": "Edificio"
+  },
+  "fieldHints": {
+    "external_id": "Evita duplicados: si importas de nuevo, se actualiza en vez de repetirse.",
+    "full_name": "Si viene en una sola columna; si no, usa Nombre y Apellidos.",
+    "document_type": "CC, CE, pasaporte, PEP, PPT…",
+    "nationality": "Nombre del país, código (CO, COL) o gentilicio.",
+    "language": "Si no viene, se usa el del país del huésped.",
+    "status": "Confirmada, no confirmada, en casa… Las canceladas y finalizadas no se importan.",
+    "checkout": "O asigna la columna de noches.",
+    "nights": "Se usa si no hay fecha de salida.",
+    "room_type": "Después eliges a qué categoría de Housetel corresponde cada valor.",
+    "room_number": "Si viene, se asigna esa habitación.",
+    "bed": "Para dormitorios por camas.",
+    "rate_plan": "Si no viene, se usa el plan que elijas.",
+    "total_amount": "Lo que paga el huésped por la estadía; se respeta ese precio.",
+    "paid_amount": "Se registra como pago «Saldo importado».",
+    "balance_due": "Lo que falta por pagar: si no hay columna de pagado, se calcula.",
+    "source": "Booking.com, Expedia, directo… Queda en las notas de la reserva.",
+    "third_party_id": "El código de la reserva en la OTA.",
+    "code": "Si no viene, se crea a partir del nombre.",
+    "kind": "Privada o dormitorio (venta por camas).",
+    "room_numbers": "Ej.: 101-105, 201, 202",
+    "base_price": "Se agrega a tus planes tarifarios.",
+    "beds_per_room": "Obligatorio en dormitorios.",
+    "beds": "Para habitaciones de dormitorio."
+  },
+  "map": {
+    "detected_one": "Reconocimos {{count}} de {{total}} columnas del archivo. Revisa las demás y asigna lo que falte.",
+    "detected_other": "Reconocimos {{count}} de {{total}} columnas del archivo. Revisa las demás y asigna lo que falte.",
+    "restore": "Volver a la detección automática",
+    "missing": "Falta asignar: {{fields}}",
+    "required": "Obligatorio",
+    "oneOf": "(o {{fields}})",
+    "oneOfList": "{{a}} o {{b}}",
+    "none": "— No importar —",
+    "usedBy": "ya en «{{field}}»",
+    "auto": "Detectada",
+    "emptyColumn": "Columna vacía en las primeras filas",
+    "notImported": "Este dato no se importa",
+    "unused_one": "{{count}} columna del archivo no se importa",
+    "unused_other": "{{count}} columnas del archivo no se importan",
+    "assigned_one": "{{count}} dato asignado",
+    "assigned_other": "{{count}} datos asignados",
+    "next": "Continuar",
+    "showAll_one": "Ver {{count}} dato más sin asignar",
+    "showAll_other": "Ver {{count}} datos más sin asignar",
+    "hideEmpty": "Ocultar los datos sin asignar",
+    "assignThem": "Asignar alguna de estas columnas",
+    "detectedAll_one": "Reconocimos la única columna del archivo. Revisa que vaya al dato correcto.",
+    "detectedAll_other": "Reconocimos las {{count}} columnas del archivo. Revisa que cada una vaya al dato correcto."
+  },
+  "values": {
+    "roomTypes": "Categorías del archivo",
+    "roomTypesHint": "Dinos a qué categoría de Housetel corresponde cada valor. Las filas con valores sin asignar no se importan.",
+    "ratePlans": "Planes tarifarios del archivo",
+    "ratePlansHint": "Cada plan del archivo debe corresponder a un plan de Housetel que incluya la categoría.",
+    "rows_one": "{{formatted}} fila",
+    "rows_other": "{{formatted}} filas",
+    "auto": "Asignada automáticamente",
+    "mapTo": "Equivalente en Housetel de «{{value}}»",
+    "none": "Sin asignar (esas filas no se importan)",
+    "capacity": "máx. {{adults}} adultos, {{total}} personas",
+    "dorm": "dormitorio por camas",
+    "unassigned_one": "{{count}} valor sin asignar: sus filas quedarán con error.",
+    "unassigned_other": "{{count}} valores sin asignar: sus filas quedarán con error.",
+    "back": "Columnas",
+    "next": "Revisar filas"
+  },
+  "options": {
+    "title": "Cómo leer el archivo",
+    "defaultPlan": "Plan para filas sin plan",
+    "defaultPlanHint": "Se usa cuando la fila no trae plan tarifario.",
+    "defaultPlanAuto": "Automático: {{plan}}",
+    "defaultPlanNone": "Automático (no hay planes activos)",
+    "dateFormat": "Formato de las fechas",
+    "dateFormatHint": "Cómo vienen escritas las fechas numéricas, como 05/10/2026.",
+    "dateAutoDetected": "Automático · detectamos {{format}}",
+    "dateFormats": {
+      "auto": "Automático",
+      "dmy": "día/mes/año",
+      "mdy": "mes/día/año",
+      "ymd": "año-mes-día"
+    },
+    "dateAmbiguous": "Todas las fechas se pueden leer como día/mes o como mes/día: usamos día/mes/año. Si tu sistema usa mes/día, elígelo aquí.",
+    "includesTax": "Los montos incluyen impuestos",
+    "includesTaxHint": "Actívalo si el total del archivo ya trae el IVA, como en Cloudbeds. A los extranjeros no residentes no se les cobra IVA de alojamiento.",
+    "onExisting": "Si ya se importó antes",
+    "onExistingHint": "Aplica a lo que ya trajiste antes desde {{source}}.",
+    "existing": {
+      "update": "Actualizar",
+      "updateHint": "Completa los datos, cambia las fechas y registra los pagos nuevos.",
+      "skip": "Omitir",
+      "skipHint": "Deja intacto lo que ya existe en Housetel."
+    },
+    "source": "Sistema de origen",
+    "sourceHint": "Nombre del sistema anterior. Importar dos veces desde el mismo sistema no duplica nada."
+  },
+  "review": {
+    "caption": "Revisión, fila por fila",
+    "dryCaption": "Simulación del {{date}}",
+    "lens": "Qué ver",
+    "lensDry": "Simulación",
+    "lensReview": "Revisión",
+    "errors_one": "{{formatted}} fila tiene errores y no se importará. Corrígela en el archivo o revisa la asignación de valores.",
+    "errors_other": "{{formatted}} filas tienen errores y no se importarán. Corrígelas en el archivo o revisa la asignación de valores.",
+    "fixMapping": "Revisar asignación",
+    "dryHint": {
+      "reservations": "Simula primero: Housetel prueba cada reserva contra la disponibilidad y las habitaciones de verdad, sin guardar nada. Nada se sobrevende.",
+      "guests": "Simula primero: verás qué huéspedes se crearían y cuáles ya existen (mismo documento o email).",
+      "room_types": "Simula primero: verás qué categorías se crearían y cuáles se actualizarían.",
+      "rooms": "Simula primero: verás qué habitaciones se crearían y cuáles se actualizarían."
+    },
+    "back": "Mapeo",
+    "dry": "Simular importación",
+    "dryAgain": "Simular otra vez",
+    "run_one": "Importar {{formatted}} fila",
+    "run_other": "Importar {{formatted}} filas",
+    "confirmTitle_one": "¿Importar {{formatted}} fila?",
+    "confirmTitle_other": "¿Importar {{formatted}} filas?",
+    "confirm": {
+      "reservations": "Se crean las reservas con fuente «Importación» ({{source}}). Lo pagado queda como pago «Saldo importado» y las reservas en casa quedan con check-in. No se envían correos ni mensajes a los huéspedes, y podrás revertirla.",
+      "guests": "Se crean los huéspedes nuevos y se completan los que ya existen con el mismo documento o email. No se envían correos.",
+      "room_types": "Se crean o actualizan las categorías con sus habitaciones; el precio base se agrega a tus planes tarifarios.",
+      "rooms": "Se crean o actualizan las habitaciones."
+    },
+    "confirmButton": "Importar",
+    "noDryWarning": "Todavía no la simulaste: las filas sin disponibilidad quedarán con error (nada se sobrevende)."
+  },
+  "rows": {
+    "label": "Filas del archivo",
+    "all_one": "{{formatted}} fila",
+    "all_other": "{{formatted}} filas",
+    "filtered_one": "{{formatted}} fila con este resultado",
+    "filtered_other": "{{formatted}} filas con este resultado",
+    "search": "Buscar fila, número o código",
+    "clearSearch": "Borrar búsqueda",
+    "noMatch": "Ninguna fila coincide con la búsqueda",
+    "none": "No hay filas con este resultado",
+    "row": "Fila {{number}}",
+    "noData": "Sin datos",
+    "open": "Abrir",
+    "page": "Página {{page}} de {{pages}}",
+    "previous": "Página anterior",
+    "next": "Página siguiente"
+  },
+  "progress": {
+    "label": "Progreso",
+    "title": {
+      "dry_run": "Simulando la importación de {{kind}}…",
+      "run": "Importando {{kind}}…",
+      "revert": "Revirtiendo la importación…"
+    },
+    "hint": {
+      "dry_run": "Cada fila pasa por los mismos servicios que la importación real, sin guardar nada.",
+      "run": "Las filas se guardan una por una: si una falla, las demás siguen.",
+      "revert": "Se cancelan sin penalidad las reservas que nadie ha tocado desde la importación."
+    },
+    "queued": "En cola: esperando al servidor…",
+    "stale": "No recibimos avances del servidor hace unos minutos. Puedes relanzarla: continúa donde se detuvo.",
+    "leave": "Puedes salir de esta página: el proceso sigue en el servidor y lo verás en el historial.",
+    "relaunch": "Relanzar",
+    "units": {
+      "reservations_one": "reserva",
+      "reservations_other": "reservas",
+      "guests_one": "huésped",
+      "guests_other": "huéspedes",
+      "room_types_one": "categoría",
+      "room_types_other": "categorías",
+      "rooms_one": "habitación",
+      "rooms_other": "habitaciones",
+      "revert_one": "reserva",
+      "revert_other": "reservas"
+    }
+  },
+  "result": {
+    "caption": "Resultado, fila por fila",
+    "failed": "La importación se detuvo antes de terminar. Las filas ya importadas no se repiten al reanudarla.",
+    "resume": "Reanudar importación",
+    "reverted": "Revertida el {{date}} por {{name}}",
+    "revertReasons": {
+      "revert_in_house_one": "{{count}} en casa",
+      "revert_in_house_other": "{{count}} en casa",
+      "revert_activity_one": "{{count}} con actividad posterior",
+      "revert_activity_other": "{{count}} con actividad posterior",
+      "revert_not_active_one": "{{count}} ya no activa",
+      "revert_not_active_other": "{{count}} ya no activas",
+      "revert_missing_one": "{{count}} ya no existe",
+      "revert_missing_other": "{{count}} ya no existen"
+    },
+    "next": "Siguiente paso:",
+    "links": {
+      "reservations": "Ver reservas",
+      "calendar": "Ver calendario",
+      "guests": "Ver huéspedes",
+      "roomTypes": "Ver categorías",
+      "rates": "Ver tarifas",
+      "rooms": "Ver habitaciones"
+    },
+    "fixFailed_one": "{{formatted}} fila no se importó. Descarga el reporte de errores, corrígela en tu archivo y súbelo de nuevo: lo que ya se importó se omite.",
+    "fixFailed_other": "{{formatted}} filas no se importaron. Descarga el reporte de errores, corrígelas en tu archivo y súbelo de nuevo: lo que ya se importó se omite.",
+    "newImport": "Nueva importación",
+    "revertedCount_one": "{{count}} reserva cancelada",
+    "revertedCount_other": "{{count}} reservas canceladas",
+    "keptCount_one": "{{count}} no se revirtió",
+    "keptCount_other": "{{count}} no se revirtieron"
+  },
+  "revert": {
+    "button": "Revertir importación",
+    "title": "¿Revertir esta importación?",
+    "description": "Se cancelan sin penalidad las reservas que creó esta importación y que nadie ha tocado desde entonces, y se anulan sus pagos importados. Queda en la auditoría.",
+    "word": "REVERTIR",
+    "confirm": "Revertir",
+    "loading": "Calculando qué se puede revertir…",
+    "revertible_one": "Se cancelará {{formatted}} reserva.",
+    "revertible_other": "Se cancelarán {{formatted}} reservas.",
+    "inHouse_one": "{{count}} está en casa: no se revierte.",
+    "inHouse_other": "{{count}} están en casa: no se revierten.",
+    "activity_one": "{{count}} tiene actividad posterior (pagos, cargos o cambios): no se revierte.",
+    "activity_other": "{{count}} tienen actividad posterior (pagos, cargos o cambios): no se revierten.",
+    "notActive_one": "{{count}} ya no está activa.",
+    "notActive_other": "{{count}} ya no están activas.",
+    "missing_one": "{{count}} ya no existe.",
+    "missing_other": "{{count}} ya no existen."
+  },
+  "report": {
+    "button": "Reporte",
+    "label": "Reporte CSV (se abre en Excel)",
+    "issues": "Solo filas con errores o advertencias",
+    "all": "Todas las filas",
+    "issuesOther": "Errores y advertencias, en inglés",
+    "purged": "Los datos del archivo ya se borraron: el reporte trae solo los resultados."
+  }
+}

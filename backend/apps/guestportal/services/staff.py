@@ -87,6 +87,8 @@ def staff_checkin_detail(reservation) -> dict:
         "ip": checkin.ip if checkin else None,
         "user_agent": checkin.user_agent if checkin else "",
         "signature_url": signature_url(reservation) if checkin and checkin.signature else None,
+        # Habeas Data: when the retention automation deleted the documents and the signature (guests app)
+        "retention_purged_at": (checkin.data or {}).get("retention_purged_at") if checkin else None,
         "window": checkin_window(reservation, settings).as_dict(),
         "guests": [
             {

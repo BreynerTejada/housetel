@@ -1,4 +1,4 @@
-import { FileText, IdCard, PlaneLanding, PlaneTakeoff, ReceiptText, TriangleAlert, UserPen } from 'lucide-react'
+import { Building2, FileText, IdCard, PlaneLanding, PlaneTakeoff, ReceiptText, TriangleAlert, UserPen, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -31,12 +31,15 @@ export function ReservationLegalTab({ reservationId }: { reservationId: string }
   const register = useRegisterTra()
   const canInvoice = useCan('compliance.invoice')
   const canTra = useCan('compliance.tra')
-  const [issuing, setIssuing] = useState(false)
+  const [issuing, setIssuing] = useState<{ folioId?: string } | null>(null)
   const [openInvoice, setOpenInvoice] = useState<string | null>(null)
 
   if (legal.isPending) return <LoadingState variant="rows" rows={4} />
   if (legal.isError) return <ErrorState error={legal.error} onRetry={() => void legal.refetch()} />
   const data = legal.data
+  // P4: with a company folio, each customer (guest, company) has its own invoice ("Facturar a").
+  const splitBilling = (data.folios ?? []).some((row) => row.folio_type === 'company')
+  const pendingFolios = (data.folios ?? []).filter((row) => row.can_issue)
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6">
@@ -85,7 +88,43 @@ export function ReservationLegalTab({ reservationId }: { reservationId: string }
             ))}
           </ul>
         )}
-        {data.can_issue ? (
+        {splitBilling ? (
+          <div className="grid gap-2">
+            <p className="text-xs text-muted">{t('legal.perFolioHint')}</p>
+            {pendingFolios.map((row) => {
+              const company = row.folio_type === 'company'
+              const Icon = company ? Building2 : UserRound
+              return (
+                <div
+                  key={row.folio_id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border-strong bg-surface-2/50 px-4 py-3"
+                >
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-fg">
+                        {t(company ? 'legal.billToCompany' : 'legal.billToGuest', { name: row.customer.name })}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {t('legal.uninvoiced', { count: row.uninvoiced.count })} · <MoneyText value={row.uninvoiced.total} />
+                        {company && row.customer.payment_form === 'credit' && ` · ${t('legal.onCredit')}`}
+                      </p>
+                    </div>
+                  </div>
+                  {canInvoice && (
+                    <Button variant={company ? 'secondary' : 'primary'} onClick={() => setIssuing({ folioId: row.folio_id })}>
+                      <ReceiptText aria-hidden />
+                      {t(company ? 'issue.submitCompany' : 'issue.submit')}
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+            {pendingFolios.length === 0 && data.invoices.length === 0 && (
+              <p className="text-[13px] text-muted">{t('legal.noCharges')}</p>
+            )}
+          </div>
+        ) : data.can_issue ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border-strong bg-surface-2/50 px-4 py-3">
             <div>
               <p className="text-[13px] font-semibold text-fg">
@@ -96,7 +135,7 @@ export function ReservationLegalTab({ reservationId }: { reservationId: string }
               </p>
             </div>
             {canInvoice && (
-              <Button variant="primary" onClick={() => setIssuing(true)}>
+              <Button variant="primary" onClick={() => setIssuing({})}>
                 <ReceiptText aria-hidden />
                 {t('issue.submit')}
               </Button>
@@ -210,13 +249,13 @@ export function ReservationLegalTab({ reservationId }: { reservationId: string }
         )}
       </section>
 
-      <Dialog open={issuing} onOpenChange={setIssuing}>
+      <Dialog open={issuing !== null} onOpenChange={(open) => !open && setIssuing(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('issue.title')}</DialogTitle>
             <DialogDescription>{t('issue.description', { code: data.reservation.code })}</DialogDescription>
           </DialogHeader>
-          {issuing && <IssueInvoicePanel reservationId={reservationId} onClose={() => setIssuing(false)} />}
+          {issuing && <IssueInvoicePanel reservationId={reservationId} folioId={issuing.folioId} onClose={() => setIssuing(null)} />}
         </DialogContent>
       </Dialog>
       <InvoiceSheet invoiceId={openInvoice} onOpenChange={(open) => !open && setOpenInvoice(null)} />

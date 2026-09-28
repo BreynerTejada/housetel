@@ -14,6 +14,8 @@ from rest_framework.response import Response
 
 from apps.core.api.pagination import StandardPagination
 from apps.core.errors import DomainError
+from apps.core.integrations import available_modes
+from apps.core.runtime import require_simulations, simulations_enabled
 from apps.core.tenancy import PropertyScopedAPIView, PropertyScopedMixin
 from apps.distribution.api import serializers as s
 from apps.distribution.errors import ChannelError
@@ -277,19 +279,23 @@ class OptionsView(PropertyScopedAPIView):
         from apps.rates.models import RatePlan
 
         existing = set(ChannelConnection.objects.filter(property=prop).values_list("channel_code", flat=True))
+        simulations = simulations_enabled()
         channels = []
         for code, label in ChannelConnection.Channel.choices:
             kind = CHANNEL_KINDS.get(code)
+            if kind is None and not simulations and code not in existing:
+                continue  # BookSim / AirSim are simulators: not offered where simulations are off
             channels.append(
                 {
                     "code": code,
                     "label": label,
                     "delivery": services.delivery(code),
                     "pushes_ari": code in PUSH_CHANNELS,
-                    "modes": ["real", "simulated"] if kind else ["simulated"],
+                    "modes": available_modes(kind) if kind else ["simulated"],
                     "multiple": code == services.ICAL,
                     "connected": code in existing,
                     "integration": kind,
+                    "simulator": kind is None,
                 }
             )
         room_types = [
@@ -390,6 +396,8 @@ class CatalogView(PropertyScopedAPIView):
         channel = request.query_params.get("channel", "")
         prop = request.property
         if channel in (ChannelConnection.Channel.BOOKSIM, ChannelConnection.Channel.AIRSIM):
+            if not simulations_enabled():
+                raise DomainError("Los simuladores de OTAs no están disponibles", code="not_supported")
             return Response(suggested_catalog(prop, channel))
         if channel != ChannelConnection.Channel.CHANNEX:
             raise DomainError("Este canal no tiene catálogo de habitaciones", code="not_supported")
@@ -406,6 +414,7 @@ class CatalogView(PropertyScopedAPIView):
 # --- simulator ----------------------------------------------------------------------------------------------
 
 
+@require_simulations  # 404 where simulations are off (production): BookSim / AirSim do not exist there
 class SimulatorView(PropertyScopedAPIView):
     required_permissions = {"get": VIEW, "*": MANAGE}
 

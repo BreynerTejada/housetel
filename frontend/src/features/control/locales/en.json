@@ -69,7 +69,9 @@
     "rates": "Rates",
     "reports": "Reports",
     "revenue": "Revenue",
-    "saas": "Subscription"
+    "saas": "Subscription",
+    "corporate": "Companies & receivables",
+    "imports": "Data import"
   },
   "actionLabels": {
     "automationRun": "Automation ran",
@@ -81,7 +83,10 @@
       "member_updated": "Access changed",
       "role_created": "Role created",
       "role_deleted": "Role deleted",
-      "role_updated": "Role changed"
+      "role_updated": "Role changed",
+      "email_verified": "Email verified",
+      "password_changed": "Password changed",
+      "password_reset": "Password reset"
     },
     "ai": {
       "copilot_action": "Copilot action",
@@ -101,7 +106,17 @@
       "room_unassigned": "Room released",
       "stay_checked_in": "Check-in",
       "stay_checked_out": "Check-out",
-      "stay_modified": "Stay changed"
+      "stay_modified": "Stay changed",
+      "group_created": "Group created",
+      "group_updated": "Group updated",
+      "group_deleted": "Group deleted",
+      "group_block_created": "Group block created",
+      "group_block_updated": "Group block updated",
+      "group_block_released": "Group block released",
+      "group_block_deleted": "Group block deleted",
+      "rooming_updated": "Rooming list updated",
+      "stay_added": "Room added",
+      "stay_cancelled": "Room cancelled"
     },
     "compliance": {
       "credit_note_issued": "Credit note issued",
@@ -144,7 +159,11 @@
       "payment_recorded": "Payment recorded",
       "payment_refunded": "Payment refunded",
       "payment_voided": "Payment voided",
-      "refund_completed": "Refund completed"
+      "refund_completed": "Refund completed",
+      "folio_created": "Folio created",
+      "charge_transferred": "Charge moved to another folio",
+      "charge_split": "Charge split",
+      "payment_transferred": "Payment moved to another folio"
     },
     "frontdesk": {
       "night_audit": "Night audit"
@@ -168,7 +187,10 @@
       "guest_created": "Guest created",
       "guest_deleted": "Guest deleted",
       "guest_updated": "Guest changed",
-      "merged": "Guests merged"
+      "merged": "Guests merged",
+      "documents_purged": "Documents deleted by retention",
+      "signature_purged": "Signature deleted by retention",
+      "checkin_documents_purged": "Check-in documents deleted by retention"
     },
     "housekeeping": {
       "settings_updated": "Housekeeping settings",
@@ -201,11 +223,30 @@
       "room_type_provisioned": "Category created",
       "room_updated": "Room changed",
       "rooms_bulk_created": "Rooms created",
-      "rooms_bulk_updated": "Rooms changed"
+      "rooms_bulk_updated": "Rooms changed",
+      "amenity_created": "Amenity created",
+      "amenity_deleted": "Amenity deleted",
+      "bed_created": "Bed created",
+      "beds_created": "Beds created",
+      "bed_deleted": "Bed deleted",
+      "custom_field_created": "Custom field created",
+      "custom_field_updated": "Custom field updated",
+      "custom_field_deleted": "Custom field deleted",
+      "logo_updated": "Hotel logo",
+      "logo_removed": "Hotel logo removed",
+      "photo_added": "Photo added",
+      "photo_updated": "Photo updated",
+      "photo_deleted": "Photo deleted",
+      "photos_reordered": "Photos reordered",
+      "room_override_reset": "Inheritance restored"
     },
     "marketplace": {
       "booking_engine_updated": "Booking engine",
-      "listing_updated": "Marketplace listing"
+      "listing_updated": "Marketplace listing",
+      "logo_updated": "Booking engine logo",
+      "logo_removed": "Booking engine logo removed",
+      "hero_updated": "Booking engine cover",
+      "hero_removed": "Booking engine cover removed"
     },
     "messaging": {
       "lifecycle_rule_updated": "Automatic message configured",
@@ -232,7 +273,34 @@
       "payment_method_updated": "Payment method",
       "plan_changed": "Plan changed",
       "subscription_cancel_requested": "Cancellation requested",
-      "subscription_resumed": "Subscription resumed"
+      "subscription_resumed": "Subscription resumed",
+      "signup": "Hotel signed up",
+      "billing_cycle": "Billing cycle",
+      "invoice_issued": "Housetel invoice issued",
+      "invoice_voided": "Housetel invoice voided",
+      "charge_failed": "Charge failed",
+      "commissions_settled": "Commissions settled",
+      "subscription_past_due": "Subscription past due",
+      "subscription_cancelled": "Subscription cancelled",
+      "subscription_reactivated": "Subscription reactivated",
+      "organization_suspended": "Organization suspended",
+      "organization_reactivated": "Organization reactivated",
+      "trial_ended": "Trial ended",
+      "trial_extended": "Trial extended"
+    },
+    "corporate": {
+      "company_created": "Company created",
+      "company_updated": "Company updated",
+      "company_deleted": "Company deleted",
+      "billing_updated": "Reservation billing",
+      "account_payment_recorded": "Payment on account recorded",
+      "account_payment_voided": "Payment on account voided",
+      "credit_applied": "Credit applied",
+      "opening_balance_added": "Opening balance added"
+    },
+    "imports": {
+      "job_completed": "Imported data",
+      "job_reverted": "Rolled back an import"
     }
   },
   "alertKinds": {
@@ -272,7 +340,13 @@
     "cash_difference": "Cash difference",
     "oversold": "Oversold nights",
     "plan_limit": "Plan limit",
-    "other": "Alert"
+    "other": "Alert",
+    "refund_pending": "Pending refund",
+    "refund_failed": "Failed refund",
+    "payment_on_closed_folio": "Payment on a closed folio",
+    "payment_amount_mismatch": "Payment amount mismatch",
+    "payment_voided_by_provider": "Payment voided by the provider",
+    "company_over_credit": "Company over its credit limit"
   },
   "integrations": {
     "title": "Integrations",
@@ -280,15 +354,27 @@
     "banner": {
       "title": "{{count}} of {{total}} integrations in simulated mode",
       "allReal": "Every integration runs in real mode",
-      "body": "In simulated mode the whole flow works end to end without leaving the building: nothing is charged, invoiced, reported or sent for real. Switch each integration to real mode once you have its credentials.",
+      "body": "While they are simulated nothing is charged, invoiced, reported or sent for real. Each integration has its step-by-step guide: the account to create, where each key is and how to test the connection.",
       "bodyReal": "Charges, invoices, reports and messages go through your real providers.",
-      "plates": "Mode of each integration"
+      "plates": "Mode of each integration",
+      "eyebrow": "{{count}} of {{total}} in simulated mode",
+      "cta": "Switch on the real modes",
+      "start": "Start with {{name}}",
+      "eyebrowUnfinished_one": "{{count}} integration to set up",
+      "eyebrowUnfinished_other": "{{count}} integrations to set up",
+      "ctaUnfinished": "Finish setting up your integrations",
+      "bodyUnfinished": "They are already in real mode but their provider keys are missing: until they are complete Housetel does not use them. Follow each one's guide.",
+      "continue": "Continue with {{name}}",
+      "pending": "Credentials missing",
+      "plateLabel": "{{name}}: {{status}}. See its guide",
+      "tapHint": "Tap an integration to see its guide."
     },
     "mode": {
       "real": "Real",
       "simulated": "Simulated",
       "label": "Mode",
-      "unavailable": "This mode has no provider yet"
+      "unavailable": "This mode has no provider yet",
+      "offHere": "Not available in this environment"
     },
     "status": {
       "ok": "Connection OK",
@@ -367,7 +453,9 @@
       "configure": "Configure",
       "test": "Test connection",
       "testing": "Testing…",
-      "provider": "Provider: {{name}}"
+      "provider": "Provider: {{name}}",
+      "guide": "Guide",
+      "guideLabel": "Step-by-step guide for {{name}}"
     },
     "sheet": {
       "description": "Choose the mode and, for real mode, the provider's credentials.",
@@ -406,7 +494,11 @@
       "copy": "Copy the events URL",
       "copied": "URL copied",
       "payments": "Paste it in your Wompi dashboard › Developers › Transaction tracking › Events URL.",
-      "whatsapp": "Paste it in Meta › WhatsApp › Configuration › Webhook, along with the verify token above."
+      "whatsapp": "Paste it in Meta › WhatsApp › Configuration › Webhook, with the same text you type below in “Webhook verify token”.",
+      "local": "This URL is local: the provider cannot call it from the internet. To test from your computer, open a public tunnel:",
+      "localThen": "Copy the https://…trycloudflare.com address it shows, put it in PUBLIC_BASE_URL in the .env file and recreate backend, worker and beat (docker compose up -d backend worker beat): the URL above will use that address.",
+      "copyTunnel": "Copy the tunnel command",
+      "tunnelCopied": "Command copied"
     },
     "related": {
       "channels": "Connections and mappings in Channels",
@@ -414,6 +506,21 @@
       "complianceBoard": "SIRE files in Legal",
       "messaging": "Templates and sender in Messaging",
       "ai": "Copilot, chatbot and briefs in AI settings"
+    },
+    "guide": {
+      "title": "Guide to real mode · {{provider}}",
+      "stepsCount_one": "{{count}} step",
+      "stepsCount_other": "{{count}} steps",
+      "stepLabel": "Step {{number}}:",
+      "newTab": "(opens in a new tab)",
+      "keysTitle": "Where each value is",
+      "chosen": "Chosen",
+      "where": "Where it is:",
+      "docsLink": "Full guide: {{section}}",
+      "docsFile": "Full guide in the repository:",
+      "help": "Stuck?",
+      "helpWhatsapp": "Message us on WhatsApp",
+      "helpMessage": "Hi, I need help connecting {{provider}} in Housetel."
     }
   },
   "automations": {
@@ -474,7 +581,8 @@
       "ai_summary": "AI-written summary",
       "ai_summary_once_a_day": "AI summary only on the day's first scheduled run",
       "run_retention_days": "Days of history kept",
-      "auto_no_show": "Mark no-shows automatically"
+      "auto_no_show": "Mark no-shows automatically",
+      "retention_days": "Days after check-out before deleting documents and signatures (0 = never)"
     },
     "historySheet": {
       "title": "History of “{{name}}”",
@@ -485,7 +593,13 @@
       "byBeat": "Run by the scheduler",
       "duration": "Duration: {{value}}"
     },
-    "nextAt": "Next: {{time}}"
+    "nextAt": "Next: {{time}}",
+    "notice": {
+      "title": "Ran just now: {{status}}",
+      "queuedTitle": "Queued",
+      "queued": "It runs in the background: the result will show up under the last run and in the history in a few minutes.",
+      "dismiss": "Hide the result"
+    }
   },
   "audit": {
     "title": "Audit log",
@@ -699,5 +813,247 @@
     "channels": "Channels",
     "rates": "Rates",
     "plans": "Plans"
+  },
+  "alertText": {
+    "common": {
+      "houseFolio": "a house folio",
+      "room": "room {{number}}",
+      "theirRoom": "their room",
+      "shortage": "shortage",
+      "surplus": "surplus",
+      "providers": {
+        "gemini": "Google Gemini",
+        "claude": "Claude (Anthropic)"
+      }
+    },
+    "unguaranteed_arrival": {
+      "title": "Arrival without a guarantee: {{code}}",
+      "message": "{{guest}} arrives on {{checkin}} and booking {{code}} has no guarantee or payments. Ask for a deposit or confirm it by phone."
+    },
+    "duplicate_payment": {
+      "title": "Possible duplicate payment on {{target}}",
+      "message": "Two payments of {{amount}} with the same method ({{method}}) were recorded on {{target}} less than 10 minutes apart. Check whether one should be voided or refunded."
+    },
+    "rate_out_of_bounds": {
+      "title": "Rate out of range for {{roomType}}",
+      "message_one": "{{count}} night of {{roomType}} ({{ratePlan}}) has a price outside the limits or below 30% of the base price: {{prices}}. Date: {{first}}.",
+      "message_other": "{{count}} nights of {{roomType}} ({{ratePlan}}) have a price outside the limits or below 30% of the base price: {{prices}}. First date: {{first}}."
+    },
+    "unposted_nights": {
+      "title": "Nights without a charge: {{code}}",
+      "message_one": "{{guest}} ({{room}}) has {{count}} night without a room charge after the night audit: {{first}}.",
+      "message_other": "{{guest}} ({{room}}) has {{count}} nights without a room charge after the night audit, since {{first}}."
+    },
+    "vip_room_not_ready": {
+      "title": "VIP arriving soon and room {{room}} is not ready",
+      "message": "{{guest}} (VIP) arrives around {{eta}} and room {{room}} is {{roomStatus}}. Prioritize its cleaning or move them to another room."
+    },
+    "missing_tra": {
+      "title": "Check-in without TRA: {{code}}",
+      "message": "{{guest}} checked in more than 2 hours ago and their Tourist Registration Card (TRA) has not been filed. Check the missing details in Legal."
+    },
+    "missing_invoice": {
+      "title": "Check-out without an invoice: {{code}}",
+      "message": "{{guest}} checked out more than an hour ago and the e-invoice for {{code}} has not been issued."
+    },
+    "cash_difference": {
+      "title": "Cash difference of {{difference}}",
+      "message": "{{user}}'s cash shift closed with a {{direction}} of {{difference}} (expected {{expected}}, counted {{counted}})."
+    },
+    "oversold": {
+      "title": "Overbooking in {{roomType}}",
+      "message_one": "{{roomType}} has more nights sold than units on {{count}} date (up to {{worst}} too many), {{first}}. Move or contact the guests.",
+      "message_other": "{{roomType}} has more nights sold than units on {{count}} dates (up to {{worst}} too many), from {{first}}. Move or contact the guests."
+    },
+    "daily_brief": {
+      "title": "Daily summary · {{date}}",
+      "arrivals_one": "- {{count}} arrival today",
+      "arrivals_other": "- {{count}} arrivals today",
+      "vip": " ({{count}} VIP)",
+      "unassigned_one": ", {{count}} without a room",
+      "unassigned_other": ", {{count}} without a room",
+      "departures_one": "- {{count}} departure",
+      "departures_other": "- {{count}} departures",
+      "withBalance_one": ", {{count}} with a balance due",
+      "withBalance_other": ", {{count}} with a balance due",
+      "inHouse_one": "- {{count}} guest in house; occupancy {{occupancy}}% ({{sold}}/{{total}}).",
+      "inHouse_other": "- {{count}} guests in house; occupancy {{occupancy}}% ({{sold}}/{{total}}).",
+      "alerts": "- Open alerts: {{critical}} critical and {{warning}} to review."
+    },
+    "llm_degraded": {
+      "title": "The AI is answering in simulated mode",
+      "message": "{{provider}} did not respond: {{error}}. Housetel keeps working with the simulated assistant until the provider is available again."
+    },
+    "chatbot_handoff": {
+      "title": "A guest wants to talk to the team",
+      "visitor": "A visitor",
+      "lowConfidence": "The chat assistant could not answer a question and passed the conversation to the team.",
+      "asked": "{{name}} asked to talk to a person in the website chat.",
+      "said": "Message: “{{summary}}”.",
+      "reach": "Contact: {{reach}}.",
+      "noReach": "They have not left their contact details yet.",
+      "reservation": "Booking: {{code}}."
+    },
+    "inventory_drift": {
+      "title_one": "Inventory fixed: {{count}} night did not add up",
+      "title_other": "Inventory fixed: {{count}} nights did not add up",
+      "message": "The daily reconciliation recalculated availability and found differences with what was sold or blocked. Look for changes made outside the booking services."
+    },
+    "payment_after_cancellation": {
+      "title": "Payment received for cancelled booking {{code}}",
+      "message": "A payment of {{amount}} arrived after the booking was cancelled, leaving the guest a credit of {{credit}}. Refund it or create a new booking."
+    },
+    "overbooking": {
+      "title": "Overbooking: booking {{code}} exceeds availability",
+      "message_one": "Booking {{code}} was accepted with no free units on {{count}} night. Move or reassign it before arrival.",
+      "message_other": "Booking {{code}} was accepted with no free units on {{count}} nights. Move or reassign it before arrival."
+    },
+    "unassigned_arrivals": {
+      "title_one": "{{count}} arrival today without a room",
+      "title_other": "{{count}} arrivals today without a room",
+      "message": "No room assigned: {{codes}}."
+    },
+    "overdue_departures": {
+      "title_one": "{{count}} guest was due to leave and is still in house",
+      "title_other": "{{count}} guests were due to leave and are still in house",
+      "message": "Check them out or extend the stay: {{codes}}."
+    },
+    "night_audit_errors": {
+      "title_one": "The night audit of {{date}} left {{count}} item pending",
+      "title_other": "The night audit of {{date}} left {{count}} items pending"
+    },
+    "sire_missing_data": {
+      "title_one": "SIRE: {{count}} foreign guest movement with missing details",
+      "title_other": "SIRE: {{count}} foreign guest movements with missing details",
+      "message": "Complete the guests' details (document, nationality, date of birth…) and generate the file again: incomplete movements are left out."
+    },
+    "sire_unsubmitted": {
+      "title_one": "{{count}} SIRE file to upload to Migración Colombia",
+      "title_other": "{{count}} SIRE files to upload to Migración Colombia",
+      "message_one": "Download the file, upload it on the SIRE portal and mark it as reported.",
+      "message_other": "Download the files, upload them on the SIRE portal and mark them as reported."
+    },
+    "tra_missing_data": {
+      "title_one": "TRA: {{count}} guest with missing details",
+      "title_other": "TRA: {{count}} guests with missing details",
+      "message": "Complete the guests' document, names or city of residence to file their Tourist Registration Card."
+    },
+    "tra_error": {
+      "title_one": "TRA: {{count}} registration rejected by the service",
+      "title_other": "TRA: {{count}} registrations rejected by the service",
+      "message": "The TRA service did not accept some registrations. Check the details and retry them."
+    },
+    "invoice_resolution": {
+      "blockedTitle": "E-invoices cannot be numbered",
+      "warningTitle": "Invoicing resolution {{prefix}} needs attention",
+      "warningMessage": "The resolution {{reasons}}. Request a new one from the DIAN.",
+      "runningOut_one": "has {{count}} number left out of {{total}}",
+      "runningOut_other": "has {{count}} numbers left out of {{total}}",
+      "expiring_one": "expires in {{count}} day ({{date}})",
+      "expiring_other": "expires in {{count}} days ({{date}})",
+      "expired": "has expired ({{date}})"
+    },
+    "payment_on_closed_folio": {
+      "title": "A payment arrived on a closed folio",
+      "message": "The folio was reopened to record it. Check whether a surplus needs to be refunded."
+    },
+    "payment_amount_mismatch": {
+      "title": "The amount paid does not match the link",
+      "message": "{{expected}} was expected and {{paid}} was paid."
+    },
+    "payment_voided_by_provider": {
+      "title": "An online payment was voided at the provider",
+      "message": "The payment of link {{reference}} no longer counts toward the balance."
+    },
+    "company_over_credit": {
+      "message": "It is using {{used}} of a {{limit}} credit limit. Review its receivables or ask for a payment before accepting more charges on credit.",
+      "title": "{{company}} went over its credit limit"
+    },
+    "automation_failed": {
+      "title": "The “{{task}}” automation failed"
+    },
+    "integration_fallback": {
+      "title": "The “{{kindLabel}}” integration is running in simulated mode",
+      "message": "There is no “{{mode}}” provider for “{{kindLabel}}”; the simulated one is used."
+    },
+    "ical_import_failed": {
+      "title": "Could not read the iCal calendar of {{connection}}",
+      "message": "Could not read the calendar: {{error}}. New bookings from that calendar are not reaching the PMS: check the URL in Channels."
+    },
+    "channel_import_failed": {
+      "title": "{{connection}} booking not processed: {{externalId}}",
+      "message": "{{error}}. The booking exists in the channel but not in the PMS: check it in the sync log."
+    },
+    "channel_pull_failed": {
+      "title": "Could not download the bookings from {{connection}}",
+      "message": "{{error}}. New, changed or cancelled bookings in the channel are not reaching the PMS; it will retry on the next download."
+    },
+    "channel_sync_failed": {
+      "title": "Could not update {{connection}}",
+      "message": "Sending availability and rates to {{connection}} failed {{attempts}} times: {{error}}. The channel may be selling with old data: check the connection and run a full sync."
+    },
+    "guestportal_duplicate_guest": {
+      "title": "Possible duplicate guest in {{code}}",
+      "profile": "A document typed in the online check-in already belongs to another profile. Review both profiles and merge them so the guest can finish their registration.",
+      "companion": "A companion's document typed in the online check-in already belongs to {{owner}}, under another name. Check the details with the guest on arrival."
+    },
+    "guestportal_cancelled": {
+      "title": "{{code}} cancelled by the guest",
+      "message": "The guest cancelled from the portal. Fee: {{fee}}.",
+      "credit": "There is a credit of {{credit}} to refund.",
+      "messageNoFee": "The guest cancelled from the portal, with no fee."
+    },
+    "guestportal_modified": {
+      "title": "{{code}}: the guest changed the dates",
+      "message": "New dates: {{checkin}} → {{checkout}}. Check the room assignment.",
+      "credit": "Credit: {{credit}}."
+    },
+    "guestportal_request": {
+      "titles": {
+        "late_checkout": "Late check-out requested: {{code}}",
+        "early_checkin": "Early check-in requested: {{code}}",
+        "transfer": "Transfer requested: {{code}}",
+        "extra": "Extra to approve: {{code}}",
+        "other": "Guest request: {{code}}"
+      },
+      "kinds": {
+        "late_checkout": "a late check-out",
+        "early_checkin": "an early check-in",
+        "transfer": "a transfer",
+        "extra": "an extra",
+        "other": "another request"
+      },
+      "message": "{{guest}} asked from the portal for {{what}}.",
+      "time": "Time: {{time}}.",
+      "notes": "Note: “{{notes}}”."
+    },
+    "invoice_rejected": {
+      "titles": {
+        "invoice": "Invoice {{number}} was rejected",
+        "credit_note": "Credit note {{number}} was rejected"
+      }
+    },
+    "invoice_error": {
+      "titles": {
+        "invoice": "Invoice {{number}} could not be issued",
+        "credit_note": "Credit note {{number}} could not be issued"
+      }
+    },
+    "refund_pending": {
+      "title": "Refund of {{amount}} pending"
+    },
+    "refund_failed": {
+      "title": "A refund of {{amount}} failed"
+    },
+    "plan_limit": {
+      "title": "You went over the {{plan}} plan limit",
+      "message": "You have {{units}} and {{properties}}; the plan includes {{maxUnits}} and {{maxProperties}}. Everything keeps working: change plans whenever you like.",
+      "units_one": "{{count}} unit",
+      "units_other": "{{count}} units",
+      "properties_one": "{{count}} property",
+      "properties_other": "{{count}} properties",
+      "unlimitedUnits": "unlimited units",
+      "unlimitedProperties": "unlimited properties"
+    }
   }
 }

@@ -2,7 +2,12 @@ import type { FeatureRoutes } from '@/app/extensions'
 
 // Routes of the `saas` feature (plan §E, owner C11). Pages load lazily.
 export const routes: FeatureRoutes = {
-  public: [{ path: '/signup', lazy: () => import('./pages/SignupPage').then((m) => ({ Component: m.default })) }],
+  public: [
+    { path: '/signup', lazy: () => import('./pages/SignupPage').then((m) => ({ Component: m.default })) },
+    // Terms, personal data policy and data processing agreement (plan P6); `/legal` opens the terms.
+    { path: '/legal', lazy: () => import('./pages/LegalPage').then((m) => ({ Component: m.default })) },
+    { path: '/legal/:doc', lazy: () => import('./pages/LegalPage').then((m) => ({ Component: m.default })) },
+  ],
   app: [
     {
       path: 'getting-started',

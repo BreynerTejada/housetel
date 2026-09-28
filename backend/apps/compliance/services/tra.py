@@ -37,6 +37,10 @@ COMPANION_REQUIRED = ["tipo_identificacion", "numero_identificacion", "nombres",
 MISSING_ALERT = "compliance:tra:missing"
 ERROR_ALERT = "compliance:tra:error"
 WAITING_FOR_MAIN = "Esperando el registro del huésped principal"
+TRA_NOT_CONFIGURED = (
+    "La integración TRA no está configurada: actívala en Configuración → Integraciones → TRA. El registro se "
+    "envía solo cuando quede lista."
+)
 
 
 def _room_label(stay) -> str:
@@ -163,6 +167,15 @@ def submit(registration, *, actor=None, source="user", refresh=True) -> TraRegis
             registration.save()
             return registration
         parent_number = parent.tra_number
+    if not integrations.is_operational(registration.property, "tra"):
+        # P-INT: production before the hotel connects the TRA (MinCIT) — nothing is sent and no attempt is
+        # spent; `compliance.tra_retry` sends it once the integration is configured.
+        registration.status = TraRegistration.Status.PENDING
+        registration.error = TRA_NOT_CONFIGURED
+        registration.save()
+        if refresh:
+            refresh_alerts(registration.property)
+        return registration
     provider = integrations.get_provider(registration.property, "tra")
     try:
         result = provider.register(payload, parent_number=parent_number)
@@ -230,6 +243,8 @@ def auto_register_on_checkin(stay) -> list[TraRegistration]:
 def retry_pending_tra(property, *, max_attempts=MAX_AUTO_ATTEMPTS, window_days=RETRY_WINDOW_DAYS) -> dict:
     """Automation `compliance.tra_retry`: send again the registrations of the last `window_days` days that are
     pending (data fixed since, or waiting for their main guest) or failed."""
+    if not integrations.is_operational(property, "tra"):
+        return {"retried": 0, "registered": 0, "failed": 0, "skipped": TRA_NOT_CONFIGURED}
     since = property.business_date - timedelta(days=window_days)
     queryset = TraRegistration.objects.filter(
         property=property,

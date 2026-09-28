@@ -339,7 +339,9 @@
       "click": "Toca una noche a la venta para reservarla en la OTA."
     },
     "forbiddenTitle": "Solo quien gestiona los canales usa el simulador",
-    "forbiddenHint": "El simulador crea reservas reales en el PMS. Pide el permiso «Gestionar canales» a quien administra el hotel."
+    "forbiddenHint": "El simulador crea reservas reales en el PMS. Pide el permiso «Gestionar canales» a quien administra el hotel.",
+    "unavailableTitle": "El simulador de OTAs no existe en este entorno",
+    "unavailableHint": "BookSim y AirSim son herramientas de demostración: aquí las simulaciones están apagadas. Conecta tus canales reales (iCal o Channex) desde Canales."
   },
   "ota": {
     "gridLabel": "Inventario de la OTA",

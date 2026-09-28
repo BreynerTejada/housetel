@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Gauge, Hotel, Languages, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react'
+import { Gauge, Hotel, Languages, LifeBuoy, LogOut, Monitor, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -22,6 +22,7 @@ import { currentLanguage, isLanguage, LANGUAGES, setLanguage } from '@/lib/i18n'
 import { useTheme, type ThemePreference } from '@/lib/theme'
 
 const ProfileDialog = lazy(() => import('./ProfileDialog').then((m) => ({ default: m.ProfileDialog })))
+const SupportDialog = lazy(() => import('./SupportDialog').then((m) => ({ default: m.SupportDialog })))
 
 export function UserMenu({ area = 'app' }: { area?: 'app' | 'admin' }) {
   const { t } = useTranslation()
@@ -32,6 +33,8 @@ export function UserMenu({ area = 'app' }: { area?: 'app' | 'admin' }) {
   const isPhone = useMediaQuery('(max-width: 639px)')
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileMounted, setProfileMounted] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [supportMounted, setSupportMounted] = useState(false)
   if (!me) return null
   const hasHotel = me.memberships.some((membership) => membership.properties.length > 0)
 
@@ -63,6 +66,13 @@ export function UserMenu({ area = 'app' }: { area?: 'app' | 'admin' }) {
           >
             <UserRound aria-hidden />
             {t('topbar.profile')}
+          </DropdownMenuItem>
+          {/* P2 page "Mi cuenta y seguridad" (password, email verification): /admin/account for the super-admin. */}
+          <DropdownMenuItem asChild>
+            <Link to={area === 'admin' ? '/admin/account' : '/app/settings/account'}>
+              <ShieldCheck aria-hidden />
+              {t('nav.account', { ns: 'team' })}
+            </Link>
           </DropdownMenuItem>
           {isPhone && (
             <>
@@ -115,6 +125,15 @@ export function UserMenu({ area = 'app' }: { area?: 'app' | 'admin' }) {
               </Link>
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem
+            onSelect={() => {
+              setSupportMounted(true)
+              setSupportOpen(true)
+            }}
+          >
+            <LifeBuoy aria-hidden />
+            {t('support.menuItem')}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => logout.mutate()}
@@ -127,6 +146,11 @@ export function UserMenu({ area = 'app' }: { area?: 'app' | 'admin' }) {
       {profileMounted && (
         <Suspense fallback={null}>
           <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+        </Suspense>
+      )}
+      {supportMounted && (
+        <Suspense fallback={null}>
+          <SupportDialog open={supportOpen} onOpenChange={setSupportOpen} />
         </Suspense>
       )}
     </>

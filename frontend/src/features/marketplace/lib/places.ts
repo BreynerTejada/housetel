@@ -65,6 +65,31 @@ export function placeFor(city: string | null | undefined): Place | null {
   return INDEX.get(ALIASES[key] ?? key) ?? null
 }
 
+const LOWERCASE_WORDS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'en'])
+
+/**
+ * The destination as a title: the canonical name when we know it («cartagena» → «Cartagena», «bogota» →
+ * «Bogotá», also for the cities the API lists), otherwise the typed words capitalized («villa de leyva» →
+ * «Villa de Leyva»).
+ */
+export function cityTitle(city: string, known: readonly string[] = []): string {
+  const typed = city.trim().replace(/\s+/g, ' ')
+  if (!typed) return ''
+  const key = normalizePlace(typed)
+  const listed = known.find((name) => normalizePlace(name) === key)
+  if (listed) return listed
+  const place = placeFor(typed)
+  if (place) return place.name
+  return typed
+    .split(' ')
+    .map((word, index) => {
+      const lower = word.toLocaleLowerCase('es')
+      if (index > 0 && LOWERCASE_WORDS.has(lower)) return lower
+      return lower.charAt(0).toLocaleUpperCase('es') + lower.slice(1)
+    })
+    .join(' ')
+}
+
 /** Below 1.000 m hot, up to 2.000 m temperate, up to 3.000 m cold, above that páramo. */
 export function thermalFloor(altitude: number): ThermalFloor {
   if (altitude < 1000) return 'hot'

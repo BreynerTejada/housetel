@@ -442,6 +442,9 @@ def _flag_duplicate(reservation, owner, guest=None) -> None:
             "reservation_id": str(reservation.pk),
             "reservation_code": reservation.code,
             "guest_ids": sorted({str(subject.pk), str(owner.pk)}),
+            # which message this is (the staff UI writes it in the viewer's language)
+            "variant": "profile" if guest is not None else "companion",
+            "owner": owner.full_name,
         },
         source="guest",
     )

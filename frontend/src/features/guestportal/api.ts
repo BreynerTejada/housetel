@@ -388,6 +388,8 @@ export interface StaffCheckin {
   ip: string | null
   user_agent: string
   signature_url: string | null
+  /** When the Habeas Data retention deleted the documents and the signature of this check-in. */
+  retention_purged_at?: string | null
   window: CheckinWindow
   guests: StaffSlot[]
   missing: MissingItem[]

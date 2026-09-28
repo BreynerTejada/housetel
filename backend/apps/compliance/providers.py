@@ -304,8 +304,14 @@ class FactusProvider(EInvoiceProvider):
         if customer.get("dv"):
             data["dv"] = customer["dv"]
         data["legal_organization_code"] = "1" if company else "2"
-        data["tribute_code"] = "ZZ"
+        # P4: a company responsible for VAT is tribute "01" (IVA) with its DIAN responsibilities (Factus v2
+        # `tribute_code` default "ZZ" and `responsibilities` default ["R-99-PN"], verified 2026-09-28).
+        data["tribute_code"] = "01" if customer.get("vat_responsible") else "ZZ"
+        if customer.get("tax_responsibilities"):
+            data["responsibilities"] = list(customer["tax_responsibilities"])
         data["company" if company else "names"] = customer.get("name", "")
+        if company and customer.get("trade_name"):
+            data["trade_name"] = customer["trade_name"]
         for key in ("address", "email", "phone"):
             if customer.get(key):
                 data[key] = customer[key]
@@ -368,15 +374,17 @@ class FactusProvider(EInvoiceProvider):
 
     def _common(self, invoice) -> dict:
         items, allowances = self._items_and_allowances(invoice)
+        payment = {
+            "payment_form": "1",
+            "payment_method_code": self._payment_means(invoice),
+            "amount": f"{Decimal(invoice.total):.2f}",
+        }
+        if (invoice.customer or {}).get("payment_form") == "credit" and invoice.due_date:
+            # P4: invoices to a company with credit ("2" = crédito; `due_date` is required with it)
+            payment.update({"payment_form": "2", "due_date": invoice.due_date.isoformat()})
         data = {
             "reference_code": f"HTL{invoice.pk.hex}",
-            "payment_details": [
-                {
-                    "payment_form": "1",
-                    "payment_method_code": self._payment_means(invoice),
-                    "amount": f"{Decimal(invoice.total):.2f}",
-                }
-            ],
+            "payment_details": [payment],
             "customer": self.customer_payload(invoice.customer or {}),
             "items": items,
         }

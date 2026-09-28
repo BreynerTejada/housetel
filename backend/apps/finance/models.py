@@ -22,6 +22,7 @@ class Folio(BaseModel):
         GUEST = "guest", "Huésped"
         MASTER = "master", "Maestro"
         HOUSE = "house", "Casa"
+        COMPANY = "company", "Empresa"  # P4: the company's part of a reservation, or an opening AR balance
 
     class Status(models.TextChoices):
         OPEN = "open", "Abierto"
@@ -33,14 +34,33 @@ class Folio(BaseModel):
     )
     stay = models.ForeignKey(Stay, null=True, blank=True, on_delete=models.RESTRICT, related_name="folios")
     guest = models.ForeignKey(Guest, null=True, blank=True, on_delete=models.SET_NULL, related_name="folios")
+    # P4: company folios (`folio_type=company`) belong to a corporate client; they are its receivables.
+    company = models.ForeignKey(
+        "corporate.Company", null=True, blank=True, on_delete=models.PROTECT, related_name="folios"
+    )
     folio_type = models.CharField(max_length=10, choices=FolioType.choices, default=FolioType.GUEST)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
     currency = models.CharField(max_length=3, default="COP")
     closed_at = models.DateTimeField(null=True, blank=True)
+    # P4: a free label for folios without reservation (e.g. the legacy invoice number of an opening balance).
+    label = models.CharField(max_length=120, blank=True)
 
     class Meta:
         ordering = ["created_at"]
-        indexes = [models.Index(fields=["property", "status"], name="folio_property_status_idx")]
+        indexes = [
+            models.Index(fields=["property", "status"], name="folio_property_status_idx"),
+            models.Index(fields=["company", "status"], name="folio_company_status_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(folio_type="company") | Q(company__isnull=False), name="folio_company_required"
+            ),
+            models.UniqueConstraint(
+                fields=["reservation", "company"],
+                condition=Q(folio_type="company", reservation__isnull=False),
+                name="folio_one_company_folio_per_reservation",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"Folio {self.reservation.code if self.reservation else self.folio_type} ({self.status})"

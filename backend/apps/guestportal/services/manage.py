@@ -109,6 +109,7 @@ def cancel_from_portal(reservation, *, confirm, reason: str = "") -> Reservation
             dedupe_key=f"guestportal:cancelled:{cancelled.pk}",
             data={
                 "reservation_id": str(cancelled.pk),
+                "code": cancelled.code,
                 "fee": money(cancelled.cancellation_fee),
                 "credit": money(credit),
             },  # fmt: skip
@@ -249,6 +250,7 @@ def modify_from_portal(reservation, *, checkin, checkout) -> dict:
             dedupe_key=f"guestportal:modified:{updated.pk}",
             data={
                 "reservation_id": str(updated.pk),
+                "code": updated.code,
                 "checkin": checkin.isoformat(),
                 "checkout": checkout.isoformat(),
                 "credit": money(credit),

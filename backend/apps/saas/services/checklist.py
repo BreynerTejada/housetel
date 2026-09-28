@@ -3,7 +3,7 @@
 Every step is computed from real data (read-only ORM reads of other apps):
 profile → inventory profile fields; rooms → sellable units; rates → every active category has a base price;
 payments → online payments integration in real mode; channels → marketplace listing or a channel connection;
-team → another member or a pending invitation; first_booking → any reservation.
+team → another member or a pending invitation; first_booking → any reservation (or import them: P5).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def _profile_missing(prop) -> list[str]:
 def getting_started(prop, organization) -> dict:
     from apps.accounts.models import Invitation, Membership
     from apps.bookings.models import Reservation
-    from apps.core.integrations import get_setting
+    from apps.core.integrations import get_setting, is_live
     from apps.inventory.services import inventory_summary
     from apps.rates.models import RoomTypeRateDefaults
 
@@ -79,7 +79,8 @@ def getting_started(prop, organization) -> dict:
         },
         {
             "id": "payments",
-            "done": payments.mode == "real" and payments.enabled,
+            # P-INT: done when Wompi really works (real, on and with its keys), not just switched to real.
+            "done": is_live(prop, "payments"),
             "detail": {"mode": payments.mode, "enabled": payments.enabled},
             "link": "/app/settings/integrations",
         },
@@ -101,6 +102,7 @@ def getting_started(prop, organization) -> dict:
             "done": reservations > 0,
             "detail": {"reservations": reservations},
             "link": "/app/reservations/new",
+            "alt_link": "/app/settings/import",  # P5: bring the bookings and guests of the previous PMS
         },
     ]
     completed = sum(1 for step in steps if step["done"])

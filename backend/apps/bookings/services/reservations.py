@@ -18,7 +18,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.bookings.models import ACTIVE_STAY_STATUSES, Reservation, ReservationGroup, Stay
+from apps.bookings.models import ACTIVE_STAY_STATUSES, GroupBlock, Reservation, ReservationGroup, Stay
 from apps.bookings.services.assignment import (
     GAP_WINDOW_DAYS,
     best_unit,
@@ -28,9 +28,21 @@ from apps.bookings.services.assignment import (
     rank,
     room_connections,
 )
+from apps.bookings.services.blocks import pickup_hold_deltas, pickup_nights
 from apps.bookings.services.charges import post_room_charges
-from apps.bookings.services.inventory import ORIGIN, adjust_inventory, stay_units, unit_type_id
-from apps.bookings.services.policies import cancellation_fee, no_show_fee, policy_snapshot
+from apps.bookings.services.inventory import (
+    ORIGIN,
+    PICKUP_STATUSES,
+    adjust_inventory,
+    stay_units,
+    unit_type_id,
+)
+from apps.bookings.services.policies import (
+    cancellation_fee,
+    no_show_fee,
+    policy_snapshot,
+    stay_cancellation_fee,
+)
 from apps.bookings.services.pricing import (
     QUOTE_WARNINGS,
     PricedStay,
@@ -99,6 +111,7 @@ class _StayPlan:
     locked_room: bool = False
     occupants: list = field(default_factory=list)
     nightly_prices: dict | None = None  # {date: price} imposed by a channel
+    block: GroupBlock | None = None  # picked up from this group allotment
 
     @property
     def is_dorm(self) -> bool:
@@ -110,6 +123,21 @@ def create_reservation(req: ReservationRequest, *, actor=None, source_label=None
     availability and restrictions, quote (or use channel `nightly_rates`), create Reservation + Stays +
     folio, `reservation_created` and `inventory_changed`. Raises AvailabilityError (409) /
     RestrictionError (400)."""
+    return _create(req, actor=actor, source_label=source_label, blocks=None)
+
+
+def create_reservation_in_blocks(
+    req: ReservationRequest, *, blocks: dict, actor=None, source_label=None
+) -> Reservation:
+    """`create_reservation` where some stays are picked up from group allotments: `blocks` maps the index of a
+    stay in `req.stays` to its `GroupBlock`. Those stays take the block's held units first (a full hotel still
+    sells them to the group) and the reservation joins the block's group (`req.group_id`, when given, must be
+    that group). Blocks must be of the property, not released (409 `block_released`) and of the stay's
+    category (400 `category_mismatch`)."""
+    return _create(req, actor=actor, source_label=source_label, blocks=blocks or {})
+
+
+def _create(req: ReservationRequest, *, actor, source_label, blocks) -> Reservation:
     from apps.finance import services as finance
 
     prop = req.property
@@ -120,15 +148,32 @@ def create_reservation(req: ReservationRequest, *, actor=None, source_label=None
         booker = _resolve_guest(prop, req.booker, actor)
         group = _resolve_group(prop, req.group_id)
         custom_values = _validate_custom_values(prop, req.custom_values)
-        plans = [plan for stay_req in req.stays for plan in _plan_stay(prop, stay_req, currency)]
+        plans = []
+        for index, stay_req in enumerate(req.stays):
+            block = (blocks or {}).get(index)
+            for plan in _plan_stay(prop, stay_req, currency):
+                if block is not None:
+                    group = _block_group(prop, block, plan.room_type, group)
+                    plan.block = block
+                plans.append(plan)
 
         units: Counter = Counter()
         for plan in plans:
             for night in stay_nights(plan.checkin, plan.checkout):
                 units[(plan.room_type.pk, night)] += 1
-        shortfalls = adjust_inventory(prop, units, allow_overbooking=req.allow_overbooking)
+        held = pickup_hold_deltas(
+            [(plan.block.pk, [], stay_nights(plan.checkin, plan.checkout)) for plan in plans if plan.block]
+        )
+        shortfalls = adjust_inventory(prop, units, allow_overbooking=req.allow_overbooking, held=held)
 
         priced = [_price_plan(prop, plan, req, booker) for plan in plans]
+        for plan, pricing in zip(plans, priced, strict=True):
+            # a pickup skips the rate restrictions (the group's rooms were agreed), never the price
+            unpriced = plan.nightly_prices is None and "no_rate" in pricing.quote.violations
+            if plan.block is not None and unpriced:
+                raise BookingError(
+                    "La categoría no tiene precio configurado para esas noches", code="no_rate"
+                )
         promo_applied = next((item.quote.promo_applied for item in priced if item.quote.promo_applied), "")
 
         now = timezone.now()
@@ -177,6 +222,7 @@ def create_reservation(req: ReservationRequest, *, actor=None, source_label=None
                 total_amount=pricing.total,
                 status=req.status,
                 locked_room=plan.locked_room,
+                group_block=plan.block,
             )
             if plan.occupants:
                 stay.occupants.set([_resolve_guest(prop, occupant, actor) for occupant in plan.occupants])
@@ -256,6 +302,23 @@ def _resolve_group(prop, group_id):
     if group is None:
         raise BookingError("El grupo no existe en esta propiedad", code="invalid_group")
     return group
+
+
+def _block_group(prop, block, room_type, group):
+    """Validate a pickup from `block` for a stay of `room_type`; returns the group the reservation belongs to
+    (the block's; a different group already chosen → 400 `invalid_group`)."""
+    block = GroupBlock.objects.select_related("group").get(pk=block.pk)
+    if block.group.property_id != prop.pk:
+        raise BookingError("El cupo no existe en esta propiedad", code="invalid_block")
+    if block.released_at is not None:
+        raise InvalidStateError(
+            "El cupo ya se liberó: reserva con la disponibilidad general", code="block_released"
+        )
+    if block.room_type_id != room_type.pk:
+        raise BookingError("El cupo es de otra categoría", code="category_mismatch")
+    if group is not None and group.pk != block.group_id:
+        raise BookingError("La reserva pertenece a otro grupo que el del cupo", code="invalid_group")
+    return block.group
 
 
 def _validate_custom_values(prop, values) -> dict:
@@ -777,7 +840,23 @@ def modify_stay(
         new_unit_type = stay.room.room_type_id if keep_room else new_type.pk
         deltas = Counter({(new_unit_type, night): 1 for night in stay_nights(new_checkin, new_checkout)})
         deltas.subtract(stay_units(stay))
-        adjust_inventory(prop, dict(deltas))
+        # A stay picked up from an allotment keeps it while it stays in the block's category: its new nights
+        # inside the block take (or give back) the block's held units; another category leaves the block.
+        keep_block = stay.group_block_id is not None and new_type.pk == stay.room_type_id
+        held = (
+            pickup_hold_deltas(
+                [
+                    (
+                        stay.group_block_id,
+                        pickup_nights(stay),
+                        stay_nights(new_checkin, new_checkout) if keep_block else [],
+                    )
+                ]
+            )
+            if stay.group_block_id
+            else {}
+        )
+        adjust_inventory(prop, dict(deltas), held=held)
 
         posted = {
             day.isoformat()
@@ -810,6 +889,8 @@ def modify_stay(
         stay.nightly_rates, stay.total_amount = pricing.entries, pricing.total
         if not keep_room:
             stay.room = stay.bed = None
+        if stay.group_block_id and not keep_block:
+            stay.group_block = None
         try:
             with transaction.atomic():
                 stay.save()
@@ -953,7 +1034,8 @@ def cancel_reservation(reservation, *, reason, waive_fee=False, actor=None, sour
         reservation.status = Reservation.Status.CANCELLED
         reservation.cancelled_at = timezone.now()
         reservation.cancellation_reason = reason or ""
-        reservation.cancellation_fee = fee
+        # adds up with the penalties of rooms cancelled one by one before (`cancel_stay`)
+        reservation.cancellation_fee = D(reservation.cancellation_fee or 0) + fee
         reservation.hold_expires_at = None
         reservation.save(
             update_fields=[
@@ -1018,7 +1100,7 @@ def mark_no_show(reservation, *, actor=None, source="automation") -> Reservation
             stay.status = Stay.Status.NO_SHOW
             stay.save(update_fields=["status", "updated_at"])
         reservation.status = Reservation.Status.NO_SHOW
-        reservation.cancellation_fee = fee
+        reservation.cancellation_fee = D(reservation.cancellation_fee or 0) + fee
         reservation.hold_expires_at = None
         reservation.save(update_fields=["status", "cancellation_fee", "hold_expires_at", "updated_at"])
         audit_source = _source(source)
@@ -1107,6 +1189,15 @@ def update_reservation(reservation, data: dict, *, actor=None, source="user") ->
         if "group_id" in values:
             group = _resolve_group(prop, values["group_id"])
             values["group_id"] = group.pk if group else None
+            pickups = Stay.objects.filter(
+                reservation=reservation, group_block__isnull=False, status__in=PICKUP_STATUSES
+            ).exclude(group_block__group_id=values["group_id"])
+            if values["group_id"] != reservation.group_id and pickups.exists():
+                raise BookingError(
+                    "La reserva tiene habitaciones tomadas del cupo de su grupo: cancélalas antes de "
+                    "cambiarla de grupo",
+                    code="block_pickups",
+                )
         if "booker_id" in values:
             # scoped to the organization: another tenant's guest answers like a missing one (no id probing)
             booker = Guest.objects.filter(pk=values["booker_id"], organization=prop.organization).first()
@@ -1180,6 +1271,296 @@ def _plain_value(value):
     return value
 
 
+# --- rooms of an existing reservation (pilot plan P3) ------------------------------------------------------
+
+ADDABLE_STATUSES = (Reservation.Status.TENTATIVE, Reservation.Status.CONFIRMED, Reservation.Status.CHECKED_IN)
+
+
+@dataclass
+class _Pricing:
+    """What `_price_plan` reads from a request: the promo code and whether restrictions block the sale."""
+
+    promo_code: str
+    enforce_restrictions: bool
+
+
+def add_stay(
+    reservation, stay_req, *, block=None, actor=None, allow_overbooking=False, enforce_restrictions=False
+) -> Reservation:
+    """Add a room — in a dorm, one bed per guest — to a tentative, confirmed or in-house reservation.
+
+    The offer (`stay_req`: category, plan, dates, guests, optional room/bed) is validated and priced like at
+    creation (the reservation's promo code and the booker's IVA exemption); restrictions are not enforced
+    unless asked (a staff change), a missing price is (400 `no_rate`). Its nights take inventory (409
+    `no_availability` + `shortfalls`, unless `allow_overbooking`), or the allotment's held units when it is a
+    pickup from `block` (the reservation joins the block's group). The new stay is tentative in a tentative
+    reservation, else confirmed (waiting for its own check-in). The reservation's dates, guests and total
+    follow. Audits `bookings.stay_added`; emits `reservation_updated(changes, stay)` and
+    `inventory_changed`. Returns the reservation."""
+    with transaction.atomic():
+        reservation = _lock_reservation(reservation)
+        prop = reservation.property
+        if reservation.status not in ADDABLE_STATUSES:
+            raise InvalidStateError(
+                "Solo se agregan habitaciones a reservas tentativas, confirmadas o en casa"
+            )
+        currency = reservation.currency or prop.currency or "COP"
+        plans = _plan_stay(prop, stay_req, currency)
+        if plans[0].checkin < prop.business_date:
+            raise BookingError(
+                "La habitación nueva no puede llegar antes de la fecha de negocio", code="invalid_dates"
+            )
+        group = reservation.group
+        if block is not None:
+            for plan in plans:
+                group = _block_group(prop, block, plan.room_type, group)
+                plan.block = block
+        units: Counter = Counter()
+        for plan in plans:
+            for night in stay_nights(plan.checkin, plan.checkout):
+                units[(plan.room_type.pk, night)] += 1
+        held = pickup_hold_deltas(
+            [(plan.block.pk, [], stay_nights(plan.checkin, plan.checkout)) for plan in plans if plan.block]
+        )
+        shortfalls = adjust_inventory(prop, units, allow_overbooking=allow_overbooking, held=held)
+        request = _Pricing(reservation.promo_code or "", enforce_restrictions)
+        priced = [_price_plan(prop, plan, request, reservation.booker) for plan in plans]
+        for plan, pricing in zip(plans, priced, strict=True):
+            if "no_rate" in pricing.quote.violations and plan.nightly_prices is None:
+                raise BookingError(
+                    "La categoría no tiene precio configurado para esas noches", code="no_rate"
+                )
+        status = (
+            Stay.Status.TENTATIVE
+            if reservation.status == Reservation.Status.TENTATIVE
+            else Stay.Status.CONFIRMED
+        )
+        source = "user" if _user(actor) else "system"
+        before = Stay.objects.filter(reservation=reservation).count()
+        created = []
+        for plan, pricing in zip(plans, priced, strict=True):
+            stay = Stay.objects.create(
+                reservation=reservation,
+                room_type=plan.room_type,
+                rate_plan=plan.rate_plan,
+                checkin_date=plan.checkin,
+                checkout_date=plan.checkout,
+                adults=plan.adults,
+                children=plan.children,
+                children_ages=plan.children_ages,
+                nightly_rates=pricing.entries,
+                total_amount=pricing.total,
+                status=status,
+                locked_room=plan.locked_room,
+                group_block=plan.block,
+            )
+            if plan.occupants:
+                stay.occupants.set([_resolve_guest(prop, occupant, actor) for occupant in plan.occupants])
+            if plan.room is not None:
+                _assign(stay, plan.room, bed=plan.bed, actor=actor, force=False, source=source)
+            created.append(stay)
+        if group is not None and reservation.group_id != group.pk:
+            reservation.group = group
+            reservation.save(update_fields=["group", "updated_at"])
+        changes = refresh_reservation(reservation)
+        if shortfalls:
+            _raise_overbooking_alert(reservation, shortfalls)
+        room_type = plans[0].room_type
+        audit.record(
+            action="bookings.stay_added",
+            target=reservation,
+            summary=(
+                f"Agregó {len(created)} {'cama(s)' if plans[0].is_dorm else 'habitación'} {room_type.code} a "
+                f"{reservation.code} ({plans[0].checkin.isoformat()} → {plans[0].checkout.isoformat()})"
+                + (" desde el cupo del grupo" if block is not None else "")
+            ),
+            actor=actor,
+            source=source,
+            property=prop,
+            changes={**changes, "stays": [before, before + len(created)]},
+        )
+        signals.send_on_commit(
+            signals.reservation_updated,
+            reservation=reservation,
+            changes={
+                **{name: tuple(pair) for name, pair in changes.items()},
+                "stays": (before, before + len(created)),
+            },
+            stay=created[0],
+        )
+        _emit_inventory_changed(prop, [room_type.pk], plans[0].checkin, plans[0].checkout)
+    return reservation
+
+
+def cancel_stay(stay, *, reason, waive_fee=False, actor=None) -> Reservation:
+    """Cancel one room (stay) of a reservation, with the policy's proportional penalty
+    (`policies.stay_cancellation_fee`: the policy applied to that stay alone) unless `waive_fee` (the API
+    checks `bookings.waive_fee`).
+
+    Only rooms waiting to arrive (tentative / confirmed; an in-house guest checks out instead). When it is the
+    reservation's last active room the whole reservation is cancelled (`cancel_reservation`); if its other
+    rooms already checked out, the reservation ends as checked out. A penalty is posted as a
+    `cancellation_fee` charge (no tax) and added to `Reservation.cancellation_fee`. Inventory is given back —
+    to the allotment when the room was picked up from one. Audits `bookings.stay_cancelled`; emits
+    `reservation_updated(changes, stay)` and `inventory_changed`. Returns the reservation."""
+    from apps.finance import services as finance
+
+    with transaction.atomic():
+        stay = _lock_stay(stay)
+        reservation = stay.reservation
+        prop = reservation.property
+        if stay.status not in (Stay.Status.TENTATIVE, Stay.Status.CONFIRMED):
+            raise InvalidStateError(
+                "Solo se cancelan habitaciones pendientes de llegada; a un huésped en casa hazle check-out"
+            )
+        others = Stay.objects.filter(reservation=reservation, status__in=ACTIVE_STAY_STATUSES).exclude(
+            pk=stay.pk
+        )
+        if not others.exists() and reservation.status in (
+            Reservation.Status.TENTATIVE,
+            Reservation.Status.CONFIRMED,
+        ):
+            return cancel_reservation(
+                reservation,
+                reason=reason,
+                waive_fee=waive_fee,
+                actor=actor,
+                source="user" if _user(actor) else "system",
+            )
+        source = "user" if _user(actor) else "system"
+        quoted = stay_cancellation_fee(stay)
+        fee = Decimal("0") if waive_fee else quoted.amount
+        _release(prop, [stay])
+        old_status = stay.status
+        stay.status = Stay.Status.CANCELLED
+        stay.save(update_fields=["status", "updated_at"])
+        if fee > 0:
+            finance.post_charge(
+                finance.get_or_create_folio(reservation),
+                kind="cancellation_fee",
+                amount=fee,
+                description=(
+                    f"Penalidad por cancelar una habitación {stay.room_type.code} · {reservation.code}"
+                ),
+                actor=actor,
+                source=source,
+            )
+            reservation.cancellation_fee = D(reservation.cancellation_fee or 0) + fee
+            reservation.save(update_fields=["cancellation_fee", "updated_at"])
+        changes = refresh_reservation(reservation)
+        ended = not others.exists()  # the other rooms already checked out
+        if ended:
+            changes["status"] = [reservation.status, Reservation.Status.CHECKED_OUT]
+            reservation.status = Reservation.Status.CHECKED_OUT
+            reservation.save(update_fields=["status", "updated_at"])
+        record = {
+            "stay.status": [old_status, "cancelled"],
+            "cancellation_fee": [None, money_str(fee)],
+            **changes,
+        }
+        if waive_fee and quoted.amount > 0:
+            record["fee_waived"] = [None, money_str(quoted.amount)]
+        audit.record(
+            action="bookings.stay_cancelled",
+            target=stay,
+            summary=(
+                f"Canceló la habitación {stay.room_type.code} ({stay.checkin_date.isoformat()} → "
+                f"{stay.checkout_date.isoformat()}) de {reservation.code}"
+                + (f" · motivo: {reason}" if reason else "")
+                + (" (penalidad exonerada)" if "fee_waived" in record else "")
+            ),
+            actor=actor,
+            source=source,
+            property=prop,
+            changes=record,
+        )
+        signals.send_on_commit(
+            signals.reservation_updated,
+            reservation=reservation,
+            changes={
+                name: tuple(pair) for name, pair in {"stay.status": record["stay.status"], **changes}.items()
+            },
+            stay=stay,
+        )
+        _emit_inventory_changed(prop, [unit_type_id(stay)], stay.checkin_date, stay.checkout_date)
+    return reservation
+
+
+def preview_cancel_stay(stay) -> dict:
+    """What cancelling this room would cost now: `{fee, currency, reason, free_until, non_refundable, policy,
+    stay_total, cancels_reservation, ends_reservation}`. `cancels_reservation`: it is the last active room of
+    a reservation not in house yet (the whole reservation is cancelled, with its penalty); `ends_reservation`:
+    the other rooms already checked out."""
+    stay = Stay.objects.select_related("reservation__property", "room_type").get(pk=stay.pk)
+    reservation = stay.reservation
+    others = (
+        Stay.objects.filter(reservation=reservation, status__in=ACTIVE_STAY_STATUSES)
+        .exclude(pk=stay.pk)
+        .exists()
+    )
+    pending = reservation.status in (Reservation.Status.TENTATIVE, Reservation.Status.CONFIRMED)
+    whole = not others and pending
+    quote = cancellation_fee(reservation) if whole else stay_cancellation_fee(stay)
+    return {
+        **quote.as_dict(reservation.currency),
+        "stay_total": money_str(stay.total_amount),
+        "cancels_reservation": whole,
+        "ends_reservation": not others and not pending,
+    }
+
+
+def quote_stays(property, stays, *, promo_code="", foreign=False) -> dict:
+    """Price several stays at once, as `create_reservation` would (nothing is written or held): the same
+    validation of category, plan, dates and capacity (400 with its `code`) and, per stay, the quote of
+    `pricing.price_stay` — per bed in a dorm, IVA per night, the foreign non-resident exemption with
+    `foreign`, the promo code. Availability is not checked here (`create_reservation` does it).
+
+    Returns `{currency, total, stays: [{index, room_type_id, rate_plan_id, checkin, checkout, nights, adults,
+    children, units, total, per_night, restrictions_ok, violations}]}` (money as strings)."""
+    currency = property.currency or "COP"
+    lines, grand = [], Decimal("0")
+    for index, stay_req in enumerate(stays):
+        plans = _plan_stay(property, stay_req, currency)
+        total, violations, restrictions_ok = Decimal("0"), set(), True
+        for plan in plans:
+            pricing = price_stay(
+                property=property,
+                room_type=plan.room_type,
+                rate_plan=plan.rate_plan,
+                checkin=plan.checkin,
+                checkout=plan.checkout,
+                adults=1 if plan.is_dorm else plan.adults,
+                children=0 if plan.is_dorm else plan.children,
+                children_ages=None if plan.is_dorm else plan.children_ages,
+                promo_code=promo_code or None,
+                foreign_non_resident=bool(foreign),
+                nightly_prices=plan.nightly_prices,
+            )
+            total += pricing.total
+            violations |= set(pricing.quote.violations)
+            restrictions_ok = restrictions_ok and pricing.quote.restrictions_ok
+        nights = (stay_req.checkout - stay_req.checkin).days
+        grand += total
+        lines.append(
+            {
+                "index": index,
+                "room_type_id": str(plans[0].room_type.pk),
+                "rate_plan_id": str(plans[0].rate_plan.pk),
+                "checkin": stay_req.checkin.isoformat(),
+                "checkout": stay_req.checkout.isoformat(),
+                "nights": nights,
+                "adults": int(stay_req.adults or 0),
+                "children": int(stay_req.children or 0),
+                "units": len(plans),
+                "total": money_str(total),
+                "per_night": money_str(quantize(total / nights, currency)) if nights else money_str(total),
+                "restrictions_ok": restrictions_ok,
+                "violations": sorted(violations),
+            }
+        )
+    return {"currency": currency, "total": money_str(grand), "stays": lines}
+
+
 def _lock_reservation(reservation) -> Reservation:
     return (
         Reservation.objects.select_for_update(of=("self",))
@@ -1197,12 +1578,21 @@ def _lock_stays(reservation, statuses=ACTIVE_STAY_STATUSES) -> list:
     )
 
 
-def _release(prop, stays) -> None:
-    """Give back the units of these active stays (before their status changes)."""
+def _release(prop, stays, *, leave_pickup=True) -> None:
+    """Give back the units of these active stays (before their status changes). `leave_pickup`: the stays stop
+    counting as picked up from their allotments (cancelled, no-show — not a check-out), so their nights go
+    back to the block while it is not released."""
     deltas: Counter = Counter()
     for stay in stays:
         deltas.subtract(stay_units(stay))
-    adjust_inventory(prop, dict(deltas))
+    held = (
+        pickup_hold_deltas(
+            [(stay.group_block_id, pickup_nights(stay), []) for stay in stays if stay.group_block_id]
+        )
+        if leave_pickup
+        else {}
+    )
+    adjust_inventory(prop, dict(deltas), held=held)
 
 
 def _source(value) -> str:
@@ -1393,7 +1783,9 @@ def check_in(stay, *, actor=None, force=False) -> Stay:
       before it (late arrival) needs `force`, and so does a stay whose checkout already passed (registering
       it after the fact, e.g. loading history; check it out next).
     - Room: without one, the best free unit of the category is assigned (ready rooms first); none free →
-      InvalidStateError. The room must be clean or inspected, else RoomNotReadyError (409) unless `force`.
+      InvalidStateError. Another stay still checked in in that room or bed (the guest leaving today who has
+      not checked out) → RoomNotReadyError with `code="room_occupied"` (409, `occupied_by`) unless `force`.
+      The room must be clean or inspected, else RoomNotReadyError (409) unless `force`.
     - The IVA exemption of the nights not charged yet is refreshed with the booker's current data (e.g. the
       passport captured at check-in); the reservation becomes `checked_in`.
     """
@@ -1427,6 +1819,23 @@ def check_in(stay, *, actor=None, force=False) -> Stay:
             _assign(stay, room, bed=bed, actor=actor, source=source)
             stay = _lock_stay(stay)
         room = stay.room
+        occupant = None if force else _in_house_occupant(stay, room, stay.bed)
+        if occupant is not None:
+            label = _unit_label(room, stay.bed)
+            raise RoomNotReadyError(
+                f"{label[:1].upper()}{label[1:]} sigue ocupada: {occupant.reservation.booker.full_name} "
+                f"({occupant.reservation.code}) aún no hace check-out",
+                code="room_occupied",
+                room_id=str(room.pk),
+                bed_id=str(stay.bed_id) if stay.bed_id else None,
+                occupied_by={
+                    "stay_id": str(occupant.pk),
+                    "reservation_id": str(occupant.reservation_id),
+                    "code": occupant.reservation.code,
+                    "guest_name": occupant.reservation.booker.full_name,
+                    "checkout": occupant.checkout_date.isoformat(),
+                },
+            )
         if room.housekeeping_status not in READY_STATUSES and not force:
             raise RoomNotReadyError(
                 f"La habitación {room.number} no está lista ({room.get_housekeeping_status_display()})",
@@ -1459,6 +1868,18 @@ def check_in(stay, *, actor=None, force=False) -> Stay:
         )
         signals.send_on_commit(signals.stay_checked_in, stay=stay)
     return stay
+
+
+def _in_house_occupant(stay, room, bed):
+    """Another stay still checked in in that room (private) or bed (dorm) — typically the guest leaving today
+    who has not checked out yet (their nights don't overlap, so the database constraint allows it)."""
+    others = (
+        Stay.objects.filter(status=Stay.Status.CHECKED_IN)
+        .exclude(pk=stay.pk)
+        .select_related("reservation__booker")
+    )
+    others = others.filter(bed=bed) if bed is not None else others.filter(room=room, bed__isnull=True)
+    return others.order_by("checkout_date", "created_at").first()
 
 
 def check_out(stay, *, actor=None, force=False) -> Stay:
@@ -1496,7 +1917,7 @@ def check_out(stay, *, actor=None, force=False) -> Stay:
             raise BalanceDueError(
                 f"La reserva tiene un saldo pendiente de {money_str(balance)}", amount=balance
             )
-        _release(prop, [stay])
+        _release(prop, [stay], leave_pickup=False)  # a checked-out stay still counts as picked up
         if stay.checkout_date > prop.business_date:  # left on the arrival day: tonight is sellable again
             _emit_inventory_changed(
                 prop, [unit_type_id(stay)], max(stay.checkin_date, prop.business_date), stay.checkout_date
@@ -1530,7 +1951,14 @@ def _shorten(stay, departure) -> dict:
     prop = stay.reservation.property
     old_checkout = stay.checkout_date
     unit = unit_type_id(stay)
-    adjust_inventory(prop, {(unit, night): -1 for night in stay_nights(departure, old_checkout)})
+    held = (
+        pickup_hold_deltas(
+            [(stay.group_block_id, pickup_nights(stay), stay_nights(stay.checkin_date, departure))]
+        )
+        if stay.group_block_id
+        else {}
+    )
+    adjust_inventory(prop, {(unit, night): -1 for night in stay_nights(departure, old_checkout)}, held=held)
     stay.checkout_date = departure
     stay.nightly_rates = [item for item in stay.nightly_rates or [] if item["date"] < departure.isoformat()]
     stay.total_amount = entries_total(stay.nightly_rates)

@@ -1,4 +1,4 @@
-import { Clock3, FileClock, Play, SlidersHorizontal, Workflow } from 'lucide-react'
+import { CircleCheck, CircleX, Clock3, FileClock, Hourglass, Play, SlidersHorizontal, Workflow, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import { errorMessage } from '@/lib/errors'
 import { formatRelative, normalizeLang } from '@/lib/format'
 import { useCan } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
-import { useAutomations, useRunAutomation, useUpdateAutomation, type Automation } from '../api'
+import { useAutomations, useRunAutomation, useUpdateAutomation, type Automation, type RunStatus } from '../api'
 import { RecentRuns, RunStatusBadge } from '../components/badges'
 import { ParamsDialog } from '../components/ParamsDialog'
 import { RunHistorySheet } from '../components/RunHistorySheet'
@@ -33,6 +33,16 @@ function groupByApp(items: Automation[]): { app: string; items: Automation[] }[]
     return index === -1 ? APP_ORDER.length : index
   }
   return [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([app, list]) => ({ app, items: list }))
+}
+
+/** "Ejecutando…" stays at least this long, so an instant run still reads as "it ran" and not as a flicker. */
+const MIN_RUNNING_MS = 700
+
+/** What "Ejecutar ahora" answered, kept on the row until the next run or until it is dismissed. */
+interface RunNotice {
+  status: RunStatus | 'queued'
+  summary: string
+  at: string
 }
 
 /** The hotel's "now" (minutes after midnight), refreshed every minute for the marker on the rails. */
@@ -162,18 +172,30 @@ function AutomationRow({
     }
   }
 
+  const [notice, setNotice] = useState<RunNotice | null>(null)
+  const [holding, setHolding] = useState(false)
+  const running = run.isPending || holding
+
   async function runNow() {
+    setNotice(null)
+    setHolding(true)
+    const minimum = new Promise((resolve) => window.setTimeout(resolve, MIN_RUNNING_MS))
     try {
-      const result = await run.mutateAsync(automation.code)
+      const [result] = await Promise.all([run.mutateAsync(automation.code), minimum])
       if (result.queued || !result.run) {
-        toast.info(t('automations.toasts.queued', { name }))
+        setNotice({ status: 'queued', summary: t('automations.notice.queued'), at: new Date().toISOString() })
+        toast.info(t('automations.toasts.queued', { name }), { duration: 8000 })
         return
       }
       const summary = result.run.summary || t(`runStatus.${result.run.status}`)
-      if (result.run.status === 'failed') toast.error(t('automations.toasts.ranFailed', { name, summary }))
-      else toast.success(t('automations.toasts.ran', { name, summary }))
+      setNotice({ status: result.run.status, summary, at: result.run.finished_at ?? result.run.started_at })
+      if (result.run.status === 'failed') toast.error(t('automations.toasts.ranFailed', { name, summary }), { duration: 8000 })
+      else toast.success(t('automations.toasts.ran', { name, summary }), { duration: 8000 })
     } catch (error) {
+      await minimum
       toast.error(errorMessage(error, t))
+    } finally {
+      setHolding(false)
     }
   }
 
@@ -250,9 +272,9 @@ function AutomationRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 md:col-start-1 md:pl-12">
-        <Button size="sm" onClick={() => void runNow()} loading={run.isPending} disabled={!canManage}>
-          {!run.isPending && <Play aria-hidden />}
-          {run.isPending ? t('automations.running') : t('automations.runNow')}
+        <Button size="sm" onClick={() => void runNow()} loading={running} disabled={!canManage || running}>
+          {!running && <Play aria-hidden />}
+          {running ? t('automations.running') : t('automations.runNow')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onHistory}>
           <FileClock aria-hidden />
@@ -265,6 +287,48 @@ function AutomationRow({
           </Button>
         )}
       </div>
+      <div role="status" aria-live="polite" className="empty:hidden md:col-start-1 md:pl-12">
+        {notice && <RunResultNotice notice={notice} lang={lang} onDismiss={() => setNotice(null)} />}
+      </div>
     </article>
+  )
+}
+
+const NOTICE_STYLE: Record<RunNotice['status'], { box: string; icon: typeof CircleCheck }> = {
+  success: { box: 'border-success/30 bg-success-soft text-success-ink', icon: CircleCheck },
+  partial: { box: 'border-warning/30 bg-warning-soft text-warning-ink', icon: CircleCheck },
+  skipped: { box: 'border-border bg-surface-2 text-fg', icon: CircleCheck },
+  running: { box: 'border-info/30 bg-info-soft text-info-ink', icon: Hourglass },
+  queued: { box: 'border-info/30 bg-info-soft text-info-ink', icon: Hourglass },
+  failed: { box: 'border-danger/30 bg-danger-soft text-danger-ink', icon: CircleX },
+}
+
+/**
+ * The answer of "Ejecutar ahora" next to the button that asked for it. It stays (until the next run or ×)
+ * because a run that finishes in a few milliseconds would otherwise only flash a toast in a corner.
+ */
+function RunResultNotice({ notice, lang, onDismiss }: { notice: RunNotice; lang: 'es' | 'en'; onDismiss: () => void }) {
+  const { t } = useTranslation('control')
+  const style = NOTICE_STYLE[notice.status]
+  const Icon = style.icon
+  return (
+    <div className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-[13px] animate-pop-in', style.box)}>
+      <Icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <p className="min-w-0 flex-1 break-words">
+        <span className="font-semibold">
+          {notice.status === 'queued' ? t('automations.notice.queuedTitle') : t('automations.notice.title', { status: t(`runStatus.${notice.status}`) })}
+        </span>
+        <span className="opacity-80"> · {formatRelative(notice.at, lang)}</span>
+        <span className="block">{notice.summary}</span>
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={t('automations.notice.dismiss')}
+        className="-mr-1 grid size-6 shrink-0 place-items-center rounded-md opacity-70 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-accent/55 focus-visible:outline-none"
+      >
+        <X aria-hidden className="size-3.5" />
+      </button>
+    </div>
   )
 }

@@ -12,6 +12,7 @@ from django.db.models import Prefetch, Sum
 from apps.bookings.models import Stay
 from apps.core import integrations
 from apps.core.money import quantize
+from apps.core.runtime import simulations_enabled
 from apps.guestportal.services.access import checkin_of, checkin_window, portal_settings
 from apps.inventory.models import Photo
 
@@ -26,27 +27,35 @@ def money(value) -> str:
 
 
 def payments_enabled(prop) -> bool:
+    """Whether the portal offers "Pagar": the payments integration is on and, where simulations are off
+    (production), really live (real mode and configured, `core.integrations.is_live`). Same rule as the
+    marketplace checkout (plan P6): a hotel without its Wompi keys never shows a button that cannot work."""
+    if not simulations_enabled():
+        return integrations.is_live(prop, "payments")
     return integrations.get_setting(prop, "payments").enabled
 
 
 def balance_of(reservation) -> dict:
-    """`due` = what the reservation still owes (finance.reservation_balance: includes nights not yet posted);
-    `paid` = approved payments − approved refunds; `total` = due + paid."""
-    from apps.finance.models import Payment, Refund
-    from apps.finance.services import reservation_balance
+    """`due` = what the guest side still owes (`finance.guest_part`: includes nights not yet posted, and never
+    the part billed to a company — P4/P-INT: the portal pays the guest's folio, so a company's part, with or
+    without credit, is settled by the company); `paid` = approved payments − approved refunds of the guest
+    side's folios; `total` = due + paid. Without companies it is exactly `finance.reservation_balance`."""
+    from apps.finance.models import Folio, Payment, Refund
+    from apps.finance.services import guest_part
 
     currency = reservation.currency
-    due = quantize(reservation_balance(reservation), currency)
+    due = quantize(guest_part(reservation), currency)
+    company = Folio.FolioType.COMPANY
     payments = (
-        Payment.objects.filter(folio__reservation=reservation, status=Payment.Status.APPROVED).aggregate(
-            total=Sum("amount")
-        )["total"]
+        Payment.objects.filter(folio__reservation=reservation, status=Payment.Status.APPROVED)
+        .exclude(folio__folio_type=company)
+        .aggregate(total=Sum("amount"))["total"]
         or ZERO
     )
     refunds = (
-        Refund.objects.filter(
-            payment__folio__reservation=reservation, status=Refund.Status.APPROVED
-        ).aggregate(total=Sum("amount"))["total"]
+        Refund.objects.filter(payment__folio__reservation=reservation, status=Refund.Status.APPROVED)
+        .exclude(payment__folio__folio_type=company)
+        .aggregate(total=Sum("amount"))["total"]
         or ZERO
     )
     paid = quantize(payments - refunds, currency)

@@ -317,7 +317,7 @@
       "padHint": "Sign here",
       "clear": "Clear signature",
       "required": "Sign inside the box to continue.",
-      "accept": "I accept the hotel's terms and authorize the processing of my personal data and that of my companions (Colombian Law 1581 of 2012).",
+      "accept": "I accept the hotel's terms and authorize the processing of my personal data and my companions' under the <privacy>data processing policy</privacy> (Colombian Law 1581 of 2012).",
       "acceptRequired": "Accept the terms to continue.",
       "marketing": "I'd like to receive offers and news from the hotel.",
       "submit": "Sign and finish"
@@ -506,7 +506,9 @@
       "rejected": "Declined",
       "done": "Done"
     },
-    "documentAlt": "{{kind}} of {{name}}"
+    "documentAlt": "{{kind}} of {{name}}",
+    "retentionPurged": "The document photos and the signature were deleted on {{date}} by the data retention policy (Habeas Data). The registration data and the proof of acceptance are kept.",
+    "retentionPolicy": "See the data processing policy"
   },
   "link": {
     "title": "Guest portal link",

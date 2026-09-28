@@ -75,6 +75,8 @@ class InvoiceSummarySerializer(serializers.ModelSerializer):
     has_pdf = serializers.SerializerMethodField()
     is_exempt = serializers.SerializerMethodField()
 
+    is_company = serializers.SerializerMethodField()
+
     class Meta:
         model = Invoice
         fields = [
@@ -82,7 +84,7 @@ class InvoiceSummarySerializer(serializers.ModelSerializer):
             "tax_total", "total", "customer_name", "customer_document", "reservation_id", "reservation_code",
             "related_invoice_id", "related_number", "mode", "environment", "attempts", "error_message",
             "has_pdf",
-            "is_exempt", "created_at",
+            "is_exempt", "created_at", "due_date", "is_company",
         ]  # fmt: skip
 
     def get_customer_name(self, obj) -> str:
@@ -91,7 +93,13 @@ class InvoiceSummarySerializer(serializers.ModelSerializer):
     def get_customer_document(self, obj) -> str:
         customer = obj.customer or {}
         number = customer.get("document_number", "")
+        if customer.get("dv"):
+            number = f"{number}-{customer['dv']}"
         return f"{customer.get('document_type', '')} {number}".strip()
+
+    def get_is_company(self, obj) -> bool:
+        """P4: invoiced to a company (company folio)."""
+        return bool((obj.customer or {}).get("company_id"))
 
     def get_reservation_code(self, obj) -> str:
         return obj.reservation.code if obj.reservation_id else ""

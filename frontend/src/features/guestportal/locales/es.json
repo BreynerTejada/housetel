@@ -317,7 +317,7 @@
       "padHint": "Firma aquí",
       "clear": "Borrar firma",
       "required": "Firma dentro del recuadro para continuar.",
-      "accept": "Acepto los términos del hotel y autorizo el tratamiento de mis datos personales y los de mis acompañantes (Ley 1581 de 2012).",
+      "accept": "Acepto los términos del hotel y autorizo el tratamiento de mis datos personales y los de mis acompañantes según la <privacy>política de tratamiento de datos</privacy> (Ley 1581 de 2012).",
       "acceptRequired": "Acepta los términos para continuar.",
       "marketing": "Quiero recibir ofertas y novedades del hotel.",
       "submit": "Firmar y terminar"
@@ -506,7 +506,9 @@
       "rejected": "Rechazada",
       "done": "Realizada"
     },
-    "documentAlt": "{{kind}} de {{name}}"
+    "documentAlt": "{{kind}} de {{name}}",
+    "retentionPurged": "Las fotos de los documentos y la firma se borraron el {{date}} por la política de retención de datos (Habeas Data). Los datos del registro y la evidencia de aceptación se conservan.",
+    "retentionPolicy": "Ver la política de tratamiento de datos"
   },
   "link": {
     "title": "Link del portal del huésped",

@@ -170,6 +170,8 @@ class Invoice(BaseModel):
     )
     reason = models.TextField(blank=True)  # credit notes
     issued_at = models.DateTimeField(null=True, blank=True)
+    # P4: invoices to a company with credit are "a crédito": due `payment_terms_days` after the issue date.
+    due_date = models.DateField(null=True, blank=True)
     error_message = models.TextField(blank=True)
     attempts = models.PositiveIntegerField(default=0)
     last_attempt_at = models.DateTimeField(null=True, blank=True)

@@ -96,12 +96,271 @@ def seed(ctx) -> None:
     for key, prop in ctx.properties.items():
         if Reservation.objects.filter(property=prop).exists():
             ctx.log(f"  bookings: {prop.name} ya tiene reservas, se omite")
-            ctx.data["bookings"][key] = _summary(prop)
-            continue
-        rng = random.Random(ctx.rng.randrange(2**32) ^ zlib.crc32(prop.slug.encode()))
-        created = PropertySeeder(ctx, key, prop, rng).run()
+        else:
+            rng = random.Random(ctx.rng.randrange(2**32) ^ zlib.crc32(prop.slug.encode()))
+            created = PropertySeeder(ctx, key, prop, rng).run()
+            ctx.log(f"  bookings: {prop.name} · {created} reservas")
+        seed_groups(ctx, key, prop)
         ctx.data["bookings"][key] = _summary(prop)
-        ctx.log(f"  bookings: {prop.name} · {created} reservas")
+
+
+# --- groups, allotments and multi-room reservations (pilot plan P3) ----------------------------------------
+
+# property key → (group name, notes, kind of category, days ahead, nights, units, days before for the release,
+#                 pickups: rooms per reservation, rooming names)
+GROUP_DEMOS = {
+    "aurora": [
+        {
+            "name": "Hay Festival · Editorial Caribe",
+            "notes": "Autores e invitados de la editorial. Factura a la editorial; desayuno incluido.",
+            "kind": RoomType.Kind.PRIVATE,
+            "ahead": 28,
+            "nights": 3,
+            "units": 6,
+            "release_before": 7,
+            "pickups": [3, 1],
+            "names": [("Gabriela", "Cárdenas"), ("Tomás", "Uribe"), ("Inés", "Salcedo")],
+        },
+    ],
+    "andino_mde": [
+        {
+            "name": "Colombiamoda · Textiles del Valle",
+            "notes": "Delegación de la feria. Llegan en dos vuelos; pedir transporte al aeropuerto.",
+            "kind": RoomType.Kind.PRIVATE,
+            "ahead": 14,
+            "nights": 3,
+            "units": 8,
+            "release_before": 7,
+            "pickups": [3, 2],
+            "names": [
+                ("Marcela", "Ospina"),
+                ("Julián", "Arango"),
+                ("Paula", "Restrepo"),
+                ("Esteban", "Giraldo"),
+            ],
+            "released_extra": 2,  # a second small block already released by hand (1 room picked up)
+        },
+    ],
+    "andino_bog": [
+        {
+            "name": "Intercambio Universidad de los Andes",
+            "notes": "Estudiantes de intercambio con su coordinadora. Camas en dormitorio compartido.",
+            "kind": RoomType.Kind.DORM,
+            "ahead": 9,
+            "nights": 4,
+            "units": 10,
+            "release_before": 4,
+            "pickups": [6],
+            "names": [("Sofía", "Lindqvist"), ("Noah", "Becker"), ("Camille", "Roux")],
+        },
+    ],
+}
+FAMILY_DEMO = {"aurora": {"ahead": 10, "nights": 3}}  # one multi-room reservation of two categories
+
+
+def seed_groups(ctx, key, prop) -> None:
+    """Groups with allotments and pickups, and a family reservation of two rooms (idempotent by name: a group
+    that exists is left as the demo user left it). Everything through the services."""
+    guests = list(
+        Guest.objects.filter(organization=prop.organization, merged_into__isnull=True, blacklisted=False)
+        .exclude(document_number="")
+        .order_by("created_at")[:60]
+    )
+    if not guests:
+        return
+    rng = random.Random(zlib.crc32(f"groups:{prop.slug}".encode()))
+    for demo in GROUP_DEMOS.get(key, []):
+        if ReservationGroup.objects.filter(property=prop, name=demo["name"]).exists():
+            continue
+        try:
+            with transaction.atomic():
+                made = _seed_group(prop, demo, guests, rng)
+            ctx.log(f"    grupo {demo['name']}: {made}")
+        except DomainError as exc:
+            ctx.log(f"    grupo {demo['name']} omitido: {exc.message}")
+    family = FAMILY_DEMO.get(key)
+    if (
+        family
+        and not Reservation.objects.filter(
+            property=prop, notes__startswith="Familia: dos habitaciones"
+        ).exists()
+    ):
+        try:
+            with transaction.atomic():
+                code = _seed_family(prop, family, guests, rng)
+            ctx.log(f"    reserva de dos habitaciones {code}")
+        except DomainError as exc:
+            ctx.log(f"    reserva de dos habitaciones omitida: {exc.message}")
+
+
+def _plan_for(prop, room_type):
+    return (
+        RatePlan.objects.filter(property=prop, is_active=True, room_types=room_type, code__in=["FLEX", "BB"])
+        .order_by("sort_order", "code")
+        .first()
+        or RatePlan.objects.filter(property=prop, is_active=True, room_types=room_type)
+        .order_by("sort_order")
+        .first()
+    )
+
+
+def _seed_group(prop, demo, guests, rng) -> str:
+    from apps.bookings.services.blocks import create_block, release_block
+    from apps.bookings.services.groups import set_rooming_name
+    from apps.bookings.services.reservations import create_reservation_in_blocks
+
+    start = prop.business_date + timedelta(days=demo["ahead"])
+    end = start + timedelta(days=demo["nights"])
+    room_types = list(RoomType.objects.filter(property=prop, is_active=True, kind=demo["kind"]))
+    free = availability(
+        property=prop, checkin=start, checkout=end, room_type_ids=[rt.pk for rt in room_types]
+    )
+    candidates = [rt for rt in room_types if _plan_for(prop, rt) is not None]
+    if not candidates:
+        return "sin categorías con tarifa"
+    room_type = max(candidates, key=lambda rt: (free.get(rt.pk, 0), -rt.sort_order))
+    units = min(
+        demo["units"], free.get(room_type.pk, 0) - (1 if demo["kind"] == RoomType.Kind.PRIVATE else 2)
+    )
+    if units < 2:
+        return f"sin disponibilidad en {room_type.code}"
+    # the demo shows a pickup in progress: at least one unit of the block stays unpicked
+    budget, picks = units - 1, []
+    for rooms in demo["pickups"]:
+        if budget > 0:
+            picks.append(min(rooms, budget))
+            budget -= picks[-1]
+    coordinator = guests[rng.randrange(len(guests))]
+    group = ReservationGroup.objects.create(
+        property=prop, name=demo["name"], notes=demo["notes"], contact_guest=coordinator
+    )
+    release = max(prop.business_date, start - timedelta(days=demo["release_before"]))
+    block = create_block(group, room_type=room_type, start=start, end=end, units=units, release_date=release)
+    plan = _plan_for(prop, room_type)
+    names = list(demo["names"])
+    codes = []
+    remaining = units
+    for index, rooms in enumerate(picks):
+        rooms = min(rooms, remaining)
+        if rooms <= 0:
+            break
+        booker = coordinator if index == 0 else guests[rng.randrange(len(guests))]
+        dorm = room_type.kind == RoomType.Kind.DORM
+        stays = (
+            [
+                StayRequest(
+                    room_type_id=room_type.pk, rate_plan_id=plan.pk, checkin=start, checkout=end, adults=rooms
+                )
+            ]
+            if dorm
+            else [
+                StayRequest(
+                    room_type_id=room_type.pk,
+                    rate_plan_id=plan.pk,
+                    checkin=start,
+                    checkout=end,
+                    adults=min(2, room_type.max_adults),
+                )
+                for _ in range(rooms)
+            ]
+        )
+        req = ReservationRequest(
+            property=prop,
+            booker=booker,
+            stays=stays,
+            source="email",
+            status="confirmed",
+            guarantee="deposit",
+            group_id=group.pk,
+            enforce_restrictions=False,
+            special_requests="Habitaciones cercanas para el grupo",
+        )
+        reservation = create_reservation_in_blocks(
+            req, blocks={i: block for i in range(len(stays))}, source_label="system"
+        )
+        codes.append(reservation.code)
+        remaining -= rooms
+        for stay in Stay.objects.filter(reservation=reservation).order_by("created_at"):
+            if not names:
+                break
+            first, last = names.pop(0)
+            set_rooming_name(stay, first_name=first, last_name=last)
+    extra = demo.get("released_extra")
+    if extra:
+        others = [rt for rt in candidates if rt.pk != room_type.pk] or [room_type]
+        second_type = max(others, key=lambda rt: free.get(rt.pk, 0))
+        spare = availability(property=prop, checkin=start, checkout=end, room_type_ids=[second_type.pk])
+        if spare.get(second_type.pk, 0) >= extra:
+            second = create_block(
+                group, room_type=second_type, start=start, end=end, units=extra, release_date=release
+            )
+            second_plan = _plan_for(prop, second_type)
+            req = ReservationRequest(
+                property=prop,
+                booker=guests[rng.randrange(len(guests))],
+                stays=[
+                    StayRequest(
+                        room_type_id=second_type.pk,
+                        rate_plan_id=second_plan.pk,
+                        checkin=start,
+                        checkout=end,
+                        adults=1,
+                    )
+                ],
+                source="phone",
+                group_id=group.pk,
+                enforce_restrictions=False,
+            )
+            codes.append(create_reservation_in_blocks(req, blocks={0: second}, source_label="system").code)
+            release_block(second, source="system")
+    return f"cupo de {units} {room_type.code} ({start} → {end}), reservas {', '.join(codes)}"
+
+
+def _seed_family(prop, family, guests, rng) -> str:
+    from apps.bookings.services.reservations import create_reservation
+
+    start = prop.business_date + timedelta(days=family["ahead"])
+    end = start + timedelta(days=family["nights"])
+    room_types = list(
+        RoomType.objects.filter(property=prop, is_active=True, kind=RoomType.Kind.PRIVATE).order_by(
+            "sort_order"
+        )
+    )
+    free = availability(
+        property=prop, checkin=start, checkout=end, room_type_ids=[rt.pk for rt in room_types]
+    )
+    usable = [rt for rt in room_types if free.get(rt.pk, 0) >= 1 and _plan_for(prop, rt)]
+    if len(usable) < 2:
+        raise DomainError("no hay dos categorías libres para esas fechas")
+    first, second = usable[0], usable[-1]
+    booker = guests[rng.randrange(len(guests))]
+    req = ReservationRequest(
+        property=prop,
+        booker=booker,
+        stays=[
+            StayRequest(
+                room_type_id=first.pk,
+                rate_plan_id=_plan_for(prop, first).pk,
+                checkin=start,
+                checkout=end,
+                adults=2,
+            ),
+            StayRequest(
+                room_type_id=second.pk,
+                rate_plan_id=_plan_for(prop, second).pk,
+                checkin=start,
+                checkout=end,
+                adults=2,
+                children=min(1, second.max_children),
+                children_ages=[8] if second.max_children else [],
+            ),
+        ],
+        source="phone",
+        guarantee="card",
+        notes="Familia: dos habitaciones, una para los padres y otra para los abuelos con el nieto.",
+        enforce_restrictions=False,
+    )
+    return create_reservation(req, source_label="system").code
 
 
 def _summary(prop) -> dict:

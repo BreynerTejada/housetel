@@ -15,7 +15,6 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
@@ -27,6 +26,7 @@ from apps.accounts.models import Invitation, Membership, Role, User, _invitation
 from apps.accounts.services import add_member
 from apps.core import audit
 from apps.core.errors import ConflictError, DomainError, NotFoundError
+from apps.core.runtime import public_base_url
 
 logger = logging.getLogger("housetel.accounts")
 
@@ -100,7 +100,7 @@ def is_owner_role(role: Role) -> bool:
 
 
 def invitation_url(invitation: Invitation) -> str:
-    return f"{settings.FRONTEND_URL}/invite/{invitation.token}"
+    return f"{public_base_url()}/invite/{invitation.token}"
 
 
 def invitation_status(invitation: Invitation) -> str:
@@ -277,9 +277,15 @@ def accept_invitation(token: str, *, full_name: str = "", password: str = "") ->
                 raise ConflictError(
                     f"Ya eres parte de {invitation.organization.name}; inicia sesión", code="already_member"
                 )
+            fields = []
             if full_name.strip() and not user.full_name:
                 user.full_name = full_name.strip()
-                user.save(update_fields=["full_name", "updated_at"])
+                fields.append("full_name")
+            if user.email_verified_at is None:  # the invitation link reached this address (P2)
+                user.email_verified_at = timezone.now()
+                fields.append("email_verified_at")
+            if fields:
+                user.save(update_fields=[*fields, "updated_at"])
         else:
             user = _create_invited_user(invitation.email, full_name, password)
         membership = add_member(
@@ -311,7 +317,10 @@ def _create_invited_user(email: str, full_name: str, password: str) -> User:
         errors["password"] = list(exc.messages)
     if errors:
         raise DomainError(next(iter(errors.values()))[0], code="validation_error", fields=errors)
-    return User.objects.create_user(email, password, full_name=full_name.strip())
+    # Born verified (P2): the invitation was emailed to this address, so no verification email follows.
+    return User.objects.create_user(
+        email, password, full_name=full_name.strip(), email_verified_at=timezone.now()
+    )
 
 
 # ---- Memberships ----------------------------------------------------------------------------------------

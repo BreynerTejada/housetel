@@ -239,7 +239,9 @@ EXPLAIN_PROMPT = (
     "Eres el asistente de revenue management de un hotel en Colombia. Explica al equipo del hotel, en 2 o 3 "
     "frases claras y sin jerga (sin viñetas ni markdown), por qué conviene cambiar el precio de esta noche "
     "y qué gana o arriesga el hotel si lo aprueba. Usa solo los datos entregados (reglas que aplicaron, "
-    "ocupación, anticipación, límites): no inventes cifras, fechas ni eventos. " + NUMBER_STYLE + JSON_ANSWER
+    "ocupación, anticipación, límites): no inventes cifras, fechas ni eventos. El precio final es siempre "
+    "`recommended_price`, ya redondeado (la razón `rounding` dice a qué múltiplo y desde qué precio): nunca "
+    "presentes el precio antes del redondeo como el precio final. " + NUMBER_STYLE + JSON_ANSWER
 )
 WEEKDAYS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 

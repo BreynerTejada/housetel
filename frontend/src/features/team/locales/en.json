@@ -3,7 +3,9 @@
     "users": "Users",
     "usersHint": "Invite your team and choose which properties each person can open.",
     "roles": "Roles & permissions",
-    "rolesHint": "What each role can see and do."
+    "rolesHint": "What each role can see and do.",
+    "account": "My account & security",
+    "accountHint": "Your password and email verification."
   },
   "pages": {
     "invite": "Accept invitation"
@@ -145,5 +147,123 @@
     "passwordTooShort": "Create a password with at least {{min}} characters",
     "signedInAs": "You are signed in as {{current}}. Joining signs you in as {{email}}.",
     "alreadyMember": "You are already part of {{organization}}."
+  },
+  "auth": {
+    "forgotLink": "Forgot your password?"
+  },
+  "errors": {
+    "throttled": "Too many attempts in a row. Wait a few minutes and try again."
+  },
+  "password": {
+    "show": "Show password",
+    "hide": "Hide password",
+    "tooShort": "Use at least 8 characters.",
+    "onlyNumbers": "Include letters or symbols, not only numbers.",
+    "confirmRequired": "Repeat the new password.",
+    "mismatch": "The passwords don't match.",
+    "rules": {
+      "length": "{{min}} characters or more",
+      "notOnlyNumbers": "Not only numbers",
+      "match": "Both match",
+      "met": "done",
+      "pending": "pending"
+    }
+  },
+  "scene": {
+    "sleeve": "Housetel key",
+    "account": "Account",
+    "accountPlaceholder": "your email",
+    "sent": "Sent",
+    "newKey": "New key",
+    "void": "Void",
+    "recodeCaption": "Saving the new password stops the old keys from opening: we sign you out on your other devices.",
+    "verified": "Verified",
+    "expired": "Expired",
+    "invalid": "Invalid"
+  },
+  "forgot": {
+    "eyebrow": "Get back in",
+    "title": "Forgot your password?",
+    "subtitle": "Enter the email you sign in to Housetel with and we'll send you a link to choose a new one.",
+    "email": "Email",
+    "emailPlaceholder": "you@hotel.co",
+    "submit": "Send link",
+    "sentTitle": "Check your email",
+    "sentText": "If {{email}} belongs to a Housetel account, we sent it a link to choose a new password.",
+    "tipOnce": "The link works once. If you ask for another one, open the latest.",
+    "tipSpam": "Nothing after a few minutes? Check your spam and promotions folders.",
+    "resend": "Send again",
+    "resendIn": "Send again in {{seconds}} s",
+    "otherEmail": "Use another email",
+    "throttled": "Too many requests in a row. Wait a few minutes and try again.",
+    "backToLogin": "Back to sign in",
+    "devMailbox": "In development, emails land in Mailpit:"
+  },
+  "reset": {
+    "eyebrow": "New key",
+    "checking": "Checking the link…",
+    "title": "Choose a new password",
+    "subtitle": "For the account {{email}}.",
+    "password": "New password",
+    "confirm": "Repeat the new password",
+    "sessionsNote": "Saving it signs you in to Housetel and signs you out on your other devices.",
+    "submit": "Save and sign in",
+    "done": "Password updated. We signed you out on your other devices.",
+    "invalidTitle": "This link no longer works",
+    "invalidText": "Password reset links work once and expire. Ask for a new one and open the latest you get.",
+    "requestNew": "Ask for a new link"
+  },
+  "verify": {
+    "checking": "Confirming your email…",
+    "doneTitle": "Email confirmed",
+    "doneText": "Done: {{email}} is verified.",
+    "alreadyText": "{{email}} was already verified. There is nothing else to do.",
+    "expiredTitle": "This link expired",
+    "expiredText": "Email confirmation links last 7 days. Ask for a new one and open it from your email.",
+    "invalidTitle": "This link is not valid",
+    "invalidText": "Check that the link is complete: some email apps split it in two lines. If it still fails, ask for a new one.",
+    "goToApp": "Go to Housetel",
+    "login": "Sign in",
+    "loginToResend": "Sign in to ask for another"
+  },
+  "verification": {
+    "resend": "Resend link",
+    "resendIn": "Resend in {{seconds}} s",
+    "sent": "We sent a new link to {{email}}.",
+    "alreadyVerified": "Your email is already verified.",
+    "throttled": "You already asked for several links. Wait a while before asking again.",
+    "emailUnavailable": "We couldn't send the email. Try again in a few minutes."
+  },
+  "chip": {
+    "label": "Verify your email",
+    "title": "Confirm your email",
+    "text": "We sent a link to {{email}}. Open it to confirm the address is yours and that your account notices reach you.",
+    "account": "My account"
+  },
+  "account": {
+    "title": "My account & security",
+    "description": "Your email, your password and how you get back in.",
+    "email": {
+      "title": "Email",
+      "description": "You sign in to Housetel with this email and get your account notices there.",
+      "verified": "Verified",
+      "unverified": "Not verified",
+      "verifiedOn": "Verified on {{date}}.",
+      "pending": "We sent a link to this email. Open it to confirm it's yours and that your account notices, like password recovery links, reach you."
+    },
+    "password": {
+      "title": "Password",
+      "description": "Change it whenever you want; we ask for the current one to confirm it's you.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Repeat the new password",
+      "submit": "Change password",
+      "changed": "Password changed. We signed you out on your other devices.",
+      "wrongCurrent": "The current password is not correct.",
+      "samePassword": "The new password must be different from the current one.",
+      "currentRequired": "Enter your current password.",
+      "sessionsNote": "After the change you stay signed in here, we sign you out on your other devices and let you know by email.",
+      "forgot": "Forgot your current password?"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { RoomOffer } from '../api'
 import {
   buildReservationPayload,
   defaultExtraQuantity,
@@ -14,7 +15,20 @@ function state(overrides: Partial<WizardState> = {}): WizardState {
   return { ...initialWizardState(new URLSearchParams(), BD), ...overrides }
 }
 
-const offer = { roomTypeId: 'rt-dbl', ratePlanId: 'plan-flex', total: '761600.00', depositPercent: '0.00' }
+// Pilot P3 (multi-room): the wizard keeps how many rooms of each offer (`selection`) instead of one `offer`.
+// Adapted only so this file compiles (MVP mode: not run).
+const offer = { 'rt-dbl:plan-flex': 1 }
+const roomOffer = (roomTypeId: string) =>
+  ({
+    room_type_id: roomTypeId,
+    rate_plan_id: 'plan-flex',
+    room_type: { id: roomTypeId, code: 'DBL', name: { es: 'Doble', en: 'Double' }, kind: 'private', color: '#4E6C88', max_adults: 2, max_children: 1, max_occupancy: 3, base_occupancy: 2 },
+    rate_plan: { id: 'plan-flex', code: 'FLEX', name: { es: 'Flexible', en: 'Flexible' }, meal_plan: 'room_only', is_public: true, deposit_percent: '0.00', cancellation_policy: null },
+    available_units: 3,
+    units_needed: 1,
+    total: '761600.00',
+  }) as unknown as RoomOffer
+const offers = [roomOffer('rt-dbl'), roomOffer('rt-ste')]
 const existingGuest = {
   id: 'guest-1',
   first_name: 'Laura',
@@ -44,7 +58,7 @@ describe('initialWizardState', () => {
     const initial = initialWizardState(new URLSearchParams(), BD)
 
     expect(initial).toMatchObject({ walkIn: false, checkin: BD, checkout: '2026-10-02', adults: 2, children: 0 })
-    expect(initial.offer).toBeNull()
+    expect(initial.selection).toEqual({})
     expect(initial.guest).toBeNull()
   })
 
@@ -108,7 +122,7 @@ describe('validateStep', () => {
 
   it('rate: an offer must be chosen', () => {
     expect(validateStep(1, state(), BD)).toEqual({ offer: 'wizard.errors.offerRequired' })
-    expect(validateStep(1, state({ offer }), BD)).toEqual({})
+    expect(validateStep(1, state({ selection: offer }), BD, offers)).toEqual({})
   })
 
   it('guest: someone must hold the reservation, with first and last name', () => {
@@ -141,9 +155,9 @@ describe('validateStep', () => {
 
 describe('firstInvalidStep', () => {
   it('points at the earliest step that still needs something', () => {
-    expect(firstInvalidStep(state({ offer, guest: existingGuest }), BD)).toBeNull()
-    expect(firstInvalidStep(state({ offer }), BD)).toBe(2)
-    expect(firstInvalidStep(state({ adults: 0, offer, guest: existingGuest }), BD)).toBe(0)
+    expect(firstInvalidStep(state({ selection: offer, guest: existingGuest }), BD, offers)).toBeNull()
+    expect(firstInvalidStep(state({ selection: offer }), BD, offers)).toBe(2)
+    expect(firstInvalidStep(state({ adults: 0, selection: offer, guest: existingGuest }), BD, offers)).toBe(0)
   })
 })
 
@@ -165,7 +179,7 @@ describe('buildReservationPayload', () => {
         adults: 2,
         children: 1,
         childrenAges: [7],
-        offer,
+        selection: offer,
         guest: existingGuest,
         source: 'phone',
         eta: '21:30',
@@ -174,6 +188,7 @@ describe('buildReservationPayload', () => {
         promoCode: ' bienvenida10 ',
         language: 'es',
       }),
+      offers,
     )
 
     expect(payload).toEqual({
@@ -201,20 +216,21 @@ describe('buildReservationPayload', () => {
   })
 
   it('sends a new guest as data for the backend to create', () => {
-    const payload = buildReservationPayload(state({ offer, guest: { first_name: 'Ana', last_name: 'Ruiz', email: 'ana@example.com' } }))
+    const payload = buildReservationPayload(state({ selection: offer, guest: { first_name: 'Ana', last_name: 'Ruiz', email: 'ana@example.com' } }), offers)
 
     expect(payload.booker).toEqual({ first_name: 'Ana', last_name: 'Ruiz', email: 'ana@example.com' })
     expect(payload.booker_id).toBeUndefined()
   })
 
   it('a walk-in is booked as a walk-in', () => {
-    expect(buildReservationPayload(state({ walkIn: true, offer, guest: existingGuest, source: 'phone' })).source).toBe('walk_in')
+    expect(buildReservationPayload(state({ walkIn: true, selection: offer, guest: existingGuest, source: 'phone' }), offers).source).toBe('walk_in')
   })
 
   it('keeps the room picked on the calendar only for its own category', () => {
-    const sameCategory = buildReservationPayload(state({ offer, guest: existingGuest, roomId: 'room-101', roomTypeId: 'rt-dbl' }))
+    const sameCategory = buildReservationPayload(state({ selection: offer, guest: existingGuest, roomId: 'room-101', roomTypeId: 'rt-dbl' }), offers)
     const otherCategory = buildReservationPayload(
-      state({ offer: { ...offer, roomTypeId: 'rt-ste' }, guest: existingGuest, roomId: 'room-101', roomTypeId: 'rt-dbl' }),
+      state({ selection: { 'rt-ste:plan-flex': 1 }, guest: existingGuest, roomId: 'room-101', roomTypeId: 'rt-dbl' }),
+      offers,
     )
 
     expect(sameCategory.stays[0]).toMatchObject({ room_id: 'room-101' })
@@ -223,9 +239,10 @@ describe('buildReservationPayload', () => {
 
   it('a payment taken now is the guarantee; a tentative booking is held for a day', () => {
     const paid = buildReservationPayload(
-      state({ offer, guest: existingGuest, payment: { mode: 'payment', amount: '200000', method: 'card_terminal', reference: 'V-1', sendEmail: false } }),
+      state({ selection: offer, guest: existingGuest, payment: { mode: 'payment', amount: '200000', method: 'card_terminal', reference: 'V-1', sendEmail: false } }),
+      offers,
     )
-    const held = buildReservationPayload(state({ offer, guest: existingGuest, status: 'tentative' }))
+    const held = buildReservationPayload(state({ selection: offer, guest: existingGuest, status: 'tentative' }), offers)
 
     expect(paid.guarantee).toBe('deposit')
     expect(held).toMatchObject({ status: 'tentative', hold_minutes: 1440 })

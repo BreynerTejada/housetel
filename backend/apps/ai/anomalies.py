@@ -135,6 +135,7 @@ def unguaranteed_arrival(scan: Scan) -> list[Finding]:
                     "reservation_id": str(reservation.pk),
                     "code": reservation.code,
                     "checkin": reservation.checkin_date.isoformat(),
+                    "guest": reservation.booker.full_name,
                 },
             )
         )
@@ -178,6 +179,7 @@ def duplicate_payment(scan: Scan) -> list[Finding]:
                         "previous_payment_id": str(previous.pk),
                         "amount": f"{payment.amount:.2f}",
                         "method": payment.method,
+                        "code": reservation.code if reservation else "",
                     },
                 )
             )
@@ -238,7 +240,14 @@ def rate_out_of_bounds(scan: Scan) -> list[Finding]:
                     f"{nlp.format_date(flagged[0].date)}."
                 ),
                 link=f"/app/rates?start={dates[0]}",
-                data={"room_type": room_type.code, "rate_plan": plan.code, "dates": dates[:31]},
+                data={
+                    "room_type": room_type.code,
+                    "rate_plan": plan.code,
+                    "dates": dates[:31],
+                    "count": len(dates),
+                    "first": dates[0],
+                    "prices": [f"{price:.2f}" for price in prices[:4]],
+                },
                 per_object=False,
             )
         )
@@ -286,6 +295,8 @@ def unposted_nights(scan: Scan) -> list[Finding]:
                     "stay_id": str(stay.pk),
                     "code": reservation.code,
                     "nights": [n.isoformat() for n in missing],
+                    "guest": reservation.booker.full_name,
+                    "room": stay.room.number if stay.room_id else "",
                 },
             )
         )
@@ -329,6 +340,8 @@ def vip_room_not_ready(scan: Scan) -> list[Finding]:
                     "code": reservation.code,
                     "room": stay.room.number,
                     "eta": f"{eta:%H:%M}",
+                    "guest": reservation.booker.full_name,
+                    "room_status": stay.room.housekeeping_status,
                 },
             )
         )
@@ -372,7 +385,11 @@ def missing_tra(scan: Scan) -> list[Finding]:
                 "Registro Alojamiento (TRA) no está registrada. Revisa los datos que faltan en Legal."
             ),
             link=f"/app/reservations/{stay.reservation_id}",
-            data={"stay_id": str(stay.pk), "code": stay.reservation.code},
+            data={
+                "stay_id": str(stay.pk),
+                "code": stay.reservation.code,
+                "guest": stay.reservation.booker.full_name,
+            },
         )
         for stay in stays
     ]
@@ -412,7 +429,11 @@ def missing_invoice(scan: Scan) -> list[Finding]:
                 f"electrónica de {reservation.code} no se ha emitido."
             ),
             link=f"/app/reservations/{reservation.pk}",
-            data={"reservation_id": str(reservation.pk), "code": reservation.code},
+            data={
+                "reservation_id": str(reservation.pk),
+                "code": reservation.code,
+                "guest": reservation.booker.full_name,
+            },
         )
         for reservation in reservations
     ]
@@ -442,7 +463,13 @@ def cash_difference(scan: Scan) -> list[Finding]:
                     f"{_money(shift.counted_cash, scan.property.currency)})."
                 ),
                 link="/app/cashier",
-                data={"cash_shift_id": str(shift.pk), "difference": f"{shift.difference:.2f}"},
+                data={
+                    "cash_shift_id": str(shift.pk),
+                    "difference": f"{shift.difference:.2f}",
+                    "expected": f"{shift.expected_cash:.2f}",
+                    "counted": f"{shift.counted_cash:.2f}",
+                    "user": shift.user.full_name or shift.user.email,
+                },
             )
         )
     return findings
@@ -482,7 +509,13 @@ def oversold(scan: Scan) -> list[Finding]:
                     "contacta a los huéspedes."
                 ),
                 link=f"/app/calendar?start={flagged[0].date.isoformat()}",
-                data={"room_type": room_type.code, "dates": [row.date.isoformat() for row in flagged][:31]},
+                data={
+                    "room_type": room_type.code,
+                    "dates": [row.date.isoformat() for row in flagged][:31],
+                    "count": len(flagged),
+                    "worst": worst,
+                    "first": flagged[0].date.isoformat(),
+                },
                 per_object=False,
             )
         )

@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, Phone, Search, SmartphoneNfc } from 'lucide-react'
+import { ArrowUpRight, Phone, Search, Smartphone, SmartphoneNfc } from 'lucide-react'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingState } from '@/components/LoadingState'
 import { PageHeader } from '@/components/PageHeader'
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { useActiveProperty } from '@/lib/auth'
 import { errorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
+import { useRuntimeConfig } from '@/lib/runtime'
 import {
   getSimulatorContacts,
   getSimulatorThread,
@@ -35,6 +37,22 @@ interface Chosen {
  * real WhatsApp webhook (the inbox receives them) and the hotel's replies show up on the phone.
  */
 export default function WhatsAppSimulatorPage() {
+  const { t } = useTranslation('messaging')
+  const runtime = useRuntimeConfig()
+  if (!runtime.loaded) return <LoadingState variant="rows" rows={6} />
+  if (!runtime.simulations_enabled) {
+    // A development/demo tool: where simulations are off (production) the API answers 404 and nothing is shown.
+    return (
+      <div className="grid gap-2">
+        <PageHeader title={t('simulator.title')} description={t('simulator.description')} />
+        <EmptyState icon={Smartphone} title={t('simulator.unavailableTitle')} description={t('simulator.unavailableHint')} />
+      </div>
+    )
+  }
+  return <WhatsAppSimulator />
+}
+
+function WhatsAppSimulator() {
   const { t } = useTranslation('messaging')
   const { property } = useActiveProperty()
   const queryClient = useQueryClient()

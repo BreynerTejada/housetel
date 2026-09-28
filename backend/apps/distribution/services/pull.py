@@ -95,6 +95,6 @@ def _pull_failed(connection, message: str) -> None:
         ),
         link="/app/channels",
         dedupe_key=_dedupe(connection),
-        data={"connection_id": str(connection.pk), "error": message},
+        data={"connection_id": str(connection.pk), "connection": connection.name, "error": message},
         source="distribution",
     )

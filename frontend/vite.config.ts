@@ -17,6 +17,8 @@ export default defineConfig({
       // changeOrigin stays false so Django sees the browser Host and the CSRF Origin check passes.
       '/api': { target, changeOrigin: false },
       '/media': { target, changeOrigin: false },
+      // Django's static files: the offline Swagger UI of /api/docs/ (drf-spectacular-sidecar, P1).
+      '/static': { target, changeOrigin: false },
     },
   },
   build: {

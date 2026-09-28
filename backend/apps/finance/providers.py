@@ -19,11 +19,11 @@ import json
 from datetime import UTC
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from django.conf import settings
 from django.http.request import RawPostDataException
 
 from apps.core.codes import generate_code
 from apps.core.integrations import BaseProvider, register_provider
+from apps.core.runtime import public_base_url
 from apps.finance import wompi
 from apps.finance.errors import IntegrationMisconfigured, ProviderError
 
@@ -90,7 +90,7 @@ class SimulatedPaymentProvider(PaymentProvider):
     CONFIG_FIELDS: list[dict] = []
 
     def create_checkout(self, intent) -> dict:
-        return {"checkout_url": f"{settings.FRONTEND_URL}/sim/pay/{intent.reference}"}
+        return {"checkout_url": f"{public_base_url()}/sim/pay/{intent.reference}"}
 
     def fetch_status(self, intent) -> dict:
         simulation = (intent.payload or {}).get("simulation") or {}

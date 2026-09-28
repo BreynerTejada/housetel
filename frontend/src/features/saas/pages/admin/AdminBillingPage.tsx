@@ -11,9 +11,11 @@ import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { errorMessage } from '@/lib/errors'
 import { formatMoney, formatRelative, normalizeLang } from '@/lib/format'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { cn } from '@/lib/utils'
 import {
   useAdminInvoices,
@@ -185,6 +187,7 @@ function AccountSettings({ settings }: { settings: BillingSettings }) {
   const update = useUpdateBillingSettings()
   const test = useTestBillingSettings()
   const [copied, setCopied] = useState(false)
+  const { simulations_enabled: simulations } = useRuntimeConfig()
   const wompi = settings.wompi
   const credentials = [
     ['public_key_configured', 'WOMPI_PLATFORM_PUBLIC_KEY'],
@@ -222,12 +225,35 @@ function AccountSettings({ settings }: { settings: BillingSettings }) {
           className="w-fit"
           disabled={update.isPending}
         >
-          <ToggleGroupItem value="simulated">{t('admin.billing.simulated')}</ToggleGroupItem>
+          <ToggleGroupItem value="simulated" disabled={!simulations && settings.mode !== 'simulated'} title={simulations ? undefined : t('admin.billing.simulatedOff')}>
+            {t('admin.billing.simulated')}
+          </ToggleGroupItem>
           <ToggleGroupItem value="real">{t('admin.billing.real')}</ToggleGroupItem>
         </ToggleGroup>
         <p className="text-sm text-muted">{settings.mode === 'real' ? t('admin.billing.realHint') : t('admin.billing.simulatedHint')}</p>
+        <label className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+          <span className="grid gap-0.5">
+            <span className="text-sm font-semibold text-fg">{t('admin.billing.enabled')}</span>
+            <span className="text-xs text-muted">{t('admin.billing.enabledHint')}</span>
+          </span>
+          <Switch
+            checked={settings.enabled}
+            disabled={update.isPending}
+            onCheckedChange={(enabled) =>
+              update
+                .mutateAsync({ enabled })
+                .then(() => toast.success(enabled ? t('admin.billing.enabledOn') : t('admin.billing.enabledOff')))
+                .catch((error: unknown) => toast.error(errorMessage(error, t)))
+            }
+          />
+        </label>
         {settings.mode === 'real' && !allConfigured && (
           <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-ink">{t('admin.billing.missingCredentials')}</p>
+        )}
+        {settings.collection_available === false && (
+          <p role="status" className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-ink">
+            {t('admin.billing.collectionStopped')}
+          </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
           <Button

@@ -15,7 +15,7 @@ import { PlaceFacts, ResultCard } from '../components/Cards'
 import { FiltersPanel } from '../components/FiltersPanel'
 import { SearchBar, type SearchValue } from '../components/SearchBar'
 import { cityHref, hotelHref } from '../lib/links'
-import { placeFor } from '../lib/places'
+import { cityTitle, placeFor } from '../lib/places'
 import { activeFilterCount, parseSearch, searchApiParams, searchParams, SORTS, type SearchSort, type SearchState } from '../lib/search-params'
 import { guestsLabel } from '../lib/text'
 
@@ -37,6 +37,7 @@ export default function SearchPage() {
   const hasDates = Boolean(state.checkin && state.checkout)
   const searchValue: SearchValue = { city: state.city, stay: state }
   const place = placeFor(state.city)
+  const title = cityTitle(state.city, destinations.data?.map((item) => item.city))
   const noHotelsInCity = Boolean(data && state.city && data.facets.types.length === 0)
 
   function update(patch: Partial<SearchState>) {
@@ -63,7 +64,7 @@ export default function SearchPage() {
       <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-6 sm:pt-10">
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <div className="min-w-0">
-            <h1 className="text-4xl leading-none font-extrabold tracking-[-0.04em] text-fg sm:text-5xl">{state.city || t('results.titleAll')}</h1>
+            <h1 className="text-4xl leading-none font-extrabold tracking-[-0.04em] text-fg sm:text-5xl">{title || t('results.titleAll')}</h1>
             <p className="mt-3 text-sm text-muted">
               {place && (
                 <>
@@ -147,7 +148,7 @@ export default function SearchPage() {
             ) : noHotelsInCity ? (
               <div className="rounded-2xl border border-border bg-surface px-6 py-10">
                 <MapPinned aria-hidden className="size-6 text-accent" />
-                <p className="mt-3 text-lg font-bold text-fg">{t('results.emptyCityTitle', { city: state.city })}</p>
+                <p className="mt-3 text-lg font-bold text-fg">{t('results.emptyCityTitle', { city: title })}</p>
                 <p className="mt-1 text-muted">{t('results.emptyCityBody')}</p>
                 <ul className="mt-5 flex flex-wrap gap-2">
                   {(destinations.data ?? []).map((destination) => (

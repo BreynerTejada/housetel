@@ -15,7 +15,8 @@ import { hotelInitials } from '../../lib/text'
 export function PortalFrame({ property, children, className }: { property?: PortalProperty; children: ReactNode; className?: string }) {
   const { resolvedTheme } = useTheme()
   return (
-    <div className={cn('flex min-h-dvh flex-1 flex-col bg-bg', className)} style={brandStyle(property?.primary_color, resolvedTheme)}>
+    // bottom padding = the hotel's chat bubble (when it is on), so the last button can scroll above it
+    <div className={cn('flex min-h-dvh flex-1 flex-col bg-bg pb-[var(--public-chat-inset,0px)]', className)} style={brandStyle(property?.primary_color, resolvedTheme)}>
       {children}
     </div>
   )

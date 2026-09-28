@@ -22,6 +22,14 @@ from apps.finance.providers import redirect_url_for
 
 logger = logging.getLogger("housetel.finance")
 
+try:  # pilot plan P1: 404 when simulations are off (production without HOUSETEL_ALLOW_SIMULATIONS=1)
+    from apps.core.runtime import require_simulations
+except ImportError:  # P1's `apps.core.runtime` not merged yet: behave as today (development)
+
+    def require_simulations(view_func):
+        return view_func
+
+
 TRANSACTION_ID = re.compile(r"[A-Za-z0-9_-]{1,120}")
 RECHECK_SECONDS = 2  # status polling hits the provider at most every 2 s per link
 
@@ -91,16 +99,20 @@ def sim_payload(intent) -> dict:
     }
 
 
+@require_simulations
 class SimIntentView(PublicView):
-    """`GET sim/intents/<reference>/` — what the simulated gateway shows (only simulated links)."""
+    """`GET sim/intents/<reference>/` — what the simulated gateway shows (only simulated links). 404 when the
+    runtime has simulations off (`core.runtime.require_simulations`, production)."""
 
     @extend_schema(responses=s.SimIntentSerializer, auth=[])
     def get(self, request, reference):
         return Response(sim_payload(_simulated_intent_or_404(reference)))
 
 
+@require_simulations
 class SimDecisionView(PublicView):
-    """`POST sim/intents/<reference>/decide/` `{outcome, method}` — the guest's decision (simulated only)."""
+    """`POST sim/intents/<reference>/decide/` `{outcome, method}` — the guest's decision (simulated only). 404
+    when the runtime has simulations off (`core.runtime.require_simulations`)."""
 
     throttle_classes = [SimDecisionThrottle]
 

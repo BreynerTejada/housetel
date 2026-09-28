@@ -28,7 +28,6 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 import icalendar
-from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
@@ -36,6 +35,7 @@ from apps.bookings.models import Reservation, Stay
 from apps.bookings.services.availability import availability_by_date
 from apps.core import alerts, integrations
 from apps.core.dates import daterange
+from apps.core.runtime import public_base_url
 from apps.distribution.errors import CalendarSkipped, ChannelError
 from apps.distribution.models import ChannelConnection, ExternalReservationMap, RoomMapping, SyncLog
 from apps.distribution.services.importer import import_booking
@@ -60,8 +60,9 @@ OWN_CALENDAR = "Esta URL es un calendario exportado por este mismo hotel: no se 
 
 
 def export_url(mapping) -> str:
-    """Public URL of the mapping's calendar (what the listing site imports)."""
-    return settings.FRONTEND_URL.rstrip("/") + EXPORT_PATH.format(token=mapping.ical_export_token)
+    """Public URL of the mapping's calendar (what the listing site imports): `core.runtime.public_base_url()`,
+    so behind a tunnel (PUBLIC_BASE_URL) Airbnb or Booking.com can reach it from outside."""
+    return public_base_url() + EXPORT_PATH.format(token=mapping.ical_export_token)
 
 
 def export_window(prop) -> tuple[date, date]:
@@ -467,6 +468,11 @@ def _calendar_failed(connection, mapping, message: str) -> None:
         ),
         link="/app/channels",
         dedupe_key=f"distribution:ical:{mapping.pk}",
-        data={"connection_id": str(connection.pk), "mapping_id": str(mapping.pk), "error": message},
+        data={
+            "connection_id": str(connection.pk),
+            "connection": connection.name,
+            "mapping_id": str(mapping.pk),
+            "error": message,
+        },
         source="distribution",
     )

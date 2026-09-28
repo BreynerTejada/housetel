@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LegalFooterLinks } from '@/features/saas/components/LegalFooterLinks'
 import { isApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { usePortal, type PortalSummary } from '../api'
@@ -58,7 +59,10 @@ function PortalView({ summary, token }: { summary: PortalSummary; token: string 
         <InvoicesSection token={token} />
         <ManageSection summary={summary} token={token} />
         <HotelInfo property={summary.property} />
-        <p className="pt-2 text-center text-xs text-subtle">{t('footer')}</p>
+        <footer className="grid justify-items-center gap-1.5 pt-2 text-center">
+          <p className="text-xs text-subtle">{t('footer')}</p>
+          <LegalFooterLinks />
+        </footer>
       </div>
     </PortalFrame>
   )

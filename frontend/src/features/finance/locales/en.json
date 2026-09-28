@@ -81,7 +81,19 @@
     "simulated": "Simulated",
     "refund": "Refund",
     "paymentActions": "Actions for payment {{label}}",
-    "refundActions": "Refund actions"
+    "refundActions": "Refund actions",
+    "guestTab": "Guest · {{name}}",
+    "closedShort": "closed",
+    "companyCreditHint": "The company's part, nights still to come included. It has credit: it goes to its receivables at check-out and never blocks the guest's departure.",
+    "companyNoCreditHint": "The company's part, nights still to come included. No credit: it must be paid before check-out.",
+    "guestPartHint": "The guest's part, with their nights. What the company pays is on its folio.",
+    "checkoutDue": "Due before check-out: {{amount}}",
+    "companyState": {
+      "due": "Company balance",
+      "settled": "Company up to date",
+      "credit": "Credit in the company's favor"
+    },
+    "folioTotal": "Total of this folio"
   },
   "links": {
     "title": "Payment links",
@@ -305,5 +317,27 @@
     "retry": "Try again",
     "expired": "The payment link expired",
     "expiredText": "Ask {{hotel}} for a new link to complete the payment."
+  },
+  "move": {
+    "chargeTo": "Move to the folio of…",
+    "paymentTo": "Move the payment to the folio of…",
+    "chargeMoved": "“{{description}}” moved to {{folio}}'s folio",
+    "paymentMoved": "Payment moved to {{folio}}'s folio"
+  },
+  "split": {
+    "action": "Split charge…",
+    "title": "Split charge",
+    "description": "“{{description}}” for {{total}}: move part of it to another line, on this folio or another folio of the reservation.",
+    "amount": "Part to split off (VAT included)",
+    "half": "Half",
+    "invalid": "It must be more than zero and less than {{total}}.",
+    "target": "Which folio does that part go to?",
+    "sameFolio": "This same folio ({{name}})",
+    "stays": "Stays on {{name}}",
+    "goes": "Goes to {{name}}",
+    "reason": "Reason (optional)",
+    "reasonPlaceholder": "For example: the company pays half the dinner",
+    "submit": "Split",
+    "done": "“{{description}}” was split into two charges"
   }
 }

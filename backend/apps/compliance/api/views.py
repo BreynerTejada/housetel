@@ -226,13 +226,30 @@ class InvoiceViewSet(
     @extend_schema(request=s.IssueSerializer, responses={201: s.InvoiceDetailSerializer})
     @action(detail=False, methods=["post"])
     def issue(self, request):
+        """`{folio_id}` → the invoice of that folio's customer (P4: a company folio goes to its NIT);
+        `{reservation_id}` → one invoice per customer with pending charges (the first comes back, the rest in
+        `additional_invoices`)."""
         data = s.IssueSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         if reservation_id := data.validated_data.get("reservation_id"):
-            target = get_object_or_404(Reservation, pk=reservation_id, property=request.property)
-        else:
-            target = get_object_or_404(Folio, pk=data.validated_data["folio_id"], property=request.property)
-        invoice = invoice_service.issue_invoice(target, actor=request.user)
+            reservation = get_object_or_404(Reservation, pk=reservation_id, property=request.property)
+            issued = invoice_service.issue_reservation_invoices(reservation, actor=request.user)
+            if not issued:
+                raise invoice_service.InvoiceConflict(
+                    "No hay cargos pendientes de facturar", code="nothing_to_invoice"
+                )
+            payload = self._detail(issued[0])
+            payload["additional_invoices"] = [
+                {"id": str(invoice.pk), "number": invoice.full_number, "status": invoice.status}
+                for invoice in issued[1:]
+            ]
+            return Response(payload, status=status.HTTP_201_CREATED)
+        folio = get_object_or_404(
+            Folio.objects.select_related("company", "reservation"),
+            pk=data.validated_data["folio_id"],
+            property=request.property,
+        )
+        invoice = invoice_service.issue_for_folio(folio, actor=request.user)
         return Response(self._detail(invoice), status=status.HTTP_201_CREATED)
 
     @extend_schema(request=None, responses=s.InvoiceDetailSerializer)
@@ -497,6 +514,7 @@ class ReservationLegalView(PropertyScopedAPIView):
                 "warnings": serializers.ListField(child=serializers.CharField()),
                 "resolution": serializers.DictField(),
                 "preview": serializers.DictField(allow_null=True),
+                "folios": serializers.ListField(child=serializers.DictField()),
             },
         )
     )

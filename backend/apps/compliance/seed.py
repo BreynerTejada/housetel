@@ -136,13 +136,16 @@ def _invoices(prop, today) -> int:
     corrected = same_day[-1].pk if same_day else None
     issued = 0
     for moment, reservation in moments:
-        try:
-            invoice = invoice_service.issue_invoice(
+        try:  # one invoice per folio group: the guest's and each company's (P4)
+            documents = invoice_service.issue_reservation_invoices(
                 reservation, source="automation", issued_at=moment, render=False
             )
         except DomainError:
             continue
-        issued += 1
+        if not documents:
+            continue
+        invoice = documents[0]
+        issued += len(documents)
         if reservation.pk == corrected and invoice.status in invoice_service.DONE_STATUSES:
             invoice_service.issue_credit_note(
                 invoice,

@@ -115,7 +115,7 @@ def run(code: str, property=None, *, params=None, triggered_by=None):
             message=str(exc)[:2000],
             link="/app/settings/automations",
             dedupe_key=dedupe_key,
-            data={"code": code, "run_id": str(run_obj.pk)},
+            data={"code": code, "run_id": str(run_obj.pk), "name_es": item.name_es, "name_en": item.name_en},
             source="automation",
         )
     else:

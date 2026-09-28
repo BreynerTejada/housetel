@@ -136,6 +136,49 @@
     "description": "Recarga la página. Si el problema continúa, avísale al soporte de Housetel.",
     "reload": "Recargar"
   },
+  "support": {
+    "menuItem": "Ayuda y soporte",
+    "title": "Ayuda y soporte",
+    "description": "Escríbenos por el canal que prefieras. Te responde una persona del equipo de Housetel.",
+    "whatsapp": "WhatsApp",
+    "whatsappHint": "La forma más rápida de hablar con nosotros",
+    "whatsappAction": "Abrir chat",
+    "email": "Correo",
+    "emailHint": "Para casos con capturas o archivos",
+    "emailAction": "Escribir correo",
+    "docs": "Guías",
+    "docsHint": "Cómo usar Housetel, paso a paso",
+    "docsAction": "Abrir guías",
+    "none": "Esta instalación todavía no tiene canales de soporte configurados.",
+    "contextTitle": "Van incluidos en tu mensaje",
+    "contextHint": "Así el equipo sabe dónde estabas sin tener que preguntarte.",
+    "context": {
+      "hotel": "Hotel",
+      "user": "Usuario",
+      "page": "Pantalla",
+      "time": "Fecha y hora",
+      "detail": "Error"
+    },
+    "copy": "Copiar datos",
+    "copied": "Datos copiados",
+    "messageIntro": "Hola, necesito ayuda con Housetel.",
+    "messageOutro": "Lo que pasó:",
+    "emailSubject": "Ayuda con Housetel · {{hotel}}",
+    "emailSubjectNoHotel": "Ayuda con Housetel",
+    "inline": {
+      "errorLead": "¿Sigue fallando? Escríbenos y cuéntanos qué estabas haciendo:",
+      "notFoundLead": "¿Llegaste aquí desde un enlace de Housetel? Avísanos:",
+      "whatsapp": "WhatsApp",
+      "docs": "Guías"
+    }
+  },
+  "demoBanner": {
+    "label": "Entorno de demostración",
+    "detail": "Pagos, canales, facturación electrónica y WhatsApp funcionan en modo simulado: nada sale del sistema.",
+    "short": "Integraciones simuladas",
+    "cta": "Activa los modos reales",
+    "ctaShort": "Modos reales"
+  },
   "settings": {
     "title": "Configuración",
     "description": "Ajusta tu hotel, tus tarifas, tu equipo y tus integraciones.",

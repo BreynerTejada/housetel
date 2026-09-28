@@ -2,8 +2,16 @@ import { RotateCcw } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isRouteErrorResponse, useRouteError } from 'react-router'
+import { SupportLinks } from '@/app/shell/SupportLinks'
 import { Button } from '@/components/ui/button'
 import { NotFound } from './NotFound'
+
+/** Short, shareable description of what failed (goes into the support message; never a stack trace). */
+function describe(error: unknown): string {
+  if (isRouteErrorResponse(error)) return `${error.status} ${error.statusText}`.trim()
+  if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 200)
+  return ''
+}
 
 /** Error boundary of the route tree. Inside a shell it renders in the outlet, so navigation stays. */
 export function RouteError({ home = '/' }: { home?: string }) {
@@ -24,6 +32,7 @@ export function RouteError({ home = '/' }: { home?: string }) {
         <RotateCcw aria-hidden />
         {t('routeError.reload')}
       </Button>
+      <SupportLinks lead={t('support.inline.errorLead')} detail={describe(error)} className="w-full" />
     </section>
   )
 }

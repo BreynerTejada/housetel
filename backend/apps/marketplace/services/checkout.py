@@ -16,7 +16,6 @@ from collections import Counter
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from django.conf import settings as django_settings
 from django.db import transaction
 
 from apps.bookings.services.availability import availability
@@ -31,6 +30,7 @@ from apps.bookings.types import (
 )
 from apps.core.dates import nights as stay_nights
 from apps.core.money import D, quantize
+from apps.core.runtime import public_base_url
 from apps.core.tokens import portal_url
 from apps.finance import services as finance
 from apps.finance.errors import OnlinePaymentsDisabled
@@ -444,7 +444,7 @@ def create_booking(data: dict) -> dict:
             intent = finance.create_payment_intent(
                 folio,
                 amount=amount,
-                return_url=f"{django_settings.FRONTEND_URL}{confirmation_path(prop, via, reservation.code)}",
+                return_url=f"{public_base_url()}{confirmation_path(prop, via, reservation.code)}",
             )
             payment = {
                 "checkout_url": intent.checkout_url,

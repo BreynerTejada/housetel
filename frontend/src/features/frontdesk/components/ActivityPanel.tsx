@@ -193,11 +193,15 @@ function ActivityRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="flex min-w-0 items-center gap-1.5">
-          <span id={nameId} className={cn('truncate font-semibold', row.done ? 'text-muted' : 'text-fg')}>
+        <p className="flex min-w-0 items-start gap-1.5">
+          {/* On a phone the name may take two lines before it is cut (pilot P3); wider screens keep one. */}
+          <span
+            id={nameId}
+            className={cn('line-clamp-2 font-semibold break-words sm:line-clamp-1', row.done ? 'text-muted' : 'text-fg')}
+          >
             {row.guest_name}
           </span>
-          {row.is_vip && <Star role="img" aria-label={t('vip')} className="size-3.5 shrink-0 fill-warning text-warning" />}
+          {row.is_vip && <Star role="img" aria-label={t('vip')} className="mt-0.5 size-3.5 shrink-0 fill-warning text-warning" />}
         </p>
         <p className="truncate text-[13px] text-muted">
           <Link to={`/app/reservations/${row.reservation_id}`} className="num font-semibold text-fg/80 underline-offset-4 hover:text-accent-ink hover:underline">
@@ -233,15 +237,15 @@ function ActivityRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {canCheck && pendingArrival && (
-          <Button size="sm" onClick={() => onCheckIn(row)}>
+          <Button size="sm" onClick={() => onCheckIn(row)} aria-label={`${t('actions.checkIn')} · ${row.guest_name}`} className="max-sm:px-2">
             <LogIn aria-hidden />
-            {t('actions.checkIn')}
+            <span className="max-sm:sr-only">{t('actions.checkIn')}</span>
           </Button>
         )}
         {canCheck && leaving && (
-          <Button size="sm" onClick={() => onCheckOut(row)}>
+          <Button size="sm" onClick={() => onCheckOut(row)} aria-label={`${t('actions.checkOut')} · ${row.guest_name}`} className="max-sm:px-2">
             <LogOut aria-hidden />
-            {t('actions.checkOut')}
+            <span className="max-sm:sr-only">{t('actions.checkOut')}</span>
           </Button>
         )}
         <Button asChild variant="ghost" size="icon-sm">

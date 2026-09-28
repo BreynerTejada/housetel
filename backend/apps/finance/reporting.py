@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from apps.finance.cash import cash_shift_totals, money_str
 from apps.finance.models import Charge, Payment, Refund
-from apps.finance.services import reservation_balance
+from apps.finance.services import folio_expected_balance, reservation_balance
 
 ZERO = Decimal("0")
 MONEY = DecimalField(max_digits=14, decimal_places=2)
@@ -41,8 +41,11 @@ def annotate_folio_totals(queryset):
     )
 
 
-def folio_totals(folio, *, with_reservation: bool = False) -> dict:
-    """Totals of an annotated folio. `charges_total` = net + tax; balance = charges − payments + refunds."""
+def folio_totals(folio, *, with_reservation: bool = False, with_expected: bool = False) -> dict:
+    """Totals of an annotated folio. `charges_total` = net + tax; balance = charges − payments + refunds.
+
+    P4: `expected_balance` = what this folio will owe (its balance plus the lodging not posted yet that goes
+    to it; `services.folio_expected_balance`), in the detail and in the folios of one reservation."""
     charges_net = folio.charges_net
     tax_total = folio.tax_amount_total
     charges_total = charges_net + tax_total
@@ -54,6 +57,8 @@ def folio_totals(folio, *, with_reservation: bool = False) -> dict:
         "refunds_total": folio.refunds_sum,
         "balance": charges_total - folio.payments_sum + folio.refunds_sum,
     }
+    if with_reservation or with_expected:
+        totals["expected_balance"] = folio_expected_balance(folio)
     if with_reservation:
         totals["reservation_balance"] = (
             reservation_balance(folio.reservation) if folio.reservation_id else None

@@ -79,7 +79,9 @@ export interface Integration {
   /** Secret fields → whether a value is stored (the value itself never leaves the backend). */
   secrets_configured: Record<string, boolean>
   missing_required: string[]
+  /** Modes this installation allows (production: only `real`, except email and AI). */
   available_modes: IntegrationMode[]
+  /** Every registered provider, allowed here or not. */
   providers: Partial<Record<IntegrationMode, ProviderInfo>>
   test?: { ok: boolean; message: string }
 }

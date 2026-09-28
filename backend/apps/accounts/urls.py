@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
 
+from apps.accounts.api.security_views import PasswordChangeView, VerificationResendView
 from apps.accounts.api.team_views import InvitationViewSet, MemberViewSet, PermissionCatalogView, RoleViewSet
 from apps.accounts.api.views import CsrfView, LoginView, LogoutView, MeView
 
@@ -16,6 +17,8 @@ urlpatterns = [
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path("me/password/", PasswordChangeView.as_view(), name="me-password"),
+    path("me/verify-email/resend/", VerificationResendView.as_view(), name="me-verify-email-resend"),
     path("permissions/", PermissionCatalogView.as_view(), name="permissions"),
     *router.urls,
 ]

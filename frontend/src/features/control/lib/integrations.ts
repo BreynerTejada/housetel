@@ -1,4 +1,4 @@
-import type { Integration, IntegrationKind } from '../api'
+import type { Integration, IntegrationKind, IntegrationMode } from '../api'
 
 /**
  * Facts about each integration kind that the backend does not describe: the public webhook the provider calls
@@ -50,4 +50,25 @@ export function sortIntegrations(items: Integration[]): Integration[] {
 /** Real mode but required credentials are still missing (the provider can't work yet). */
 export function needsCredentials(integration: Integration): boolean {
   return integration.mode === 'real' && integration.missing_required.length > 0
+}
+
+/** Kinds whose simulated mode stays available where simulations are off (`core.integrations.SIMULATION_EXEMPT_KINDS`). */
+const SIMULATION_EXEMPT: readonly IntegrationKind[] = ['email', 'llm']
+
+/**
+ * Modes the hotel may pick here. The backend already sends only the allowed ones in `available_modes`
+ * (`core.integrations.available_modes`, P-INT); the filter stays as a guard for an older backend: minus
+ * "simulated" where this installation has simulations off (production) — except email and AI, whose simulated
+ * mode is a legitimate fallback. `providers` keeps every registered provider (the "not here" vs "no provider"
+ * hint of a disabled mode).
+ */
+export function allowedModes(integration: Integration, simulationsEnabled: boolean): IntegrationMode[] {
+  return integration.available_modes.filter(
+    (mode) => mode !== 'simulated' || simulationsEnabled || SIMULATION_EXEMPT.includes(integration.kind),
+  )
+}
+
+/** Working for real: real mode, on and nothing required missing (what `core.integrations.is_live` checks). */
+export function isLive(integration: Integration): boolean {
+  return integration.mode === 'real' && integration.enabled && integration.missing_required.length === 0
 }

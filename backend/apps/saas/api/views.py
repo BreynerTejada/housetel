@@ -1,7 +1,6 @@
 """Staff SaaS API (`/api/v1/saas/…`, session + `X-Property-Id`). Billing keeps working while the organization
 is suspended (`allow_suspended = True`), so the hotel can always pay and reactivate itself."""
 
-from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -10,6 +9,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 
 from apps.core.errors import ConfirmationRequired, DomainError
+from apps.core.runtime import public_base_url
 from apps.core.tenancy import PropertyScopedAPIView
 from apps.saas.api.serializers import (
     BillingPaymentMethodSerializer,
@@ -140,7 +140,7 @@ class InvoicePayView(BillingBaseView):
     def post(self, request, pk):
         with transaction.atomic():
             invoice = _invoice_of(request, pk)
-            return_url = f"{settings.FRONTEND_URL}/app/settings/billing?invoice={invoice.pk}"
+            return_url = f"{public_base_url()}/app/settings/billing?invoice={invoice.pk}"
             result = billing.pay_invoice(invoice, actor=request.user, return_url=return_url)
         invoice.refresh_from_db()
         return Response({**result, "invoice": PlatformInvoiceSerializer(invoice).data})

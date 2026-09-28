@@ -73,13 +73,18 @@ def membership_payload(membership) -> dict:
 class MeSerializer(serializers.ModelSerializer):
     """`Me` (spec §3): {id, email, full_name, language, phone, is_platform_admin, memberships: [...]}.
 
-    `phone` is the one addition to the spec shape: PATCH /me/ writes it, so GET returns it (A3)."""
+    Additions to the spec shape: `phone` (PATCH /me/ writes it, A3) and `email_verified` +
+    `email_verified_at` (P2: the app asks unverified users to confirm their address)."""
 
     memberships = serializers.SerializerMethodField()
+    email_verified = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ["id", "email", "full_name", "language", "phone", "is_platform_admin", "memberships"]
+        fields = [
+            "id", "email", "full_name", "language", "phone", "is_platform_admin", "email_verified",
+            "email_verified_at", "memberships",
+        ]  # fmt: skip
         read_only_fields = fields
 
     @extend_schema_field(MembershipInfoSerializer(many=True))

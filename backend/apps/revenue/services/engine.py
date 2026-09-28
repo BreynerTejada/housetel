@@ -17,7 +17,8 @@ For every active base plan and each of its active categories, night by night fro
    - maximum daily change: within ±`max_daily_change_percent` of the price the night had at the start of the
      day (the current price, or — when revenue already changed it today — the price before that change);
    - `PriceBounds` of the category and plan: a hard floor and ceiling (they win over the daily change);
-   - commercial rounding to a multiple of `price_rounding`, staying inside those limits; currency rounding.
+   - commercial rounding to a multiple of `price_rounding`, staying inside those limits; currency rounding
+     (a `rounding` reason records it, and the limits name the final, rounded price).
 5. Threshold: a change smaller than `min_change_percent` of the current price is not recommended (a change
    of exactly the minimum is).
 
@@ -363,7 +364,25 @@ def limit_price(raw, *, reference, bounds, settings, currency) -> tuple[Decimal,
     high = cap_high if ceiling is None else min(cap_high, ceiling)
     if low > high:  # the cap and the bounds do not meet: the bounds win
         low, high = floor, ceiling
-    return quantize(round_within(price, D(settings.price_rounding), low, high), currency), reasons
+    limited = quantize(price, currency)
+    final = quantize(round_within(price, D(settings.price_rounding), low, high), currency)
+    if final != limited:
+        # The explanation names the price the hotel will see: "the price stays at" is the rounded one, and a
+        # `rounding` reason says it was rounded (and from which price).
+        for reason in reasons:
+            if reason["kind"] == "max_daily_change":
+                reason["price"] = _money(final)
+                reason["rounded"] = True
+        reasons.append(
+            {
+                "type": "limit",
+                "kind": "rounding",
+                "step": _money(settings.price_rounding),
+                "from": _money(limited),
+                "price": _money(final),
+            }
+        )
+    return final, reasons
 
 
 def round_within(value: Decimal, step: Decimal, low, high) -> Decimal:

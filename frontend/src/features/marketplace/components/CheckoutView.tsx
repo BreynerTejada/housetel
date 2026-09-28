@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, BadgePercent, CircleAlert, LockKeyhole, ShieldCheck, X } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { ArrowLeft, BadgePercent, ChevronDown, CircleAlert, LockKeyhole, ShieldCheck, X } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Controller, useForm, useWatch, type Path } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -17,10 +17,13 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useChatOffset } from '@/features/ai/lib/chat-offset'
 import { CountrySelect } from '@/features/guests/components/CountrySelect'
+import { LegalLink } from '@/features/saas/components/LegalLink'
 import { isApiError, type ApiError } from '@/lib/api'
 import { errorMessage } from '@/lib/errors'
 import { formatDateRange, normalizeLang } from '@/lib/format'
+import { useMediaQuery } from '@/lib/hooks'
 import { cn } from '@/lib/utils'
 import {
   postBooking,
@@ -141,8 +144,12 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: DEFAULTS })
-  const [nationality, residence, paymentOption] = useWatch({ control: form.control, name: ['nationality', 'country_of_residence', 'payment_option'] })
+  const [nationality, residence, chosenPayment] = useWatch({ control: form.control, name: ['nationality', 'country_of_residence', 'payment_option'] })
   const exempt = isForeignNonResident(nationality, residence)
+  // Without live online payments (production without a configured gateway, or the hotel turned them off) the
+  // only option is to pay at the hotel, whatever was picked before.
+  const hotelTakesOnlinePayments = detail.data?.booking.online_payments ?? true
+  const paymentOption: PaymentOption = hotelTakesOnlinePayments ? chosenPayment : 'pay_at_hotel'
 
   const hasSelection = Boolean(stay.checkin && stay.checkout && items.length > 0)
   const quoteBody = useMemo<CheckoutRequest | null>(
@@ -163,6 +170,9 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
     [hasSelection, slug, via, stay, items, extras, promo, paymentOption, nationality, residence],
   )
   const quote = useCheckoutQuote(quoteBody)
+  const actionBar = useRef<HTMLDivElement>(null)
+  const phone = !useMediaQuery('(min-width: 1024px)')
+  useChatOffset(actionBar, phone && hasSelection && detail.isSuccess)
 
   // A code that does not apply is dropped (the guest sees why) and the booking is quoted without it.
   const quoteError = isApiError(quote.error) ? quote.error : null
@@ -179,14 +189,14 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
   const selectionError = blocking ?? (quoteError && quoteError.code !== 'promo_invalid' ? quoteError : null)
   const current: CheckoutQuote | undefined = quote.data
   const dueNow = current ? Number(current.due_now[paymentOption]) : 0
-  const onlinePayments = hotel.booking.online_payments && (current?.online_payments ?? true)
+  const onlinePayments = hotelTakesOnlinePayments && (current?.online_payments ?? true)
 
   async function submit(values: Values) {
     if (!quoteBody) return
     setSubmitting(true)
     const body: BookingRequest = {
       ...quoteBody,
-      payment_option: values.payment_option,
+      payment_option: onlinePayments ? values.payment_option : 'pay_at_hotel',
       guest: {
         first_name: values.first_name,
         last_name: values.last_name,
@@ -255,7 +265,32 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
       {!hasSelection ? (
         <Blocking title={t('checkout.errors.invalidSelectionTitle')} body={t('checkout.errors.invalidSelectionBody')} href={backHref} />
       ) : (
-        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-12">
+        <div className="mt-6 grid gap-8 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-12">
+          {/* Phones: the total first (the full summary folds out), not after the whole form. */}
+          <details className="group overflow-hidden rounded-2xl border border-border bg-surface shadow-xs lg:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-fg">{hotel.name}</span>
+                <span className="num block text-xs text-muted">
+                  {formatDateRange(stay.checkin, stay.checkout, lang)} · {guestsLabel(stay.adults, stay.children, t)}
+                </span>
+              </span>
+              <span className="text-right">
+                <span className="eyebrow block">{t('checkout.summary.total')}</span>
+                {current ? (
+                  <MoneyText value={current.total} currency={hotel.currency} className="text-lg font-extrabold tracking-[-0.02em] text-fg" />
+                ) : (
+                  <span className="text-sm text-muted">…</span>
+                )}
+              </span>
+              <ChevronDown aria-hidden className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" />
+              <span className="sr-only">{t('checkout.summary.toggle')}</span>
+            </summary>
+            <div className="border-t border-border">
+              <Summary hotel={hotel} stay={stay} quote={current} updating={quote.isFetching} exempt={Boolean(current?.tax_exempt)} paymentOption={paymentOption} bare />
+            </div>
+          </details>
+
           <form onSubmit={form.handleSubmit(submit)} noValidate className="grid min-w-0 gap-8">
             {selectionError && (
               <Blocking
@@ -435,7 +470,16 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
                   )}
                 />
               ) : (
-                <p className="text-sm text-muted">{t('checkout.payment.offline')}</p>
+                <div className="grid gap-3">
+                  <RadioGroup name="payment_option" value="pay_at_hotel" className="gap-3" aria-describedby="payment-offline-note">
+                    <PaymentChoice value="pay_at_hotel" title={t('checkout.payment.payAtHotel')} checked>
+                      {t('checkout.payment.payAtHotelBody')}
+                    </PaymentChoice>
+                  </RadioGroup>
+                  <p id="payment-offline-note" className="text-sm text-muted">
+                    {t('checkout.payment.offline')}
+                  </p>
+                </div>
               )}
               {onlinePayments && (
                 <p className="mt-3 flex items-start gap-2 text-xs text-muted">
@@ -447,7 +491,18 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
 
             <FormSection title={t('checkout.consent.title')}>
               <div className="grid gap-3">
-                <ConsentField form={form} name="data_processing_consent" label={t('checkout.consent.data', { hotel: hotel.name })} />
+                <ConsentField
+                  form={form}
+                  name="data_processing_consent"
+                  label={
+                    <Trans
+                      t={t}
+                      i18nKey="checkout.consent.data"
+                      values={{ hotel: hotel.name }}
+                      components={{ privacy: <LegalLink to="/legal/privacidad" /> }}
+                    />
+                  }
+                />
                 <ConsentField form={form} name="marketing_consent" label={t('checkout.consent.marketing', { hotel: hotel.name })} />
               </div>
               {tr(hotel.terms, lang) && (
@@ -458,15 +513,33 @@ export function CheckoutView({ slug, via }: CheckoutViewProps) {
               )}
             </FormSection>
 
-            <div className="grid gap-3 border-t border-border pt-7">
-              <Button type="submit" variant="primary" size="lg" className="h-12 text-base sm:w-fit sm:px-8" loading={submitting} disabled={Boolean(selectionError) || !current}>
+            <div className="border-t border-border pt-7">
+              <p className="text-xs text-muted">
+                <Trans t={t} i18nKey="checkout.legal" components={{ terms: <LegalLink to="/legal/terminos" /> }} />
+              </p>
+            </div>
+            {/* Phones: the total stays glued to the confirm button while the whole form scrolls under it (a direct
+                child of the form, so it sticks from the first field to the last). */}
+            <div
+              ref={actionBar}
+              className="sticky bottom-0 z-10 -mx-4 -mt-5 grid gap-2 border-t border-border bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+            >
+              {current && (
+                <p className="flex items-baseline justify-between gap-3 text-sm lg:hidden" aria-live="polite">
+                  <span className="text-muted">
+                    {t('checkout.summary.total')}
+                    {dueNow > 0 && Number(current.total) !== dueNow && <> · {t('checkout.summary.dueNowShort', { amount: moneyLabel(dueNow, hotel.currency) })}</>}
+                  </span>
+                  <MoneyText value={current.total} currency={hotel.currency} className="text-lg font-extrabold tracking-[-0.02em] text-fg" />
+                </p>
+              )}
+              <Button type="submit" variant="primary" size="lg" className="h-12 w-full text-base lg:w-fit lg:px-8" loading={submitting} disabled={Boolean(selectionError) || !current}>
                 {dueNow > 0 ? t('checkout.submitPay', { amount: moneyLabel(dueNow, hotel.currency) }) : t('checkout.submit')}
               </Button>
-              <p className="text-xs text-muted">{t('checkout.legal')}</p>
             </div>
           </form>
 
-          <aside aria-label={t('checkout.summary.title')} className="lg:order-last">
+          <aside aria-label={t('checkout.summary.title')} className="hidden lg:order-last lg:block">
             <div className="lg:sticky lg:top-24">
               <Summary hotel={hotel} stay={stay} quote={current} updating={quote.isFetching} exempt={Boolean(current?.tax_exempt)} paymentOption={paymentOption} />
             </div>
@@ -565,7 +638,7 @@ function PaymentChoice({ value, title, checked, children }: { value: PaymentOpti
   )
 }
 
-function ConsentField({ form, name, label }: { form: ReturnType<typeof useForm<Values>>; name: 'data_processing_consent' | 'marketing_consent'; label: string }) {
+function ConsentField({ form, name, label }: { form: ReturnType<typeof useForm<Values>>; name: 'data_processing_consent' | 'marketing_consent'; label: ReactNode }) {
   const { t } = useTranslation()
   return (
     <Controller
@@ -612,6 +685,7 @@ function Summary({
   updating,
   exempt,
   paymentOption,
+  bare = false,
 }: {
   hotel: PropertyDetail
   stay: Stay
@@ -619,6 +693,8 @@ function Summary({
   updating: boolean
   exempt: boolean
   paymentOption: PaymentOption
+  /** Inside the phone's fold-out summary: no card of its own and no hotel header (already in the fold). */
+  bare?: boolean
 }) {
   const { t, i18n } = useTranslation(['marketplace', 'common'])
   const lang = normalizeLang(i18n.language)
@@ -629,8 +705,8 @@ function Summary({
   const later = quote ? Number(quote.total) - Number(due) : 0
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-      <div className="flex gap-3 border-b border-border p-4">
+    <div className={cn(!bare && 'overflow-hidden rounded-2xl border border-border bg-surface shadow-sm')}>
+      <div className={cn('flex gap-3 border-b border-border p-4', bare && 'hidden')}>
         <Photo src={hotel.photo ?? hotel.photos[0]?.url} className="size-16 shrink-0 rounded-lg" />
         <div className="min-w-0">
           <p className="truncate font-bold text-fg">{hotel.name}</p>

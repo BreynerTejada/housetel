@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useActiveProperty } from '@/lib/auth'
 import { useCan } from '@/lib/permissions'
+import { useRuntimeConfig } from '@/lib/runtime'
 import { useChannelOptions, useConnections, type ChannelCode, type ChannelOptions, type Connection } from '../api'
 import { AriQueuePanel } from '../components/AriQueuePanel'
 import { ChannelMark } from '../components/ChannelMark'
@@ -54,7 +55,9 @@ function Channels() {
   const options = optionsQuery.data
   const errors = connections.reduce((sum, item) => sum + item.stats.errors_24h, 0)
   const queued = connections.reduce((sum, item) => sum + item.stats.pending_updates + item.stats.failed_updates, 0)
-  const hasSimulated = connections.some((item) => item.simulated)
+  const { simulations_enabled: simulations } = useRuntimeConfig()
+  // the OTA simulator is a development/demo tool: never offered where simulations are off (production)
+  const hasSimulated = simulations && connections.some((item) => item.simulated)
 
   function openWizard(channel: ChannelCode | null, editing: Connection | null = null) {
     if (!options) return

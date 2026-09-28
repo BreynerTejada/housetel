@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.core.fields import json_field
 from apps.core.models import BaseModel, Organization, Property
+from apps.core.signals import is_seeding
 
 
 class UserManager(BaseUserManager):
@@ -25,6 +26,9 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         if not email:
             raise ValueError("El email es obligatorio")
+        if is_seeding():
+            # Demo users are born verified: nobody reads their mailbox and no email goes out while seeding.
+            extra_fields.setdefault("email_verified_at", timezone.now())
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -33,11 +37,16 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        # Created from the command line by whoever runs the platform: no verification email.
+        extra_fields.setdefault("email_verified_at", timezone.now())
         return self.create_user(email, password, **extra_fields)
 
 
 class User(BaseModel, AbstractBaseUser, PermissionsMixin):
-    """Custom user: login by email. Platform super-admins have `is_platform_admin`."""
+    """Custom user: login by email. Platform super-admins have `is_platform_admin`.
+
+    `email_verified_at` (P2): when the user proved the address is theirs (verification link, password reset
+    link or invitation link). Unverified users can work normally; the app asks them to verify."""
 
     class Language(models.TextChoices):
         ES = "es", "Español"
@@ -51,6 +60,7 @@ class User(BaseModel, AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
@@ -64,6 +74,10 @@ class User(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return self.email
+
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
 
     def save(self, *args, **kwargs):
         # Normalize on every save path (forms, admin, objects.create), not only in create_user.

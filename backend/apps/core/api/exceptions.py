@@ -4,11 +4,14 @@
 - `DomainError` → its `status_code`, `code` and `extra` (Decimal/date/UUID extras rendered as strings).
 - DRF `ValidationError` → 400 `validation_error` with `fields` (or its own `detail`/`code` when raised as
   `ValidationError({"detail": ..., "code": ...})`, e.g. `property_required`).
-- Django `ValidationError`, `Http404`, `PermissionDenied` → same normalization.
+- Django `ValidationError`, `Http404`, `PermissionDenied` → same normalization. Django's own untranslated
+  "No <Model> matches the given query." (`get_object_or_404`) becomes DRF's translated "No encontrado." /
+  "Not found." (the active language comes from LocaleMiddleware + the user's profile).
 - Exclusion / unique violations → 409 `conflict`; deleting a referenced row (PROTECT/RESTRICT) → 409 `in_use`.
 - Anything else → `None` (Django renders a 500; bugs are never hidden behind a 4xx).
 """
 
+import re
 from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID
@@ -28,6 +31,9 @@ from apps.core.errors import DomainError
 
 CONFLICT_SQLSTATES = {"23P01": "exclusion", "23505": "unique"}  # exclusion_violation, unique_violation
 GENERIC_VALIDATION_CODES = {"invalid", "validation_error"}
+# django.shortcuts.get_object_or_404 (also behind DRF's generic views) raises this English, untranslatable
+# text.
+DJANGO_DEFAULT_404 = re.compile(r"^No .+ matches the given query\.?$")
 
 
 def exception_handler(exc, context):
@@ -51,7 +57,8 @@ def exception_handler(exc, context):
     if isinstance(exc, DjangoValidationError):
         exc = exceptions.ValidationError(detail=as_serializer_error(exc))
     elif isinstance(exc, Http404):
-        exc = exceptions.NotFound(*exc.args)
+        message = str(exc.args[0]) if exc.args else ""
+        exc = exceptions.NotFound(None if not message or DJANGO_DEFAULT_404.match(message) else message)
     elif isinstance(exc, DjangoPermissionDenied):
         exc = exceptions.PermissionDenied(*exc.args)
 

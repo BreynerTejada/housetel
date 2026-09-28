@@ -10,9 +10,11 @@ from datetime import date, timedelta
 
 from django.db.models import QuerySet
 
+from apps.core import integrations
 from apps.core.dates import nights, property_now
 from apps.core.errors import DomainError, NotFoundError
 from apps.core.models import IntegrationSetting, Property
+from apps.core.runtime import simulations_enabled
 from apps.marketplace.models import BookingEngineSettings, ListingContent
 
 MARKETPLACE = "marketplace"
@@ -71,7 +73,12 @@ def allowed_plan_ids(settings: BookingEngineSettings) -> set:
 
 
 def online_payments_enabled(prop) -> bool:
-    """`IntegrationSetting(payments).enabled` (a missing row means the default: enabled)."""
+    """Whether guests can pay online (plan P6): the payments integration is enabled (a missing row means the
+    default) and, where simulations are off (production), really live: enabled, in real mode and configured
+    (`core.integrations.is_live`). Otherwise the checkout only offers "Pagar en el hotel" and plans that
+    need a deposit are not sold online."""
+    if not simulations_enabled():
+        return integrations.is_live(prop, "payments")
     enabled = (
         IntegrationSetting.objects.filter(property=prop, kind=IntegrationSetting.Kind.PAYMENTS)
         .values_list("enabled", flat=True)

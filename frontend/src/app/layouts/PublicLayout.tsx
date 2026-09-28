@@ -4,6 +4,9 @@ import { LanguageMenu } from '@/app/shell/LanguageMenu'
 import { PublicChatSlot } from '@/app/shell/PublicChatSlot'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
+// Housetel's legal documents (P6) in the public footer (P-INT). The booking engine and the guest portal, which
+// hide this footer, carry the same links in their own.
+import { LegalFooterLinks } from '@/features/saas/components/LegalFooterLinks'
 
 interface PublicHandle {
   /** `'none'` hides the Housetel header and footer (hotel-branded pages: booking engine, guest portal). */
@@ -47,9 +50,12 @@ function PublicFooter() {
           <Logo withWordmark={false} />
           <p>{t('public.footerTagline')}</p>
         </div>
-        <p className="num">
-          {t('public.rights', { year: new Date().getFullYear() })} · {t('public.madeIn')}
-        </p>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <LegalFooterLinks docs={['terminos', 'privacidad', 'encargo-datos']} className="text-sm" />
+          <p className="num">
+            {t('public.rights', { year: new Date().getFullYear() })} · {t('public.madeIn')}
+          </p>
+        </div>
       </div>
     </footer>
   )
@@ -58,8 +64,12 @@ function PublicFooter() {
 /** Marketplace, login and other public pages: 16px editorial base, header, footer and the chat slot. */
 export function PublicLayout() {
   const matches = useMatches()
+  const { pathname } = useLocation()
   const bare = matches.some((match) => (match.handle as PublicHandle | undefined)?.chrome === 'none')
   const params = matches.at(-1)?.params ?? {}
+  // Only the guest portal's `/g/:token` is a portal token: other public routes also call their secret `token`
+  // (`/invite/:token`), and it must not travel to the chat API (P2 → P-INT).
+  const portalToken = pathname.startsWith('/g/') ? params.token : undefined
   return (
     <div className="public-shell flex min-h-dvh flex-col bg-bg">
       {!bare && <PublicHeader />}
@@ -67,7 +77,7 @@ export function PublicLayout() {
         <Outlet />
       </main>
       {!bare && <PublicFooter />}
-      <PublicChatSlot propertySlug={params.slug} portalToken={params.token} />
+      <PublicChatSlot propertySlug={params.slug} portalToken={portalToken} />
     </div>
   )
 }

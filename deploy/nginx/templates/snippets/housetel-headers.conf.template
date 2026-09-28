@@ -1,0 +1,7 @@
+# Security headers of everything nginx serves itself (the SPA, its assets, static files and public media).
+# Included per location: nginx drops inherited add_header directives as soon as a location defines its own.
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(self), usb=()" always;
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Strict-Transport-Security $housetel_hsts always;

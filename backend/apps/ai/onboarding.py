@@ -324,7 +324,7 @@ def propose(prop, *, description: str = "", website_url: str = "", llm=None) -> 
         warnings.append(
             "No obtuve una propuesta estructurada del modelo: armé una con lo que entendí del texto."
         )
-    proposal, normalization_warnings = normalize_proposal(prop, raw, catalog=catalog)
+    proposal, normalization_warnings = normalize_proposal(prop, raw, catalog=catalog, dedupe_extras=True)
     if website and not website["fetched"]:
         warnings.append(f"No pude leer el sitio web: {website['error']}")
     return {
@@ -548,9 +548,54 @@ def _generate_numbers(index: int, item: dict, used: set[str]) -> list[str]:
     return numbers
 
 
-def normalize_proposal(prop, raw, *, catalog: dict | None = None) -> tuple[dict, list[str]]:
+# Extras that mean the same thing for a guest, whatever the model calls them ("Desayuno", "Desayuno buffet",
+# "Breakfast", code BRK…). Matched on the name and code without accents; the first rule that matches wins.
+EXTRA_CONCEPTS = [
+    ("breakfast", r"\b(desayunos?|breakfast|brunch|brk)\b"),
+    ("parking", r"\b(parqueaderos?|parqueo|parking|estacionamiento|garajes?|garage|valet|park)\b"),
+    ("airport_transfer", r"\b(traslados?|transfers?|shuttle|trf)\b"),
+    ("laundry", r"\b(lavanderia|laundry)\b"),
+    ("late_checkout", r"\b(late\s*check-?\s*out|salida\s+tardia|check-?\s*out\s+tardio)\b"),
+    ("early_checkin", r"\b(early\s*check-?\s*in|entrada\s+temprana|check-?\s*in\s+temprano)\b"),
+    ("pets", r"\b(mascotas?|pets?)\b"),
+    ("extra_bed", r"\b(cama\s+(adicional|extra|supletoria)|extra\s+bed|rollaway)\b"),
+    ("crib", r"\b(cunas?|cribs?)\b"),
+    ("lunch", r"\b(almuerzos?|lunch)\b"),
+    ("dinner", r"\b(cenas?|dinner)\b"),
+]
+
+
+def extra_concept(name, code: str = "") -> str:
+    """What an extra is (`breakfast`, `parking`…), or its plain name when it is none of the known ones."""
+    names = name if isinstance(name, dict) else {"es": str(name or "")}
+    text = nlp.strip_accents(" ".join([names.get("es") or "", names.get("en") or "", code or ""]).lower())
+    for concept, pattern in EXTRA_CONCEPTS:
+        if re.search(pattern, text):
+            return concept
+    plain = nlp.strip_accents(str(names.get("es") or names.get("en") or code or "").lower())
+    return "name:" + " ".join(re.findall(r"[a-z0-9]+", plain))
+
+
+def _sold_extras(prop) -> dict[str, str]:
+    """Concept → name of the extras the hotel already sells (active)."""
+    from apps.core.i18n import t
+    from apps.rates.models import Extra
+
+    return {
+        extra_concept(extra.name, extra.code): t(extra.name) or extra.code
+        for extra in Extra.objects.filter(property=prop, is_active=True)
+    }
+
+
+def normalize_proposal(
+    prop, raw, *, catalog: dict | None = None, dedupe_extras: bool = False
+) -> tuple[dict, list[str]]:
     """A proposal the review screen and `apply_proposal` can trust: types and ranges fixed, codes and room
-    numbers unique in the hotel, unknown amenities dropped. Returns `(proposal, warnings)`."""
+    numbers unique in the hotel, unknown amenities dropped. Returns `(proposal, warnings)`.
+
+    The breakfast of the policies becomes an extra only when neither the proposal nor the hotel already has
+    one. With `dedupe_extras` (the model's answer, not the user's edits) equivalent extras are merged into the
+    first one and the ones the hotel already sells are left out."""
     from apps.inventory.models import Room, RoomType
 
     raw = raw if isinstance(raw, dict) else {}
@@ -604,7 +649,9 @@ def normalize_proposal(prop, raw, *, catalog: dict | None = None) -> tuple[dict,
         "children_allowed": _bool(policies_raw.get("children_allowed"), True),
     }
 
-    extras, extra_codes = [], set()
+    extras, extra_codes, kept = [], set(), {}
+    sold = _sold_extras(prop)
+    merged, already_sold = [], []
     for item in raw.get("extras") or []:
         if not isinstance(item, dict):
             continue
@@ -612,10 +659,30 @@ def normalize_proposal(prop, raw, *, catalog: dict | None = None) -> tuple[dict,
         price = _money(item.get("price"))
         if not name["es"] or price is None or price <= 0:
             continue
+        concept = extra_concept(name, str(item.get("code") or ""))
+        if dedupe_extras and concept in sold:
+            already_sold.append(sold[concept])
+            continue
+        if dedupe_extras and concept in kept:
+            merged.append((name["es"], kept[concept]))
+            continue
+        kept.setdefault(concept, name["es"])
         charge_type = item.get("charge_type") if item.get("charge_type") in CHARGE_TYPES else "per_stay"
         code = _unique(_sanitize_code(item.get("code")) or _code_from_name(name["es"]), extra_codes)
         extras.append({"code": code, "name": name, "price": str(price), "charge_type": charge_type})
-    if policies["breakfast_price"] and not any(extra["code"] == "BRK" for extra in extras):
+    has_breakfast = "breakfast" in sold or any(
+        extra_concept(extra["name"], extra["code"]) == "breakfast" for extra in extras
+    )
+    if merged:
+        warnings.append(
+            "Uní extras que eran el mismo servicio: "
+            + "; ".join(f"«{dropped}» con «{first}»" for dropped, first in merged)
+            + "."
+        )
+    if already_sold:
+        names = ", ".join(f"«{name}»" for name in dict.fromkeys(already_sold))
+        warnings.append(f"No repetí extras que tu hotel ya vende: {names}.")
+    if policies["breakfast_price"] and not has_breakfast:
         extras.insert(
             0,
             {

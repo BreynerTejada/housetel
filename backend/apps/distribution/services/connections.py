@@ -16,6 +16,7 @@ from django.db import IntegrityError, transaction
 
 from apps.core import audit, integrations
 from apps.core.errors import ConflictError, DomainError
+from apps.core.runtime import simulations_enabled
 from apps.distribution.errors import ChannelError
 from apps.distribution.models import ChannelConnection, RateMapping, RoomMapping, SimOtaInventory, SyncLog
 from apps.distribution.providers import CHANNEL_KINDS, SIM_CHANNELS, provider_for
@@ -113,6 +114,12 @@ def create_connection(prop, data: dict, *, actor=None) -> tuple[ChannelConnectio
     """Create a connection with its mappings (`data` = validated API payload). Push channels are queued, or
     synced at once with `full_sync=True` (returns the sync summary)."""
     channel = data["channel_code"]
+    if channel in SIM_CHANNELS and not simulations_enabled():
+        raise DomainError(
+            "Los simuladores de OTAs no están disponibles en este entorno",
+            code="not_supported",
+            fields={"channel_code": ["Canal no disponible"]},
+        )
     with transaction.atomic():
         if channel != ICAL and ChannelConnection.objects.filter(property=prop, channel_code=channel).exists():
             raise ChannelAlreadyConnected(f"El hotel ya tiene una conexión con {channel_label(channel)}")

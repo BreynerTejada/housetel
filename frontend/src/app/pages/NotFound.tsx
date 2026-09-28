@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { SupportLinks } from '@/app/shell/SupportLinks'
 import { Button } from '@/components/ui/button'
 
 export function NotFound({ home = '/' }: { home?: string }) {
@@ -12,6 +13,7 @@ export function NotFound({ home = '/' }: { home?: string }) {
       <Button asChild variant="secondary" className="mt-6">
         <Link to={home}>{t('notFound.cta')}</Link>
       </Button>
+      <SupportLinks lead={t('support.inline.notFoundLead')} className="w-full" />
     </section>
   )
 }

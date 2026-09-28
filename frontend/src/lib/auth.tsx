@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { api, ApiError } from './api'
 import { matchPermission } from './permissions'
+import { RUNTIME_CONFIG_QUERY_KEY } from './runtime'
 import { useSession } from './session'
 
 // ---- Types: exact shape of GET /api/v1/accounts/me/ (spec §3) ---------------------------------
@@ -53,6 +54,10 @@ export interface Me {
   phone: string
   is_platform_admin: boolean
   memberships: Membership[]
+  /** Plan P2 (email verification). Optional until every backend returns it; `false` = pending. */
+  email_verified?: boolean
+  /** When the address was verified (ISO), or null while pending (P2). */
+  email_verified_at?: string | null
 }
 
 export interface PropertyAccess {
@@ -62,7 +67,9 @@ export interface PropertyAccess {
 
 export const ME_QUERY_KEY = ['me'] as const
 
-const notMe = (query: Query) => query.queryKey[0] !== ME_QUERY_KEY[0]
+/** Queries that survive a property switch or a logout: the user and the installation's runtime config. */
+const SESSION_INDEPENDENT_KEYS = new Set<unknown>([ME_QUERY_KEY[0], RUNTIME_CONFIG_QUERY_KEY[0]])
+const sessionScoped = (query: Query) => !SESSION_INDEPENDENT_KEYS.has(query.queryKey[0])
 
 function isUnauthenticated(error: unknown): boolean {
   return (
@@ -112,9 +119,9 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<void>('/accounts/auth/logout/', undefined, { authRedirect: false }),
     onSettled: async () => {
-      await queryClient.cancelQueries({ predicate: notMe })
+      await queryClient.cancelQueries({ predicate: sessionScoped })
       useSession.getState().setLoggedOut(true)
-      queryClient.removeQueries({ predicate: notMe })
+      queryClient.removeQueries({ predicate: sessionScoped })
       queryClient.setQueryData(ME_QUERY_KEY, null)
       useSession.getState().setPropertyId(null)
     },
@@ -151,8 +158,8 @@ export function useActiveProperty() {
     (id: string) => {
       if (id === useSession.getState().propertyId) return
       setStoredId(id)
-      void queryClient.cancelQueries({ predicate: notMe })
-      queryClient.removeQueries({ predicate: notMe })
+      void queryClient.cancelQueries({ predicate: sessionScoped })
+      queryClient.removeQueries({ predicate: sessionScoped })
     },
     [queryClient, setStoredId],
   )

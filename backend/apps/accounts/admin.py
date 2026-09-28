@@ -4,6 +4,7 @@ from django.contrib.auth.forms import BaseUserCreationForm
 from django.contrib.auth.forms import UserChangeForm as DjangoUserChangeForm
 
 from apps.accounts.models import Invitation, Membership, Role, User
+from apps.accounts.verification import send_verification_on_commit
 
 
 class UserCreationForm(BaseUserCreationForm):
@@ -18,6 +19,23 @@ class UserChangeForm(DjangoUserChangeForm):
         fields = "__all__"
 
 
+class EmailVerifiedFilter(admin.SimpleListFilter):
+    """Support (P2): who has not confirmed their email yet."""
+
+    title = "correo verificado"
+    parameter_name = "email_verified"
+
+    def lookups(self, request, model_admin):
+        return [("yes", "Sí"), ("no", "No")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "yes":
+            return queryset.filter(email_verified_at__isnull=False)
+        if self.value() == "no":
+            return queryset.filter(email_verified_at__isnull=True)
+        return queryset
+
+
 class MembershipInline(admin.TabularInline):
     model = Membership
     fk_name = "user"
@@ -30,12 +48,14 @@ class UserAdmin(DjangoUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     ordering = ["email"]
-    list_display = ["email", "full_name", "is_platform_admin", "is_staff", "is_active", "last_login"]
-    list_filter = ["is_platform_admin", "is_staff", "is_superuser", "is_active"]
+    list_display = [
+        "email", "full_name", "is_platform_admin", "is_staff", "is_active", "email_verified", "last_login",
+    ]  # fmt: skip
+    list_filter = ["is_platform_admin", "is_staff", "is_superuser", "is_active", EmailVerifiedFilter]
     search_fields = ["email", "full_name"]
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Perfil", {"fields": ("full_name", "language", "phone")}),
+        ("Perfil", {"fields": ("full_name", "language", "phone", "email_verified_at")}),
         (
             "Permisos",
             {
@@ -58,6 +78,20 @@ class UserAdmin(DjangoUserAdmin):
 
     def get_inlines(self, request, obj):
         return self.inlines if obj is not None else []  # memberships are added once the user exists
+
+    def save_model(self, request, obj, form, change):
+        """A new address is not verified until its owner opens the link (P2): it gets one after saving.
+        (New users get theirs from the post_save receiver.) Setting both fields at once is respected."""
+        email_changed = change and "email" in form.changed_data
+        if email_changed and "email_verified_at" not in form.changed_data:
+            obj.email_verified_at = None
+        super().save_model(request, obj, form, change)
+        if email_changed and obj.email_verified_at is None:
+            send_verification_on_commit(obj)
+
+    @admin.display(boolean=True, description="Correo verificado", ordering="email_verified_at")
+    def email_verified(self, obj):
+        return obj.email_verified
 
 
 @admin.register(Role)

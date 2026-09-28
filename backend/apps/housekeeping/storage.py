@@ -1,50 +1,21 @@
 """Private storage for maintenance-ticket photos.
 
 Damage photos can show guests' belongings, so they never live under MEDIA_ROOT (served without authentication
-at /media/): they go to `settings.PRIVATE_MEDIA_ROOT` when defined, otherwise to a sibling of MEDIA_ROOT
-named `<media>-private` (the same private root as guest documents). They have no public URL; the only way to
-read one is `GET /api/v1/housekeeping/ticket-photos/<id>/file/` (authenticated, property-scoped).
+at /media/): they go to the `private` storage of `settings.STORAGES` (`apps.core.storage`, plan P1) — local
+disk at `settings.PRIVATE_MEDIA_ROOT` or `<media>-private` (the same private root as guest documents), or a
+private S3-compatible bucket. They have no public URL; the only way to read one is
+`GET /api/v1/housekeeping/ticket-photos/<id>/file/` (authenticated, property-scoped).
 """
 
-import os
 import uuid
 from pathlib import Path
 
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage
+from apps.core.storage import PrivateStorage
+from apps.core.storage import private_media_root as private_media_root  # noqa: F401 - kept for callers
 
 
-def private_media_root() -> Path:
-    configured = getattr(settings, "PRIVATE_MEDIA_ROOT", None)
-    if configured:
-        return Path(configured)
-    media = Path(settings.MEDIA_ROOT)
-    return media.with_name(f"{media.name}-private")
-
-
-class PrivateMediaStorage(FileSystemStorage):
-    """FileSystemStorage rooted at `private_media_root()` (read on every use, so settings overrides apply in
-    tests) and without a base URL (`url()` raises)."""
-
-    @property
-    def base_location(self):
-        return str(private_media_root())
-
-    @property
-    def location(self):
-        return os.path.abspath(self.base_location)
-
-    @property
-    def base_url(self):
-        return None
-
-    def _save(self, name, content):
-        root = Path(self.location)
-        root.mkdir(parents=True, exist_ok=True)
-        marker = root / ".gitignore"  # the development root sits inside the repository's bind mount
-        if not marker.exists():
-            marker.write_text("*\n")
-        return super()._save(name, content)
+class PrivateMediaStorage(PrivateStorage):
+    """The `private` storage (P-INT: S3-capable). The class name stays: migrations reference it."""
 
 
 def ticket_photo_upload_to(instance, filename: str) -> str:

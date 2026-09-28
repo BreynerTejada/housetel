@@ -54,6 +54,11 @@ MISSING_ALERT = "compliance:sire:missing"
 UNSUBMITTED_ALERT = "compliance:sire:unsubmitted"
 
 
+def _count(count: int, singular: str, plural: str) -> str:
+    """«1 movimiento», «2 movimientos» (never «1 movimientos» or «archivo(s)»)."""
+    return f"{count} {singular if count == 1 else plural}"
+
+
 # ------------------------------------------------------------------------------------------------- guests
 
 
@@ -298,8 +303,8 @@ def generate_sire(property, start: date, end: date, *, actor=None, source="user"
         audit.record(
             action="compliance.sire_generated",
             target=report,
-            summary=f"Archivo SIRE {start:%d/%m/%Y}–{end:%d/%m/%Y}: {len(complete)} movimientos, "
-            f"{len(missing)} con datos faltantes",
+            summary=f"Archivo SIRE {start:%d/%m/%Y}–{end:%d/%m/%Y}: "
+            f"{_count(len(complete), 'movimiento', 'movimientos')}, {len(missing)} con datos faltantes",
             actor=actor,
             source=source,
             property=property,
@@ -368,7 +373,9 @@ def refresh_alerts(property) -> None:
             property=property,
             kind="sire_missing_data",
             severity="warning",
-            title=f"SIRE: {missing} movimientos de extranjeros con datos faltantes",
+            title="SIRE: "
+            + _count(missing, "movimiento de extranjero", "movimientos de extranjeros")
+            + " con datos faltantes",
             message="Completa los datos de los huéspedes (documento, nacionalidad, fecha de nacimiento…) y "
             "genera "
             "de nuevo el archivo: los movimientos incompletos no se incluyen.",
@@ -384,8 +391,12 @@ def refresh_alerts(property) -> None:
             property=property,
             kind="sire_unsubmitted",
             severity="warning",
-            title=f"{len(pending)} archivo(s) SIRE por cargar en Migración Colombia",
-            message="Descarga el archivo, súbelo en el portal SIRE y márcalo como reportado.",
+            title=_count(len(pending), "archivo SIRE", "archivos SIRE") + " por cargar en Migración Colombia",
+            message=(
+                "Descarga el archivo, súbelo en el portal SIRE y márcalo como reportado."
+                if len(pending) == 1
+                else "Descarga los archivos, súbelos en el portal SIRE y márcalos como reportados."
+            ),
             link="/app/compliance?tab=sire",
             dedupe_key=UNSUBMITTED_ALERT,
             data={"count": len(pending)},

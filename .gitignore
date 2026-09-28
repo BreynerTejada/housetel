@@ -1,6 +1,9 @@
 # env / secrets
 .env
 *.env.local
+# production env file (template: deploy/env.prod.example) and local backups (scripts/backup.sh)
+.env.prod
+backups/
 # python
 __pycache__/
 *.pyc

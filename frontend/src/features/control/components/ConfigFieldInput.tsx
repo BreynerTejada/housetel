@@ -1,4 +1,4 @@
-import { KeyRound } from 'lucide-react'
+import { KeyRound, MapPin } from 'lucide-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,8 @@ interface Props {
   secretRemoved?: boolean
   onToggleRemove?: () => void
   missing?: boolean
+  /** Where this value lives in the provider's panel (from the integration guide), shown under the input. */
+  where?: string
 }
 
 /** One input generated from a provider's CONFIG_FIELDS entry (secrets are write-only password inputs). */
@@ -35,14 +37,18 @@ export function ConfigFieldInput({
   secretRemoved = false,
   onToggleRemove,
   missing = false,
+  where,
 }: Props) {
   const { t, i18n } = useTranslation('control')
   const lang = normalizeLang(i18n.language)
   const id = useId()
   const helpId = `${id}-help`
+  const whereId = `${id}-where`
   const label = lang === 'en' ? field.label_en : field.label_es
   const help = lang === 'en' ? field.help_en : field.help_es
   const hasDefault = field.default !== null && field.default !== undefined && field.default !== ''
+  const showHelp = Boolean(help || (hasDefault && field.type !== 'select'))
+  const describedBy = [showHelp ? helpId : null, where ? whereId : null].filter(Boolean).join(' ') || undefined
 
   if (field.type === 'boolean') {
     return (
@@ -104,7 +110,7 @@ export function ConfigFieldInput({
                 : t('integrations.sheet.secretEmpty')
           }
           aria-invalid={missing || undefined}
-          aria-describedby={help ? helpId : undefined}
+          aria-describedby={describedBy}
           className={cn(secretConfigured && !secretValue && !secretRemoved && 'placeholder:text-success-ink')}
         />
       ) : field.type === 'select' ? (
@@ -113,7 +119,7 @@ export function ConfigFieldInput({
           value={value === null || value === undefined ? (hasDefault ? String(field.default) : '') : String(value)}
           onValueChange={(next) => onChange(next)}
         >
-          <SelectTrigger id={id} aria-invalid={missing || undefined} aria-describedby={help ? helpId : undefined}>
+          <SelectTrigger id={id} aria-invalid={missing || undefined} aria-describedby={describedBy}>
             <SelectValue placeholder={t('integrations.sheet.selectPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
@@ -131,7 +137,7 @@ export function ConfigFieldInput({
           value={value === null || value === undefined ? '' : String(value)}
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={missing || undefined}
-          aria-describedby={help ? helpId : undefined}
+          aria-describedby={describedBy}
         />
       ) : (
         <Input
@@ -144,15 +150,23 @@ export function ConfigFieldInput({
           placeholder={hasDefault ? String(field.default) : undefined}
           onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
           aria-invalid={missing || undefined}
-          aria-describedby={help ? helpId : undefined}
+          aria-describedby={describedBy}
           className={field.type === 'number' ? 'num' : undefined}
         />
       )}
 
-      {(help || (hasDefault && field.type !== 'select')) && (
+      {showHelp && (
         <p id={helpId} className="text-xs break-words text-muted">
           {help}
           {hasDefault && field.type !== 'select' && !help && t('integrations.sheet.default', { value: String(field.default) })}
+        </p>
+      )}
+      {where && (
+        <p id={whereId} className="flex items-start gap-1.5 text-xs break-words text-muted">
+          <MapPin aria-hidden className="mt-px size-3.5 shrink-0 text-accent-ink" />
+          <span>
+            <span className="font-semibold text-fg/85">{t('integrations.guide.where')}</span> {where}
+          </span>
         </p>
       )}
     </div>

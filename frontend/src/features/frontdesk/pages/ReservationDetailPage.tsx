@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Ban, ChevronRight, CircleCheck, LogIn, LogOut, MoreHorizontal, SearchX, Star, UserX } from 'lucide-react'
+import { Ban, BedDouble, ChevronRight, CircleCheck, LogIn, LogOut, MoreHorizontal, Plus, SearchX, Star, UserX, UsersRound } from 'lucide-react'
 import { Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams, useSearchParams } from 'react-router'
@@ -23,8 +23,10 @@ import { errorMessage } from '@/lib/errors'
 import { normalizeLang } from '@/lib/format'
 import { useCan } from '@/lib/permissions'
 import { bookingKeys, confirmReservation, markNoShow, useRefreshFrontDesk, useReservation, type ReservationDetail, type StayDetail } from '../api'
+import { AddStayDialog } from '../components/AddStayDialog'
 import { AssignRoomDialog } from '../components/AssignRoomDialog'
 import { CancelReservationDialog } from '../components/CancelReservationDialog'
+import { CancelStayDialog } from '../components/CancelStayDialog'
 import { CheckInDialog } from '../components/CheckInDialog'
 import { CheckOutDialog } from '../components/CheckOutDialog'
 import { GuestsPanel } from '../components/GuestsPanel'
@@ -32,11 +34,12 @@ import { ModifyStayDialog } from '../components/ModifyStayDialog'
 import { ReservationFacts } from '../components/ReservationFacts'
 import { StayCard } from '../components/StayCard'
 import { stayLine } from '../lib/labels'
-import { stayActions, type StayAction } from '../lib/stays'
+import { activeStays, stayActions, type StayAction } from '../lib/stays'
 
 type OpenDialog =
   | { kind: StayAction; stay: StayDetail }
-  | { kind: 'cancel' }
+  | { kind: 'cancelReservation' }
+  | { kind: 'addStay' }
   | { kind: 'noShow' }
   | { kind: 'extension'; action: ReservationAction }
 
@@ -93,8 +96,10 @@ function Detail({ reservation }: { reservation: ReservationDetail }) {
   const tabIds = [...BUILT_IN_TABS, ...extensionTabs.map((tab) => tab.id)]
   const requestedTab = searchParams.get('tab')
   const tab = requestedTab && tabIds.includes(requestedTab) ? requestedTab : 'summary'
-  const activeStays = reservation.stays.filter((stay) => stay.status !== 'cancelled' && stay.status !== 'no_show')
-  const single = activeStays.length === 1 ? activeStays[0] : undefined
+  const liveStays = reservation.stays.filter((stay) => stay.status !== 'cancelled' && stay.status !== 'no_show')
+  const single = liveStays.length === 1 ? liveStays[0] : undefined
+  const canAddRoom = canManage && ['tentative', 'confirmed', 'checked_in'].includes(reservation.status)
+  const roomsCount = activeStays(reservation).length
   const headerAction = single && canCheck ? stayActions(single, bd).find((action) => action === 'checkin' || action === 'checkout') : undefined
   const pending = reservation.status === 'tentative' || reservation.status === 'confirmed'
   const canNoShow = reservation.status === 'confirmed' && reservation.checkin_date < bd
@@ -144,7 +149,14 @@ function Detail({ reservation }: { reservation: ReservationDetail }) {
               <span className="num text-[13px] font-bold tracking-wide text-muted">{reservation.code}</span>
               <StatusBadge kind="reservation" status={reservation.status} />
               <Badge tone="neutral">{reservation.channel_code || t(`sources.${reservation.source}`)}</Badge>
-              {reservation.group && <Badge tone="info">{t('detail.group', { name: reservation.group.name })}</Badge>}
+              {reservation.group && (
+                <Link to={`/app/groups/${reservation.group.id}`} className="rounded-full focus-visible:ring-2 focus-visible:ring-accent/55 focus-visible:outline-none">
+                  <Badge tone="info" className="hover:underline">
+                    <UsersRound aria-hidden />
+                    {t('detail.group', { name: reservation.group.name })}
+                  </Badge>
+                </Link>
+              )}
             </div>
             <h1 className="mt-2 flex items-center gap-2 text-[26px] leading-8 tracking-[-0.025em] text-fg">
               {reservation.booker.full_name}
@@ -204,7 +216,7 @@ function Detail({ reservation }: { reservation: ReservationDetail }) {
                       </DropdownMenuItem>
                     )}
                     {pending && canCancel && (
-                      <DropdownMenuItem destructive onSelect={() => setDialog({ kind: 'cancel' })}>
+                      <DropdownMenuItem destructive onSelect={() => setDialog({ kind: 'cancelReservation' })}>
                         <Ban aria-hidden />
                         {t('cancel.confirm')}
                       </DropdownMenuItem>
@@ -242,6 +254,18 @@ function Detail({ reservation }: { reservation: ReservationDetail }) {
           ))}
         </TabsList>
         <TabsContent value="summary" className="grid grid-cols-1 gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold">
+              <BedDouble aria-hidden className="size-4 text-muted" />
+              {t('detail.rooms', { count: roomsCount })}
+            </h2>
+            {canAddRoom && (
+              <Button size="sm" onClick={() => setDialog({ kind: 'addStay' })}>
+                <Plus aria-hidden />
+                {t('addStay.title')}
+              </Button>
+            )}
+          </div>
           {reservation.stays.map((stay) => (
             <StayCard key={stay.id} reservation={reservation} stay={stay} onAction={(item, kind) => setDialog({ kind, stay: item })} />
           ))}
@@ -265,7 +289,9 @@ function Detail({ reservation }: { reservation: ReservationDetail }) {
       {dialog?.kind === 'checkout' && <CheckOutDialog open onOpenChange={(open) => !open && close()} stayId={dialog.stay.id} reservationId={reservation.id} />}
       {dialog?.kind === 'assign' && <AssignRoomDialog open onOpenChange={(open) => !open && close()} reservation={reservation} stay={dialog.stay} />}
       {dialog?.kind === 'modify' && <ModifyStayDialog open onOpenChange={(open) => !open && close()} reservation={reservation} stay={dialog.stay} />}
-      {dialog?.kind === 'cancel' && <CancelReservationDialog open onOpenChange={(open) => !open && close()} reservation={reservation} />}
+      {dialog?.kind === 'cancelReservation' && <CancelReservationDialog open onOpenChange={(open) => !open && close()} reservation={reservation} />}
+      {dialog?.kind === 'cancel' && <CancelStayDialog open onOpenChange={(open) => !open && close()} reservation={reservation} stay={dialog.stay} />}
+      {dialog?.kind === 'addStay' && <AddStayDialog open onOpenChange={(open) => !open && close()} reservation={reservation} />}
       {dialog?.kind === 'noShow' && (
         <ConfirmDialog
           open

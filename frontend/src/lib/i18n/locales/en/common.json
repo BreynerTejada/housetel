@@ -136,6 +136,49 @@
     "description": "Reload the page. If it keeps happening, let Housetel support know.",
     "reload": "Reload"
   },
+  "support": {
+    "menuItem": "Help and support",
+    "title": "Help and support",
+    "description": "Reach us on the channel you prefer. A person from the Housetel team will answer.",
+    "whatsapp": "WhatsApp",
+    "whatsappHint": "The fastest way to reach us",
+    "whatsappAction": "Open chat",
+    "email": "Email",
+    "emailHint": "For cases with screenshots or files",
+    "emailAction": "Write an email",
+    "docs": "Guides",
+    "docsHint": "How to use Housetel, step by step",
+    "docsAction": "Open the guides",
+    "none": "This installation has no support channels set up yet.",
+    "contextTitle": "Included in your message",
+    "contextHint": "So the team knows where you were without having to ask.",
+    "context": {
+      "hotel": "Hotel",
+      "user": "User",
+      "page": "Screen",
+      "time": "Date and time",
+      "detail": "Error"
+    },
+    "copy": "Copy details",
+    "copied": "Details copied",
+    "messageIntro": "Hi, I need help with Housetel.",
+    "messageOutro": "What happened:",
+    "emailSubject": "Help with Housetel · {{hotel}}",
+    "emailSubjectNoHotel": "Help with Housetel",
+    "inline": {
+      "errorLead": "Still failing? Write to us and tell us what you were doing:",
+      "notFoundLead": "Did a Housetel link bring you here? Let us know:",
+      "whatsapp": "WhatsApp",
+      "docs": "Guides"
+    }
+  },
+  "demoBanner": {
+    "label": "Demo environment",
+    "detail": "Payments, channels, e-invoicing and WhatsApp run in simulated mode: nothing leaves the system.",
+    "short": "Simulated integrations",
+    "cta": "Turn on the real modes",
+    "ctaShort": "Real modes"
+  },
   "settings": {
     "title": "Settings",
     "description": "Set up your property, rates, team and integrations.",

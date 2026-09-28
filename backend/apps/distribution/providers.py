@@ -16,10 +16,12 @@ and a `simulated` provider each; the property's `IntegrationSetting` picks the m
 """
 
 import ipaddress
+import socket
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit, urlunsplit
 
+import httpcore
 import httpx
 
 from apps.core import integrations
@@ -162,10 +164,45 @@ def normalize_calendar_url(url: str) -> str:
     return urlunsplit(parts)
 
 
-def check_public_url(url: str) -> None:
+INTERNAL_URL = "La URL del calendario apunta a una red interna"
+
+
+def _is_public_ip(value: str) -> bool:
+    """A global unicast address: not private, loopback, link-local, shared (CGNAT), reserved, multicast or
+    unspecified; IPv4-mapped IPv6 addresses (`::ffff:127.0.0.1`) are judged as the IPv4 inside."""
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    return address.is_global and not address.is_multicast
+
+
+def resolve_public(host: str, port: int) -> list[str]:
+    """The IP addresses of `host`, only when every one of them is public (a DNS answer that mixes a public
+    and an internal address is refused as a whole). `ChannelError` otherwise: `invalid_url` for internal
+    addresses, `dns_error` (retryable) when the name does not resolve."""
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError) as exc:
+        raise ChannelError(
+            f"No se pudo resolver el dominio del calendario ({host})", code="dns_error"
+        ) from exc
+    addresses = list(dict.fromkeys(str(info[4][0]) for info in infos))
+    if not addresses or not all(_is_public_ip(address) for address in addresses):
+        raise ChannelError(INTERNAL_URL, retryable=False, code="invalid_url")
+    return addresses
+
+
+def check_public_url(url: str, *, resolve: bool = True) -> None:
     """Refuse URLs that point to this server's private network (the import runs on the server): only
-    http(s), no loopback/private/link-local IP literals and no single-label or `.local`-style host names.
-    DNS answers are not resolved here (documented limitation)."""
+    http(s); no loopback, private, link-local or otherwise internal IP literals; no single-label or
+    `.local`-style host names; and (`resolve`) every address the host name resolves to must be public.
+
+    The download re-checks the addresses when it connects (`_PublicOnlyBackend`), for every hop of a
+    redirect chain, so a DNS answer that changes after this check (DNS rebinding) cannot reach the network
+    either."""
     parts = urlsplit(url)
     if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
         raise ChannelError(
@@ -173,21 +210,53 @@ def check_public_url(url: str) -> None:
         )
     host = parts.hostname.lower().rstrip(".")
     try:
-        address = ipaddress.ip_address(host)
+        ipaddress.ip_address(host)
     except ValueError:
         if host == "localhost" or "." not in host or host.endswith(INTERNAL_SUFFIXES):
-            raise ChannelError(
-                "La URL del calendario apunta a una red interna", retryable=False, code="invalid_url"
-            ) from None
+            raise ChannelError(INTERNAL_URL, retryable=False, code="invalid_url") from None
+        if resolve:
+            try:
+                port = parts.port or (443 if parts.scheme.lower() == "https" else 80)
+            except ValueError:
+                raise ChannelError(
+                    "El puerto de la URL no es válido", retryable=False, code="invalid_url"
+                ) from None
+            resolve_public(host, port)
         return
-    if not address.is_global:
-        raise ChannelError(
-            "La URL del calendario apunta a una red interna", retryable=False, code="invalid_url"
-        )
+    if not _is_public_ip(host):
+        raise ChannelError(INTERNAL_URL, retryable=False, code="invalid_url")
 
 
 def _check_request(request: httpx.Request) -> None:  # every hop of a redirect chain is checked too
-    check_public_url(str(request.url))
+    check_public_url(str(request.url), resolve=False)  # the connection itself resolves and checks the IPs
+
+
+class _PublicOnlyBackend(httpcore.SyncBackend):
+    """Opens TCP connections only to public addresses: resolves the host itself, refuses it when any of its
+    addresses is internal, and connects to the address it checked (no second DNS lookup in between). TLS
+    still verifies the certificate against the host name (httpcore passes it as SNI)."""
+
+    def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        error: Exception | None = None
+        for address in resolve_public(host, port):
+            try:
+                return super().connect_tcp(address, port, timeout, local_address, socket_options)
+            except httpcore.ConnectError as exc:  # try the host's next address
+                error = exc
+        raise error or httpcore.ConnectError(f"No address for {host}")
+
+
+class _PublicOnlyTransport(httpx.HTTPTransport):
+    """`httpx.HTTPTransport` whose connections go through `_PublicOnlyBackend`, ignoring proxy variables."""
+
+    def __init__(self):
+        super().__init__(trust_env=False)
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=self._pool._ssl_context,
+            network_backend=_PublicOnlyBackend(),
+            max_connections=4,
+            max_keepalive_connections=0,
+        )
 
 
 class RealIcalProvider(ChannelProvider):
@@ -203,6 +272,7 @@ class RealIcalProvider(ChannelProvider):
         check_public_url(url)
         try:
             with httpx.Client(
+                transport=_PublicOnlyTransport(),
                 timeout=ICAL_TIMEOUT,
                 follow_redirects=True,
                 max_redirects=5,

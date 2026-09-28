@@ -480,8 +480,9 @@ def _raise_handoff_alert(conversation) -> None:
         lines = ["El asistente del chat no supo responder una pregunta y pasó la conversación al equipo."]
     else:
         lines = [f"{who} pidió hablar con una persona en el chat de la página."]
-    if summary := (conversation.contact or {}).get("message") or _last_user_message(conversation):
-        lines.append(f"Mensaje: «{summary[:300]}».")
+    summary = ((conversation.contact or {}).get("message") or _last_user_message(conversation))[:300]
+    if summary:
+        lines.append(f"Mensaje: «{summary}».")
     reach = " · ".join(value for value in (contact.get("email"), contact.get("phone")) if value)
     lines.append(f"Contacto: {reach}." if reach else "Aún no dejó sus datos de contacto.")
     if conversation.reservation_id:
@@ -494,7 +495,14 @@ def _raise_handoff_alert(conversation) -> None:
         message=" ".join(lines),
         link=f"/app/settings/chatbot?conversation={conversation.pk}",
         dedupe_key=f"ai:chatbot_handoff:{conversation.pk}",
-        data={"conversation_id": str(conversation.pk), "reason": conversation.handoff_reason, **contact},
+        data={
+            "conversation_id": str(conversation.pk),
+            "reason": conversation.handoff_reason,
+            **contact,
+            # what the staff UI needs to write this alert in the viewer's language
+            "summary": summary,
+            "reservation_code": conversation.reservation.code if conversation.reservation_id else "",
+        },
         source="ai",
     )
 

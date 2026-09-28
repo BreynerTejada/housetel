@@ -81,7 +81,19 @@
     "simulated": "Simulado",
     "refund": "Reembolso",
     "paymentActions": "Acciones del pago {{label}}",
-    "refundActions": "Acciones del reembolso"
+    "refundActions": "Acciones del reembolso",
+    "guestTab": "Huésped · {{name}}",
+    "closedShort": "cerrado",
+    "companyCreditHint": "Parte de la empresa, con las noches que faltan. Tiene crédito: pasa a su cartera al check-out y no bloquea la salida del huésped.",
+    "companyNoCreditHint": "Parte de la empresa, con las noches que faltan. No tiene crédito: debe quedar paga antes del check-out.",
+    "guestPartHint": "La parte del huésped, con las noches que le tocan. Lo que paga la empresa está en su folio.",
+    "checkoutDue": "Por cobrar antes del check-out: {{amount}}",
+    "companyState": {
+      "due": "Saldo de la empresa",
+      "settled": "Empresa al día",
+      "credit": "Saldo a favor de la empresa"
+    },
+    "folioTotal": "Total de este folio"
   },
   "links": {
     "title": "Links de pago",
@@ -305,5 +317,27 @@
     "retry": "Intentar de nuevo",
     "expired": "El link de pago venció",
     "expiredText": "Pide a {{hotel}} un link nuevo para completar el pago."
+  },
+  "move": {
+    "chargeTo": "Mover al folio de…",
+    "paymentTo": "Mover el pago al folio de…",
+    "chargeMoved": "«{{description}}» se movió al folio de {{folio}}",
+    "paymentMoved": "Pago movido al folio de {{folio}}"
+  },
+  "split": {
+    "action": "Dividir cargo…",
+    "title": "Dividir cargo",
+    "description": "«{{description}}» por {{total}}: separa una parte en otra línea, en este folio o en otro de la reserva.",
+    "amount": "Parte que se separa (con IVA)",
+    "half": "La mitad",
+    "invalid": "Debe ser mayor que cero y menor que {{total}}.",
+    "target": "¿A qué folio va esa parte?",
+    "sameFolio": "Este mismo folio ({{name}})",
+    "stays": "Queda en {{name}}",
+    "goes": "Va a {{name}}",
+    "reason": "Motivo (opcional)",
+    "reasonPlaceholder": "Por ejemplo: la empresa paga la mitad de la cena",
+    "submit": "Dividir",
+    "done": "«{{description}}» quedó dividido en dos cargos"
   }
 }

@@ -6,11 +6,11 @@ the payment page). The logo and hero image of the engine are C4's own files (`bo
 Every change is audited (`marketplace.*`).
 """
 
-from django.conf import settings as django_settings
 from django.db import transaction
 from django.utils.html import escape
 
 from apps.core import audit
+from apps.core.runtime import public_base_url
 from apps.inventory.models import Photo
 from apps.marketplace.models import BookingEngineSettings, ListingContent, ListingPhoto
 from apps.marketplace.services.catalog import photo_payload
@@ -30,16 +30,18 @@ ENGINE_FIELDS = (
 LISTING_FIELDS = ("tagline", "highlights", "neighborhood")
 
 
+# The URLs the hotel pastes in its own site or shares with guests: `public_base_url()` (FRONTEND_URL, or the
+# tunnel of PUBLIC_BASE_URL in development) so they open from outside this machine.
 def engine_url(prop) -> str:
-    return f"{django_settings.FRONTEND_URL}/h/{prop.slug}"
+    return f"{public_base_url()}/h/{prop.slug}"
 
 
 def embed_url(prop) -> str:
-    return f"{django_settings.FRONTEND_URL}/embed/{prop.slug}"
+    return f"{public_base_url()}/embed/{prop.slug}"
 
 
 def marketplace_url(prop) -> str:
-    return f"{django_settings.FRONTEND_URL}/hotel/{prop.slug}"
+    return f"{public_base_url()}/hotel/{prop.slug}"
 
 
 def selectable_plans(prop) -> list[RatePlan]:

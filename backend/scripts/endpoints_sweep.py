@@ -1,9 +1,9 @@
-"""Read-only sweep of the main staff and public endpoints of every module through the Vite proxy (C-INT).
+"""Read-only sweep of the main staff and public endpoints of every module through the Vite proxy (C/P-INT).
 
 Logs in like the SPA (cookie jar + CSRF) as each demo owner, walks their properties and GETs the main
-endpoints of every app (phase B and C), then the platform admin API and the public APIs (marketplace, guest
-portal, chatbot, plans). Every call must answer 200; the table shows the status and the latency. Nothing is
-written. Standard library only, runs on the host:
+endpoints of every app (phases B, C and P), then the platform admin API and the public APIs (marketplace,
+guest portal, chatbot, plans, runtime config and health). Every call must answer 200; the table shows the
+status and the latency. Nothing is written. Standard library only, runs on the host:
 `python3 backend/scripts/endpoints_sweep.py [base_url]` (`make sweep`).
 """
 
@@ -206,6 +206,28 @@ def sweep_property(client, prop):
     # C12 control
     for path in CONTROL:
         g(f"/api/v1/control/{path}")
+    # Phase P: groups and allotments (P3), companies and receivables (P4), the importer (P5), retention (P6)
+    groups = g("/api/v1/bookings/groups/?when=all") or {}
+    group_id = first_id(groups)
+    if group_id:
+        g(f"/api/v1/bookings/groups/{group_id}/", "bookings group detail")
+        get(client, f"/api/v1/frontdesk/groups/{group_id}/rooming-list/?lang=es", prop=pid,
+            label=f"{tag} frontdesk rooming list (CSV)")  # fmt: skip
+    offers_from, offers_to = today + timedelta(days=21), today + timedelta(days=23)
+    g(f"/api/v1/bookings/room-offers/?checkin={offers_from}&checkout={offers_to}", "bookings room-offers")
+    companies = g("/api/v1/corporate/companies/") or {}
+    company_id = first_id(companies)
+    if company_id:
+        g(f"/api/v1/corporate/companies/{company_id}/", "corporate company")
+        g(f"/api/v1/corporate/companies/{company_id}/statement/", "corporate statement")
+        g(f"/api/v1/corporate/companies/{company_id}/reservations/", "corporate company reservations")
+    g("/api/v1/corporate/receivables/")
+    if reservation_id:
+        g(f"/api/v1/corporate/reservations/{reservation_id}/billing/", "corporate reservation billing")
+        g(f"/api/v1/finance/folios/?reservation={reservation_id}", "finance folios of a reservation")
+    g("/api/v1/imports/catalog/")
+    g("/api/v1/imports/jobs/")
+    g("/api/v1/control/automations/guests.purge_identity_documents/", "control retention automation")
     print(f"    {name}: {len([r for r in results if r[0].startswith(tag)])} endpoints")
     return portal_token
 
@@ -225,6 +247,9 @@ def sweep_public(portal_tokens, slugs):
         g(f"/api/v1/public/marketplace/properties/{slug}/booking-engine/")
         g(f"/api/v1/public/ai/chat/{slug}/?language=es")
     g("/api/v1/public/saas/plans/")
+    g("/api/v1/public/core/config/")
+    g("/api/v1/public/core/health/")
+    g("/api/v1/public/core/health/ready/")
     for token in portal_tokens:
         g(f"/api/v1/public/guestportal/{token}/", "guest portal summary")
         g(f"/api/v1/public/guestportal/{token}/checkin/", "guest portal check-in")
@@ -236,6 +261,7 @@ def sweep_admin():
     client, _ = login(ADMIN)
     for path in ADMIN_PATHS:
         get(client, f"/api/v1/saas/admin/{path}", label=f"[admin] {path}")
+    get(client, "/api/v1/accounts/me/", label="[admin] accounts/me (P2: email_verified)")
 
 
 def main():

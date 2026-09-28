@@ -19,6 +19,7 @@ import { formatRelative, normalizeLang } from '@/lib/format'
 import { useLocalStorageState } from '@/lib/hooks'
 import { useCan } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
+import { useRuntimeConfig } from '@/lib/runtime'
 import {
   pullConnection,
   retryQueue,
@@ -56,7 +57,17 @@ export default function OtaSimulatorPage() {
   const { t } = useTranslation('channels')
   const { property } = useActiveProperty()
   const canManage = useCan('distribution.manage')
-  if (!property) return <LoadingState variant="rows" rows={6} />
+  const runtime = useRuntimeConfig()
+  if (!property || !runtime.loaded) return <LoadingState variant="rows" rows={6} />
+  if (!runtime.simulations_enabled) {
+    // A development/demo tool: where simulations are off (production) the API answers 404 and nothing is shown.
+    return (
+      <div className="grid gap-2">
+        <PageHeader title={t('sim.title')} description={t('sim.description')} />
+        <EmptyState icon={ShieldAlert} title={t('sim.unavailableTitle')} description={t('sim.unavailableHint')} />
+      </div>
+    )
+  }
   if (!canManage) {
     return (
       <div className="grid gap-2">

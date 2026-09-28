@@ -1,4 +1,5 @@
-"""What an invoice says: lines grouped from the folio's charges, the customer (the booker) and the totals.
+"""What an invoice says: lines grouped from the folio's charges, the customer (the booker, or the company of a
+company folio — P4) and the totals.
 
 Grouping (one line per group, in this order: lodging, extras, fees, penalties, adjustments):
 - lodging nights by (category, net unit price, tax treatment): "Alojamiento Estándar · 2 noches";
@@ -104,6 +105,48 @@ def invoice_customer(guest, *, final_consumer_id: str = FINAL_CONSUMER_ID) -> di
     }
 
 
+def company_customer(company) -> dict:
+    """Customer block of an invoice to a company (P4): razón social, NIT + DV, VAT responsibility, DIAN fiscal
+    responsibilities and the payment terms (credit when the company has credit)."""
+    from apps.corporate.nit import check_digit as nit_check_digit
+
+    nit = "".join(ch for ch in company.nit if ch.isdigit())
+    return {
+        "guest_id": None,
+        "company_id": str(company.pk),
+        "email": company.billing_email,
+        "phone": company.phone,
+        "is_foreign_non_resident": False,
+        "is_final_consumer": False,
+        "name": company.legal_name,
+        "trade_name": company.trade_name,
+        "document_type": "NIT",
+        "dian_document_code": DIAN_DOCUMENT_CODES["NIT"],
+        "document_number": nit,
+        "dv": company.dv or nit_check_digit(nit),
+        "legal_organization": "company",
+        "vat_responsible": company.vat_responsible,
+        "tax_regime": "48" if company.vat_responsible else "49",
+        "tax_responsibilities": list(company.tax_responsibilities or []),
+        "address": company.address,
+        "city": company.city,
+        "country": (company.country or "CO").upper(),
+        "nationality": "",
+        "payment_form": "credit" if company.credit_enabled else "cash",
+        "payment_terms_days": company.payment_terms_days if company.credit_enabled else 0,
+    }
+
+
+def folio_customer(folio, *, final_consumer_id: str = FINAL_CONSUMER_ID) -> dict:
+    """Who an invoice of this folio goes to: the company of a company folio, else the booker (or the folio's
+    guest when there is no reservation)."""
+    if folio.folio_type == "company" and folio.company_id:
+        return company_customer(folio.company)
+    reservation = folio.reservation
+    guest = reservation.booker if reservation is not None else folio.guest
+    return invoice_customer(guest, final_consumer_id=final_consumer_id)
+
+
 def tax_status(charge) -> str:
     if charge.tax_id is None:
         return "excluded"
@@ -191,15 +234,14 @@ def group_lines(charges) -> list[dict]:
 
 
 def build_document(folio, charges, *, final_consumer_id: str = FINAL_CONSUMER_ID) -> DocumentData:
-    """Customer, lines and totals of an invoice covering `charges` (non-voided charges of `folio`)."""
-    reservation = folio.reservation
-    guest = reservation.booker if reservation is not None else folio.guest
+    """Customer, lines and totals of an invoice covering `charges` (non-voided charges of `folio`). A company
+    folio is invoiced to the company's NIT (P4)."""
     lines = group_lines(charges)
     subtotal = sum((Decimal(line["net"]) for line in lines), Decimal("0"))
     tax_total = sum((Decimal(line["tax_amount"]) for line in lines), Decimal("0"))
     exempt = any(line["tax_status"] == "exempt" for line in lines)
     return DocumentData(
-        customer=invoice_customer(guest, final_consumer_id=final_consumer_id),
+        customer=folio_customer(folio, final_consumer_id=final_consumer_id),
         lines=lines,
         subtotal=subtotal,
         tax_total=tax_total,

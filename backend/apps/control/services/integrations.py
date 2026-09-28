@@ -5,7 +5,11 @@ secrets and connection tests, built on `apps.core.integrations`.
   is write-only: it is stored encrypted with `set_secrets` and the API only ever says whether it is set
   (`secrets_configured`).
 - `saas_billing` is a platform integration (property null, super-admin): it is not listed per property.
-- Listing never creates rows; an integration without a row shows its defaults (`default_mode`, enabled).
+- Listing never creates rows; an integration without a row shows its defaults (`default_mode`,
+  `default_enabled`: with simulations off a real integration that needs credentials is off until configured).
+- `available_modes` are the modes this installation allows (`core.integrations.available_modes`: production
+  offers only `real`, except email and the LLM); `providers` still lists every registered provider. A PATCH to
+  a mode that is not allowed here is a 400 (P-INT).
 """
 
 import logging
@@ -120,7 +124,7 @@ def serialize(kind: str, setting: IntegrationSetting | None) -> dict:
         "configured": setting is not None,
         "mode": mode,
         "default_mode": integrations.default_mode(kind),
-        "enabled": setting.enabled if setting else True,
+        "enabled": setting.enabled if setting else integrations.default_enabled(kind),
         "status": setting.status if setting else IntegrationSetting.Status.UNKNOWN,
         "status_message": redact_text(setting.status_message, secrets) if setting else "",
         "last_checked_at": setting.last_checked_at if setting else None,
@@ -128,7 +132,7 @@ def serialize(kind: str, setting: IntegrationSetting | None) -> dict:
         "config": scrub(config),
         "secrets_configured": {name: bool(secrets.get(name)) for name in sorted(secrets_hidden)},
         "missing_required": _missing_required(current_cls, config, secrets) if current_cls else [],
-        "available_modes": [m for m in integrations.MODES if m in providers],
+        "available_modes": integrations.available_modes(kind),
         "providers": {
             provider_mode: {
                 "label": getattr(cls, "label", "") or provider_mode,
@@ -237,6 +241,8 @@ def update(property, kind: str, data: dict, *, actor) -> dict:
     mode = data.get("mode")
     if mode is not None and mode not in providers:
         errors["mode"] = [f"No hay un proveedor «{mode}» para esta integración"]
+    elif mode is not None and not integrations.mode_allowed(kind, mode):
+        errors["mode"] = ["El modo simulado no está disponible en este entorno: configura el modo real"]
     config_updates = _config_changes(fields, data.get("config") or {}, errors)
     secret_updates = _secret_changes(fields, data.get("secrets") or {}, errors)
     if errors:

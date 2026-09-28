@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { formatRelative, normalizeLang } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Alert } from '../api'
+import { useAlertText } from '../lib/alert-text'
 import { alertKindLabel, plainText } from '../lib/labels'
 import { SeverityBadge, SeverityRail } from './severity'
 
@@ -25,6 +26,8 @@ export function AlertCard({ alert, selected = false, onSelectedChange, onResolve
   const lang = normalizeLang(i18n.language)
   const titleId = useId()
   const resolved = alert.resolved_at !== null
+  // in the viewer's language when the kind has a translation (the stored Spanish text otherwise)
+  const { title, message } = useAlertText()(alert)
 
   return (
     <article
@@ -41,7 +44,7 @@ export function AlertCard({ alert, selected = false, onSelectedChange, onResolve
           <Checkbox
             checked={selected}
             onCheckedChange={(checked) => onSelectedChange(checked === true)}
-            aria-label={t('alerts.select', { title: alert.title })}
+            aria-label={t('alerts.select', { title })}
             className="mt-0.5"
           />
         )}
@@ -51,9 +54,9 @@ export function AlertCard({ alert, selected = false, onSelectedChange, onResolve
             <span className="text-xs font-semibold text-muted">{alertKindLabel(t, i18n, alert.kind)}</span>
           </div>
           <h3 id={titleId} className={cn('text-[15px] leading-5 font-bold break-words', resolved ? 'text-muted' : 'text-fg')}>
-            {alert.title}
+            {title}
           </h3>
-          {alert.message && <p className="line-clamp-3 text-[13px] break-words whitespace-pre-line text-fg/80">{plainText(alert.message)}</p>}
+          {message && <p className="line-clamp-3 text-[13px] break-words whitespace-pre-line text-fg/80">{plainText(message)}</p>}
           <p className="text-xs text-muted">
             {resolved
               ? alert.resolved_by
