@@ -1,12 +1,13 @@
 """Demo data (spec §10, plan Step 8). `python manage.py seed_demo [--reset]`.
 
 `seed_base()` creates the platform admin, the two demo organizations with their system roles, the three
-properties and the eight demo users (password `housetel123`). Then every app in SEED_ORDER that has an
+properties and the demo users (password `housetel123`). Then every app in SEED_ORDER that has an
 `apps/<app>/seed.py` gets `seed(ctx)` called with the shared SeedContext. Every seeder must be idempotent:
 running it again must not duplicate data (and should not overwrite what the demo user changed).
 """
 
 import random
+import time as time_module
 from dataclasses import dataclass, field
 from datetime import date, time
 from decimal import Decimal
@@ -162,6 +163,7 @@ USERS = {
     "aurora_front": ("recepcion@casaaurora.co", "Andrés Gómez", "aurora", "front_desk", None),
     "aurora_hk": ("limpieza@casaaurora.co", "Luz Marina Pérez", "aurora", "housekeeping", None),
     "aurora_acct": ("contabilidad@casaaurora.co", "Carolina Díaz", "aurora", "accountant", None),
+    "aurora_maint": ("mantenimiento@casaaurora.co", "Jorge Castillo", "aurora", "maintenance", None),
     "andino_owner": ("owner@grupoandino.co", "Santiago Restrepo", "andino", "owner", None),
     "andino_front": ("recepcion@grupoandino.co", "Daniela Ospina", "andino", "front_desk", None),
     "andino_hk": ("limpieza@grupoandino.co", "José Martínez", "andino", "housekeeping", ["andino_mde"]),
@@ -180,8 +182,10 @@ def run(*, reset: bool = False, stdout=None) -> SeedContext:
             if module is None:
                 continue
             ctx.log(f"→ {app}")
+            started = time_module.monotonic()
             with transaction.atomic():
                 module.seed(ctx)
+            ctx.log(f"  {app}: {time_module.monotonic() - started:.1f} s")
     ctx.log("Seed completo")
     return ctx
 

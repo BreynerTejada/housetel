@@ -1,0 +1,69 @@
+/*
+ * OTA simulator. A cell that the last ARI push changed glows once — a terracotta wash that fades — so the
+ * availability and rates can be seen arriving from Housetel. With reduced motion it keeps a steady outline
+ * for the same couple of seconds instead.
+ */
+.ota-flash[data-changed] {
+  animation: ota-flash 2.4s var(--ease-out-soft, ease-out) 1;
+}
+
+@keyframes ota-flash {
+  0%,
+  20% {
+    background-color: color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ota-flash[data-changed] {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+}
+
+/* The OTA's own screen inside Housetel: a browser-like frame with the extranet address. */
+.ota-window {
+  --ota-tone: var(--info);
+  border-top: 3px solid var(--ota-tone);
+}
+
+.ota-window[data-channel='airsim'] {
+  --ota-tone: var(--danger);
+}
+
+.ota-window[data-channel='channex'] {
+  --ota-tone: var(--success);
+}
+
+.ota-live-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--success);
+}
+
+.ota-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  border: 1.5px solid var(--success);
+  opacity: 0;
+  animation: ota-live 2s ease-out infinite;
+}
+
+@keyframes ota-live {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}

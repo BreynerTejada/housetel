@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { api, ApiError } from './api'
+import { matchPermission } from './permissions'
 import { useSession } from './session'
 
 // ---- Types: exact shape of GET /api/v1/accounts/me/ (spec §3) ---------------------------------
@@ -172,8 +173,16 @@ export function useActiveMembership(): Membership | null {
 
 /** Where a user lands after logging in when nothing else was requested. */
 export function homeFor(me: Me): string {
-  const hasProperty = me.memberships.some((membership) => membership.properties.length > 0)
-  return !hasProperty && me.is_platform_admin ? '/admin' : '/app'
+  const withProperties = me.memberships.filter((membership) => membership.properties.length > 0)
+  if (!withProperties.length && me.is_platform_admin) return '/admin'
+  // A suspended organization only keeps billing (the rest of the staff API answers 402): whoever can pay lands
+  // there instead of on a Today panel full of errors.
+  const suspended =
+    withProperties.length > 0 && withProperties.every((membership) => membership.organization.status === 'suspended')
+  if (suspended && withProperties.some((membership) => matchPermission(membership.permissions, 'saas.billing_view'))) {
+    return '/app/settings/billing'
+  }
+  return '/app'
 }
 
 /** A `?next=` target only if it stays inside this app (no `//host`, no loops back to /login). */

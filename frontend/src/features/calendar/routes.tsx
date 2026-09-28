@@ -1,10 +1,6 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `calendar` feature with placeholder pages. Owner: C13 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Routes of the `calendar` feature (owner: C13). Pages load lazily so other bundles never carry the grid.
 export const routes: FeatureRoutes = {
-  app: [
-    { path: 'calendar', element: <UnderConstruction titleKey="calendar:nav.calendar" /> },
-  ],
+  app: [{ path: 'calendar', lazy: () => import('./pages/CalendarPage').then((m) => ({ Component: m.default })) }],
 }

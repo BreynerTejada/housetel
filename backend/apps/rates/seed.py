@@ -87,7 +87,10 @@ def seed(ctx) -> None:
             ctx.log(f"  rates: {prop.name} sin categorías, se omite")
             continue
         prices = match_prices(room_types, PRICE_LISTS.get(key, []))
-        provision_rates(prop, room_type_prices=prices)
+        if not RatePlan.objects.filter(property=prop, code="FLEX").exists():
+            # Provisioning is idempotent on data but always audits "Tarifas iniciales" and re-adds every
+            # category to the plans: only the first run provisions (a re-run keeps the demo user's edits).
+            provision_rates(prop, room_type_prices=prices)
         flex = RatePlan.objects.get(property=prop, code="FLEX")
         high_season = _seasons(prop, flex, ctx.today)
         _extras(prop)

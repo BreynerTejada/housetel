@@ -6,12 +6,14 @@ import { useSession } from '@/lib/session'
 import { andinoMembership, auroraMembership, bogotaProperty, makeMe, mockMe } from '@/test/fixtures'
 import { preloadLazyRoutes, renderRoutes } from '@/test/render'
 import { server } from '@/test/server'
+import { apiNotFoundFallback } from '@/test/shell'
 
 beforeAll(preloadLazyRoutes, 60_000)
 
 beforeEach(() => {
   useSession.setState({ propertyId: null, loggedOut: false })
   document.cookie = 'csrftoken=t; path=/'
+  server.use(apiNotFoundFallback)
 })
 
 const mainNav = () => screen.findByRole('navigation', { name: 'Navegación principal' })

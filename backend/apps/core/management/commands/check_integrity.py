@@ -11,6 +11,11 @@ What every phase integration checks after the full demo seed (plan B-INT) and an
   business date, a pending/cancelled/no-show one none; penalty charges = `cancellation_fee`;
 - payments: an approved payment link has its payment; no charge or payment dated after the business date and
   no payment created in the future.
+- phase C derived data (C-INT): commissions only for marketplace bookings, and every confirmed, in-house or
+  departed marketplace booking has one; every OTA booking is linked to its channel
+  (`ExternalReservationMap`); no housekeeping task or night-audit report dated after the business date (a
+  report of the business date itself would mean the day is closed but the date did not move) and no invoice
+  issued in the future.
 
 Exits with an error listing each failed check (with a few examples) when one fails.
 """
@@ -163,4 +168,47 @@ def property_checks(prop) -> list[tuple[str, list]]:
         .values_list("pk", flat=True)
     ]  # fmt: skip
     checks.append(("fechas: nada fechado después de la fecha de negocio", late))
+    return checks + phase_c_checks(prop, reservations)
+
+
+def phase_c_checks(prop, reservations) -> list[tuple[str, list]]:
+    """Invariants of the data the phase C apps derive from bookings (safe on live data, read-only)."""
+    from apps.compliance.models import Invoice
+    from apps.distribution.models import ExternalReservationMap
+    from apps.frontdesk.models import NightAuditReport
+    from apps.housekeeping.models import HousekeepingTask
+    from apps.saas.models import Commission
+
+    today = prop.business_date
+    checks = []
+    commissions = Commission.objects.filter(property=prop)
+    foreign = commissions.exclude(reservation__source="marketplace").values_list(
+        "reservation__code", flat=True
+    )
+    checks.append(("comisiones: solo reservas del marketplace", list(foreign)))
+    missing = (
+        reservations.filter(source="marketplace", status__in=["confirmed", "checked_in", "checked_out"])
+        .exclude(pk__in=commissions.values("reservation_id"))
+        .values_list("code", flat=True)
+    )
+    checks.append(("comisiones: cada reserva del marketplace confirmada tiene la suya", list(missing)))
+    unlinked = (
+        reservations.filter(source="ota")
+        .exclude(pk__in=ExternalReservationMap.objects.values("reservation_id"))
+        .values_list("code", flat=True)
+    )
+    checks.append(("canales: cada reserva OTA está vinculada a su canal", list(unlinked)))
+    future = [
+        ("tarea de limpieza", str(pk)) for pk in
+        HousekeepingTask.objects.filter(property=prop, business_date__gt=today).values_list("pk", flat=True)
+    ] + [
+        ("factura emitida en el futuro", number) for number in
+        Invoice.objects.filter(property=prop, issued_at__gt=timezone.now() + timedelta(minutes=1))
+        .values_list("full_number", flat=True)
+    ] + [
+        ("reporte de auditoría nocturna", day.isoformat()) for day in
+        NightAuditReport.objects.filter(property=prop, business_date__gte=today)
+        .values_list("business_date", flat=True)
+    ]  # fmt: skip
+    checks.append(("fase C: nada fechado después de la fecha de negocio", future))
     return checks

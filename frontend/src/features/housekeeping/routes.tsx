@@ -1,13 +1,11 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `housekeeping` feature with placeholder pages. Owner: C2 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Pages load lazily (the public bundle never pulls housekeeping code). Paths fixed by plan §E.
 export const routes: FeatureRoutes = {
   app: [
-    { path: 'housekeeping', element: <UnderConstruction titleKey="housekeeping:nav.housekeeping" /> },
-    { path: 'housekeeping/mine', element: <UnderConstruction titleKey="housekeeping:pages.mine" /> },
-    { path: 'maintenance', element: <UnderConstruction titleKey="housekeeping:nav.maintenance" /> },
-    { path: 'settings/housekeeping', element: <UnderConstruction titleKey="housekeeping:nav.settingsHousekeeping" /> },
+    { path: 'housekeeping', lazy: () => import('./pages/BoardPage').then((m) => ({ Component: m.default })) },
+    { path: 'housekeeping/mine', lazy: () => import('./pages/MyRoomsPage').then((m) => ({ Component: m.default })) },
+    { path: 'maintenance', lazy: () => import('./pages/MaintenancePage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/housekeeping', lazy: () => import('./pages/SettingsPage').then((m) => ({ Component: m.default })) },
   ],
 }

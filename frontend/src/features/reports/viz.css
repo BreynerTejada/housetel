@@ -1,0 +1,111 @@
+/*
+ * Chart roles of the reports (dataviz method on the "cálido nórdico" tokens).
+ *
+ * Categorical slots, in this fixed order and never cycled (validated with the dataviz validator, all pairs):
+ *   light on #ffffff: #b4583b · #3b6fb6 · #179c84 → worst CVD ΔE 9.6, normal-vision ΔE 17.3, contrast ≥ 3:1
+ *   dark on #1c1a18:  #d4775c · #4f86cc · #1fa88f → worst CVD ΔE 8.7, normal-vision ΔE 15.7, contrast ≥ 3:1
+ * Slot 1 is the brand accent (terracotta); status colors (sage/sand/clay) are never used as series.
+ * Emphasis roles: `compare` is the de-emphasis gray for the comparison period (3.3:1 light, 4.6:1 dark);
+ * `forecast` is a softer step of the accent for nights on the books (below 3:1 on purpose: every value is
+ * also in the table view and the legend names it).
+ */
+.report-viz {
+  --viz-1: #b4583b;
+  --viz-2: #3b6fb6;
+  --viz-3: #179c84;
+  --viz-compare: #948c81;
+  --viz-forecast: #d9957f;
+  --viz-grid: var(--border);
+  --viz-axis: var(--border-strong);
+  --viz-tick: var(--text-muted);
+  --viz-surface: var(--surface);
+}
+
+[data-theme='dark'] .report-viz {
+  --viz-1: #d4775c;
+  --viz-2: #4f86cc;
+  --viz-3: #1fa88f;
+  --viz-compare: #8a8379;
+  --viz-forecast: #8f4f3c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .report-viz {
+    --viz-1: #d4775c;
+    --viz-2: #4f86cc;
+    --viz-3: #1fa88f;
+    --viz-compare: #8a8379;
+    --viz-forecast: #8f4f3c;
+  }
+}
+
+/* Recharts: tabular tick labels in the UI face, recessive. */
+.report-viz .recharts-cartesian-axis-tick-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.report-viz .recharts-surface:focus,
+.report-viz .recharts-wrapper:focus {
+  outline: none;
+}
+
+.report-viz .recharts-wrapper:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+/*
+ * Range ruler: one tick per business day of the range, so an inclusive range is something you can count.
+ * Actual days are solid ink, days from the business date on are forecast (the soft accent step), and the
+ * business date carries the "today" notch.
+ */
+.range-ruler {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+
+.range-ruler__tick {
+  flex: 1 1 0;
+  min-width: 1px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--text-subtle);
+  opacity: 0.55;
+}
+
+.range-ruler__tick[data-kind='forecast'] {
+  background: var(--viz-forecast);
+  opacity: 1;
+}
+
+.range-ruler__tick[data-week-start='true'] {
+  height: 14px;
+}
+
+.range-ruler__tick[data-today='true'] {
+  height: 18px;
+  background: var(--accent);
+  opacity: 1;
+}
+
+.range-ruler--dense .range-ruler__tick,
+.range-ruler--dense .range-ruler__tick[data-week-start='true'] {
+  height: 10px;
+}
+
+.range-ruler--dense .range-ruler__tick[data-today='true'] {
+  height: 18px;
+}
+
+.range-ruler--compare {
+  height: 8px;
+}
+
+.range-ruler--compare .range-ruler__tick {
+  height: 5px;
+  background: var(--viz-compare);
+  opacity: 0.7;
+}

@@ -6,5 +6,564 @@
   "pages": {
     "portal": "Tu reserva",
     "checkin": "Check-in online"
+  },
+  "loading": "Cargando tu reserva…",
+  "footer": "Portal seguro de tu reserva · Housetel",
+  "greeting": "Hola, {{name}}",
+  "greetingAnonymous": "Hola",
+  "when": {
+    "days_one": "Tu estadía en {{city}} empieza en {{count}} día.",
+    "days_other": "Tu estadía en {{city}} empieza en {{count}} días.",
+    "tomorrow": "Te esperamos mañana en {{city}}.",
+    "today": "Te esperamos hoy en {{city}}.",
+    "inHouse": "Te damos la bienvenida a {{hotel}}. Disfruta tu estadía.",
+    "past": "Gracias por quedarte en {{hotel}}.",
+    "tentative": "Tu reserva está pendiente de pago.",
+    "cancelled": "Esta reserva está cancelada.",
+    "noShow": "Esta reserva ya no está activa."
+  },
+  "invalid": {
+    "title": "Este enlace no es válido",
+    "text": "Puede estar incompleto o la reserva ya no existe. Pide al hotel que te envíe un enlace nuevo."
+  },
+  "card": {
+    "reservation": "Reserva",
+    "arrival": "Llegada",
+    "departure": "Salida",
+    "from": "desde las {{time}}",
+    "until": "hasta las {{time}}",
+    "nights_one": "{{count}} noche",
+    "nights_other": "{{count}} noches",
+    "adults_one": "{{count}} adulto",
+    "adults_other": "{{count}} adultos",
+    "children_one": "{{count}} niño",
+    "children_other": "{{count}} niños",
+    "room": "Habitación {{number}}",
+    "mealPlans": {
+      "room_only": "Solo alojamiento",
+      "breakfast": "Desayuno incluido",
+      "half_board": "Media pensión",
+      "full_board": "Pensión completa",
+      "all_inclusive": "Todo incluido"
+    }
+  },
+  "stub": {
+    "open": "Haz tu check-in online",
+    "openHint": "Registra a los huéspedes y firma desde el celular. Toma unos 3 minutos.",
+    "start": "Hacer check-in",
+    "inProgress": "Tu check-in va por la mitad",
+    "inProgressHint": "Sigue donde quedaste: {{step}}.",
+    "continue": "Continuar check-in",
+    "done": "Check-in listo",
+    "doneEta": "Te esperamos. Llegada estimada: {{eta}}.",
+    "doneHint": "Te esperamos.",
+    "view": "Ver registro",
+    "notYet": "El check-in online abre el {{date}}.",
+    "cancelled": "Reserva cancelada el {{date}}.",
+    "closed": {
+      "tentative": "Cuando se confirme el pago podrás hacer el check-in online.",
+      "checked_in": "Ya estás registrado en el hotel.",
+      "checked_out": "Tu estadía ya terminó.",
+      "cancelled": "Esta reserva está cancelada.",
+      "no_show": "Esta reserva ya no está activa.",
+      "past": "Tu estadía ya terminó."
+    }
+  },
+  "balance": {
+    "title": "Tu cuenta",
+    "due": "Saldo pendiente",
+    "credit": "Saldo a tu favor: el hotel te lo devolverá",
+    "settled": "Tu cuenta está al día",
+    "paid": "Pagado",
+    "total": "Total",
+    "progress": "Pagado de la cuenta",
+    "progressText": "{{paid}} pagados de {{total}}",
+    "pay": "Pagar {{amount}}",
+    "payAtHotel": "El saldo se paga en el hotel.",
+    "payments_one": "{{count}} pago realizado",
+    "payments_other": "{{count}} pagos realizados",
+    "payTitle": "Pagar tu saldo",
+    "payDescription": "Te llevamos a la pasarela de pago segura del hotel. Puedes pagar todo o una parte.",
+    "amount": "Monto a pagar",
+    "amountHint": "Máximo {{amount}}",
+    "goToPay": "Pagar {{amount}}",
+    "methods": {
+      "cash": "Efectivo",
+      "card_terminal": "Tarjeta en el hotel",
+      "bank_transfer": "Transferencia",
+      "wompi_card": "Tarjeta en línea",
+      "wompi_pse": "PSE",
+      "wompi_nequi": "Nequi",
+      "wompi_other": "Pago en línea",
+      "ota_collect": "Cobrado por el canal",
+      "other": "Pago"
+    }
+  },
+  "payment": {
+    "checking": "Estamos confirmando tu pago…",
+    "approved": "Recibimos tu pago. ¡Gracias!",
+    "declined": "El pago no se completó. Puedes intentarlo de nuevo.",
+    "expired": "El enlace de pago venció. Genera uno nuevo desde tu cuenta.",
+    "error": "No pudimos confirmar el pago todavía. Si ves el cobro en tu banco, el hotel lo verificará."
+  },
+  "extras": {
+    "title": "Agrega a tu estadía",
+    "autoHint": "Se suma a tu cuenta de inmediato; pagas cuando quieras.",
+    "manualHint": "El hotel confirma la disponibilidad antes de cobrarlo.",
+    "chargeTypes": {
+      "per_stay": "por estadía",
+      "per_night": "por noche",
+      "per_person": "por persona",
+      "per_person_night": "por persona por noche"
+    },
+    "taxExempt": "exento de IVA",
+    "add": "Agregar",
+    "addNamed": "Agregar {{name}}",
+    "dialogTitle": "Agregar {{name}}",
+    "quantity": "Cantidad",
+    "less": "Menos",
+    "more": "Más",
+    "total": "Total",
+    "confirm": "Agregar a mi cuenta",
+    "confirmRequest": "Pedir al hotel",
+    "added": "{{name}} quedó en tu cuenta.",
+    "requested": "Pedimos {{name}} al hotel. Te confirmarán pronto."
+  },
+  "requests": {
+    "title": "¿Necesitas algo?",
+    "hint": "Pídelo aquí y el equipo del hotel te responde.",
+    "kinds": {
+      "late_checkout": "Salir más tarde",
+      "early_checkin": "Llegar más temprano",
+      "transfer": "Traslado",
+      "extra": "Extra",
+      "other": "Otra solicitud"
+    },
+    "hints": {
+      "late_checkout": "El hotel te confirma según la ocupación del día. Puede tener costo.",
+      "early_checkin": "Te entregamos la habitación antes si está lista. Puede tener costo.",
+      "transfer": "Cuéntanos tu vuelo o bus y te decimos el valor del traslado.",
+      "other": "Escribe lo que necesitas y el hotel te responde."
+    },
+    "lateTime": "¿Hasta qué hora?",
+    "earlyTime": "¿Desde qué hora?",
+    "notes": "Detalles",
+    "notesOptional": "Detalles (opcional)",
+    "placeholders": {
+      "late_checkout": "Por ejemplo: nuestro vuelo sale a las 6 p. m.",
+      "early_checkin": "Por ejemplo: llegamos en el vuelo de la mañana.",
+      "transfer": "Vuelo o bus, hora de llegada y cuántas personas son",
+      "other": "Cuéntanos qué necesitas"
+    },
+    "send": "Enviar solicitud",
+    "sent": "Solicitud enviada. El hotel te responderá pronto.",
+    "mine": "Tus solicitudes",
+    "statuses": {
+      "requested": "Enviada",
+      "approved": "Aprobada",
+      "rejected": "No disponible",
+      "done": "Lista"
+    },
+    "hotelNote": "Nota del hotel: {{note}}"
+  },
+  "messages": {
+    "title": "Mensajes",
+    "hint": "Lo que el hotel te ha escrito sobre esta reserva. Para escribirle, usa el chat de esta página.",
+    "you": "Tú",
+    "showAll_one": "Ver {{count}} mensaje",
+    "showAll_other": "Ver los {{count}} mensajes",
+    "more": "Leer más",
+    "less": "Ver menos",
+    "channels": {
+      "email": "Correo",
+      "whatsapp": "WhatsApp",
+      "web_chat": "Chat",
+      "ota": "Canal de reserva"
+    }
+  },
+  "invoices": {
+    "title": "Facturas",
+    "download": "Descargar PDF",
+    "kinds": {
+      "invoice": "Factura electrónica",
+      "credit_note": "Nota crédito"
+    }
+  },
+  "manage": {
+    "title": "Cambios y cancelación",
+    "free": "Puedes cancelar sin costo.",
+    "freeUntil": "Cancelación gratuita hasta el {{date}} (hora del hotel).",
+    "feeNow": "Si cancelas ahora se cobra {{amount}}.",
+    "nonRefundable": "Tarifa no reembolsable: si cancelas se cobra el total.",
+    "changeDates": "Cambiar fechas",
+    "cancel": "Cancelar reserva",
+    "cancelReasons": {
+      "disabled": "Para cancelar, escríbele o llama al hotel.",
+      "channel": "Reservaste por un canal externo: cancela desde allí.",
+      "status": "Esta reserva ya no se puede cancelar desde aquí.",
+      "past": "La fecha de llegada ya pasó: comunícate con el hotel."
+    },
+    "modifyReasons": {
+      "disabled": "Para cambiar las fechas, escríbele o llama al hotel.",
+      "channel": "Reservaste por un canal externo: haz el cambio desde allí.",
+      "status": "Solo se cambian desde aquí las fechas de reservas confirmadas.",
+      "multiple_rooms": "Tu reserva tiene varias habitaciones: el hotel te ayuda con el cambio.",
+      "past": "La fecha de llegada ya pasó: comunícate con el hotel.",
+      "non_refundable": "Tarifa no reembolsable: las fechas no se pueden cambiar.",
+      "outside_free_window": "Las fechas solo se cambian desde aquí mientras la cancelación es gratuita."
+    }
+  },
+  "cancel": {
+    "title": "¿Cancelar la reserva {{code}}?",
+    "free": "Cancelar ahora no tiene costo.",
+    "fee": "Cancelar ahora cuesta {{amount}} {{reason}}.",
+    "feeReasons": {
+      "first_night": "(primera noche, según la política de tu tarifa)",
+      "percent": "(según la política de tu tarifa)",
+      "full": "(el total de la estadía)",
+      "non_refundable": "(tarifa no reembolsable)"
+    },
+    "acknowledge": "Entiendo que se cobrarán {{amount}}.",
+    "reason": "Motivo (opcional)",
+    "confirm": "Cancelar reserva",
+    "keep": "Mantener reserva",
+    "done": "Tu reserva quedó cancelada."
+  },
+  "modify": {
+    "title": "Cambiar fechas",
+    "description": "Elige las nuevas fechas y revisa el precio antes de confirmar.",
+    "dates": "Nuevas fechas",
+    "maxNights": "Máximo {{count}} noches desde aquí.",
+    "preview": "Ver nuevo precio",
+    "currentTotal": "Total actual",
+    "newTotal": "Nuevo total",
+    "difference": "Diferencia",
+    "confirm": "Confirmar cambio",
+    "done": "Tus nuevas fechas quedaron confirmadas."
+  },
+  "hotel": {
+    "title": "El hotel",
+    "map": "Ver en el mapa",
+    "checkin": "Check-in desde las {{time}}",
+    "checkout": "Check-out hasta las {{time}}",
+    "email": "Escribir al hotel",
+    "website": "Sitio web",
+    "rules": "Reglas de la casa"
+  },
+  "checkin": {
+    "title": "Check-in online",
+    "back": "Volver a tu reserva",
+    "progress": "Pasos del check-in",
+    "stepOf": "Paso {{current}} de {{total}}",
+    "stepDone": "hecho",
+    "steps": {
+      "guests": "Huéspedes",
+      "documents": "Documentos",
+      "arrival": "Llegada",
+      "signature": "Firma y términos",
+      "payment": "Pago",
+      "done": "Listo"
+    },
+    "saveContinue": "Guardar y continuar",
+    "continue": "Continuar",
+    "goTo": "Ir a {{step}}",
+    "guests": {
+      "title": "¿Quiénes se hospedan?",
+      "lead": "En Colombia el hotel debe registrar a cada huésped (Tarjeta de Registro Hotelero). Solo el equipo del hotel ve estos datos.",
+      "booker": "Titular de la reserva",
+      "companion": "Acompañante {{n}}",
+      "child": "Niño o niña {{n}}",
+      "childHint": "Para menores de edad no pedimos foto del documento. Usa su tarjeta de identidad, registro civil (como «Otro documento») o pasaporte.",
+      "registered": "ya registrado por el hotel",
+      "edit": "Actualizar datos",
+      "endsIn": "El número que tiene el hotel termina en {{hint}}.",
+      "travelTitle": "Tu viaje",
+      "travelHint": "Tus acompañantes comparten estos datos.",
+      "fewerGuests": "¿Viajan menos personas de las reservadas? Avísale al hotel para ajustar la reserva."
+    },
+    "documents": {
+      "title": "Foto del documento",
+      "lead": "Toma una foto nítida del documento de cada adulto: cédula por el frente o la página de datos del pasaporte. Solo el equipo del hotel puede verla.",
+      "upload": "Tomar foto o subir archivo",
+      "back": "Agregar el reverso (opcional)",
+      "another": "Subir otra foto",
+      "uploading": "Subiendo…",
+      "received": "{{kind}} recibido",
+      "pending": "Falta la foto",
+      "minor": "Menor de edad: no necesita foto",
+      "kinds": {
+        "id_front": "Documento (frente)",
+        "id_back": "Documento (reverso)",
+        "passport": "Pasaporte",
+        "other": "Documento"
+      }
+    },
+    "arrival": {
+      "title": "¿A qué hora llegas?",
+      "lead": "Así preparamos tu habitación a tiempo. El check-in es desde las {{time}}.",
+      "leadNoTime": "Así preparamos tu habitación a tiempo.",
+      "eta": "Hora estimada de llegada",
+      "unknown": "Aún no lo sé",
+      "required": "Elige una hora o marca «Aún no lo sé».",
+      "early": "Llegas antes de las {{time}}: puedes pedir llegar más temprano desde tu reserva."
+    },
+    "signature": {
+      "title": "Firma y términos",
+      "lead": "Lee los términos del hotel y firma con el dedo dentro del recuadro.",
+      "terms": "Términos del hotel",
+      "yours": "Tu firma",
+      "alreadySigned": "Ya firmaste. Si quieres cambiarla, firma de nuevo.",
+      "pad": "Recuadro de firma",
+      "padHint": "Firma aquí",
+      "clear": "Borrar firma",
+      "required": "Firma dentro del recuadro para continuar.",
+      "accept": "Acepto los términos del hotel y autorizo el tratamiento de mis datos personales y los de mis acompañantes (Ley 1581 de 2012).",
+      "acceptRequired": "Acepta los términos para continuar.",
+      "marketing": "Quiero recibir ofertas y novedades del hotel.",
+      "submit": "Firmar y terminar"
+    },
+    "payment": {
+      "title": "Deja tu cuenta al día",
+      "lead": "Tu check-in ya está listo. Si quieres, paga el saldo ahora y llega sin filas en recepción.",
+      "other": "Pagar otro monto",
+      "later": "Pagar en el hotel",
+      "pay": "Pagar {{amount}}"
+    },
+    "done": {
+      "title": "Check-in listo",
+      "lead": "Te esperamos el {{date}}.",
+      "frontDesk": "Al llegar, di tu nombre o el código {{code}} en recepción.",
+      "eta": "Llegada estimada: {{eta}}",
+      "back": "Ver mi reserva"
+    },
+    "closed": {
+      "title": "El check-in online no está disponible",
+      "not_open_yet": "El check-in online abre el {{date}}.",
+      "tentative": "Tu reserva aún no está confirmada. Cuando se confirme el pago podrás hacer el check-in.",
+      "checked_in": "Ya hiciste el check-in en el hotel.",
+      "checked_out": "Tu estadía ya terminó.",
+      "cancelled": "Esta reserva está cancelada.",
+      "no_show": "Esta reserva ya no está activa.",
+      "past": "Tu estadía ya terminó."
+    },
+    "errors": {
+      "birthFuture": "La fecha no puede ser posterior a hoy."
+    }
+  },
+  "fields": {
+    "first_name": "Nombres",
+    "last_name": "Apellidos",
+    "document_type": "Tipo de documento",
+    "document_number": "Número de documento",
+    "nationality": "Nacionalidad",
+    "country_of_residence": "País de residencia",
+    "city_of_residence": "Ciudad de residencia",
+    "birth_date": "Fecha de nacimiento",
+    "email": "Correo",
+    "phone": "Celular",
+    "travel_reason": "Motivo del viaje",
+    "origin": "Procedencia",
+    "destination": "Destino",
+    "optional": "{{label}} (opcional)",
+    "choose": "Elige una opción"
+  },
+  "documentTypes": {
+    "CC": "Cédula de ciudadanía",
+    "CE": "Cédula de extranjería",
+    "TI": "Tarjeta de identidad",
+    "PA": "Pasaporte",
+    "PPT": "Permiso por Protección Temporal",
+    "PEP": "Permiso Especial de Permanencia",
+    "DNI": "Documento nacional de identidad",
+    "OTHER": "Otro documento"
+  },
+  "travelReasons": {
+    "leisure": "Vacaciones y ocio",
+    "business": "Trabajo o negocios",
+    "family": "Visita a familia o amigos",
+    "education": "Estudios",
+    "health": "Salud",
+    "religion": "Religión",
+    "shopping": "Compras",
+    "transit": "De paso",
+    "other": "Otro"
+  },
+  "errors": {
+    "invalid_link": "Este enlace no es válido o ya no está disponible. Pide uno nuevo al hotel.",
+    "checkin_closed": "El check-in online ya no está disponible para esta reserva.",
+    "document_in_use": "Ese documento ya está registrado con otro nombre en el hotel. Revisa el número; si está bien, termina el registro en recepción.",
+    "duplicate_guest": "Registraste dos veces a la misma persona.",
+    "documents_missing": "Falta la foto del documento de algún adulto.",
+    "signature_empty": "Firma dentro del recuadro antes de continuar.",
+    "signature_required": "Firma dentro del recuadro antes de continuar.",
+    "invalid_signature": "No pudimos leer la firma. Bórrala y firma de nuevo.",
+    "terms_required": "Acepta los términos para continuar.",
+    "checkin_incomplete": "Aún faltan datos para terminar el check-in.",
+    "invalid_file_type": "Sube una foto (JPG, PNG, WebP o HEIC) o un PDF.",
+    "file_too_large": "El archivo pesa más de 10 MB. Toma la foto de nuevo o sube una más liviana.",
+    "invalid_guest": "Esa persona no está en esta reserva.",
+    "nothing_to_pay": "Tu cuenta no tiene saldo pendiente.",
+    "invalid_amount": "Escribe un monto mayor que cero que no supere tu saldo.",
+    "invalid_extra": "Ese servicio ya no está disponible.",
+    "online_payments_disabled": "El hotel no está recibiendo pagos en línea por ahora.",
+    "no_availability": "No hay disponibilidad para esas fechas.",
+    "restriction_violation": "Esas fechas no cumplen las condiciones de tu tarifa (por ejemplo, una estadía mínima).",
+    "no_rate": "No hay precio para esas fechas.",
+    "invalid_dates": "Elige una llegada desde hoy y una salida posterior.",
+    "modification_not_allowed": "Las fechas de esta reserva ya no se pueden cambiar desde aquí.",
+    "cancellation_not_allowed": "Esta reserva ya no se puede cancelar desde aquí.",
+    "managed_by_channel": "Reservaste por un canal externo: cancela desde allí.",
+    "cancellation_disabled": "Para cancelar, comunícate con el hotel.",
+    "invalid_state": "Esta reserva ya no acepta cambios.",
+    "confirmation_required": "Confirma la acción para continuar.",
+    "throttled": "Hiciste muchos intentos seguidos. Espera un momento y vuelve a intentarlo.",
+    "validation_error": "Revisa los datos marcados.",
+    "too_many_guests": "Hay más huéspedes que los de la habitación. Quita a quien sobra o pide el cambio al hotel."
+  },
+  "tabs": {
+    "checkin": "Check-in online",
+    "requests": "Solicitudes"
+  },
+  "actions": {
+    "sendLink": "Enviar link de check-in",
+    "copyLink": "Copiar link / QR"
+  },
+  "staff": {
+    "status": {
+      "not_started": "Sin empezar",
+      "in_progress": "En progreso",
+      "completed": "Completado"
+    },
+    "completedAt": "Completado el {{date}}",
+    "step": "Va en: {{step}}",
+    "eta": "Llegada estimada",
+    "noEta": "Sin hora",
+    "notStarted": "El huésped aún no hace el check-in online",
+    "notStartedHint": "Envíale el link o muéstrale el código QR para que lo haga desde su celular.",
+    "windowOpens": "El check-in online abre el {{date}}.",
+    "missing": "Falta para completarlo",
+    "missingItems": {
+      "guest_data": "Datos de un huésped",
+      "document": "Foto del documento de {{name}}",
+      "signature": "Firma",
+      "terms": "Aceptar los términos"
+    },
+    "booker": "Titular",
+    "companion": "Acompañante",
+    "noData": "Sin datos todavía",
+    "complete": "Datos completos",
+    "incomplete": "Datos incompletos",
+    "adult": "Adulto",
+    "minor": "Menor de edad",
+    "document": "Documento",
+    "birthDate": "Nacimiento",
+    "residence": "Residencia",
+    "contact": "Contacto",
+    "trip": "Viaje",
+    "tripLine": "{{reason}} · de {{origin}} a {{destination}}",
+    "documents": "Fotos del documento",
+    "noDocuments": "Sin foto del documento",
+    "openDocument": "Abrir {{kind}}",
+    "loadingFile": "Cargando archivo…",
+    "fileError": "No se pudo cargar el archivo",
+    "pdf": "Documento PDF",
+    "signature": "Firma",
+    "signatureAlt": "Firma de {{name}}",
+    "evidence": "Aceptó los términos el {{date}} desde {{ip}}",
+    "device": "Dispositivo",
+    "link": "Link del portal",
+    "requests": {
+      "empty": "El huésped no ha hecho solicitudes desde el portal.",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "complete": "Marcar como realizada",
+      "approveTitle": "Aprobar: {{kind}}",
+      "approveDescription": "Si tiene costo, elige el extra del catálogo que se carga al folio.",
+      "charge": "Cobrar",
+      "noCharge": "Sin cargo",
+      "quantity": "Cantidad",
+      "note": "Nota para el huésped (opcional)",
+      "rejectTitle": "Rechazar: {{kind}}",
+      "reason": "Motivo que verá el huésped (opcional)",
+      "approved": "Solicitud aprobada",
+      "rejected": "Solicitud rechazada",
+      "completed": "Solicitud marcada como realizada",
+      "requestedAt": "Pedida el {{date}}",
+      "until": "hasta las {{time}}",
+      "from": "desde las {{time}}",
+      "price": "Valor: {{amount}}"
+    },
+    "kinds": {
+      "late_checkout": "Late check-out",
+      "early_checkin": "Early check-in",
+      "transfer": "Traslado",
+      "extra": "Extra",
+      "other": "Otra solicitud"
+    },
+    "statuses": {
+      "requested": "Pendiente",
+      "approved": "Aprobada",
+      "rejected": "Rechazada",
+      "done": "Realizada"
+    },
+    "documentAlt": "{{kind}} de {{name}}"
+  },
+  "link": {
+    "title": "Link del portal del huésped",
+    "description": "Compártelo solo con el huésped: da acceso a su reserva.",
+    "portal": "Portal de la reserva",
+    "checkin": "Check-in online",
+    "qr": "Código QR del portal",
+    "qrHint": "El huésped lo escanea con la cámara del celular.",
+    "open": "Abrir portal",
+    "copied": "Link copiado"
+  },
+  "send": {
+    "title": "Enviar link de check-in",
+    "description": "Enviamos a {{name}} la invitación al check-in online con el link de su reserva.",
+    "channels": "Enviar por",
+    "email": "Correo",
+    "whatsapp": "WhatsApp",
+    "pickOne": "Elige al menos un canal.",
+    "submit": "Enviar link",
+    "sent": "Link enviado por {{channels}}.",
+    "none": "No se envió ningún mensaje. Copia el link y compártelo tú.",
+    "failed": "El envío falló. Copia el link y compártelo tú.",
+    "inactive": "Esta reserva ya no está activa: no hay check-in online que enviar.",
+    "alreadyDone": "El huésped ya completó su check-in online. Puedes reenviarle el link de todas formas.",
+    "closed": "El check-in online ya no aplica a esta reserva; el link sigue sirviendo para ver la reserva, pagos y facturas."
+  },
+  "widget": {
+    "title": "Check-in online de hoy",
+    "progress": "{{done}} de {{total}} llegadas listas",
+    "empty": "Hoy no hay llegadas.",
+    "open": "Abrir reserva {{code}}",
+    "requests_one": "{{count}} solicitud por atender",
+    "requests_other": "{{count}} solicitudes por atender",
+    "vip": "VIP"
+  },
+  "settings": {
+    "title": "Portal del huésped",
+    "description": "Lo que tus huéspedes pueden hacer desde el link de su reserva.",
+    "checkin": "Check-in online",
+    "opensDays": "Se abre días antes de la llegada",
+    "opensDaysHint": "0 = solo el día de llegada. Máximo 60.",
+    "requireDocument": "Pedir foto del documento",
+    "requireDocumentHint": "A cada adulto. Se guarda en almacenamiento privado.",
+    "requireSignature": "Pedir firma",
+    "requireSignatureHint": "El huésped firma con el dedo al aceptar los términos.",
+    "selfService": "Autoservicio",
+    "autoApprove": "Aprobar extras automáticamente",
+    "autoApproveHint": "Se cargan al folio sin que recepción los revise. Si lo apagas, cada extra queda como solicitud.",
+    "allowCancel": "Permitir cancelar desde el portal",
+    "allowCancelHint": "Siempre con la penalidad de la política de la tarifa. Nunca aplica a reservas de canales.",
+    "allowModify": "Permitir cambiar fechas",
+    "allowModifyHint": "Solo reservas de una habitación, mientras la cancelación es gratuita.",
+    "terms": "Términos del check-in",
+    "termsHint": "Lo que el huésped acepta al firmar. Si lo dejas vacío se usa el texto de Housetel.",
+    "termsEs": "Español",
+    "termsEn": "Inglés",
+    "saved": "Configuración guardada",
+    "readOnly": "Tu rol puede ver esta configuración pero no cambiarla."
   }
 }

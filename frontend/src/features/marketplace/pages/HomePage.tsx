@@ -1,79 +1,131 @@
-import { CalendarRange, MapPin, Search, UsersRound } from 'lucide-react'
-import type { FormEvent } from 'react'
+import { ArrowRight, KeyRound, Landmark, ReceiptText } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
+import { LogoMark } from '@/components/Logo'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDestinations, useSearch } from '../api'
+import { AltitudeProfile } from '../components/AltitudeProfile'
+import { DestinationCard, HotelTile } from '../components/Cards'
+import { SearchBar, type SearchValue } from '../components/SearchBar'
+import { cityHref } from '../lib/links'
+import { DEFAULT_SEARCH, DEFAULT_STAY, searchParams } from '../lib/search-params'
 
-// Provisional marketplace home (Phase A): hero + search box without real search. C4 replaces it.
+const FEATURED_QUERY = { adults: 2 }
+const FEATURED_COUNT = 6
+const EMPTY_SEARCH: SearchValue = { city: '', stay: DEFAULT_STAY }
+
+const FACTS: { key: string; icon: LucideIcon }[] = [
+  { key: 'price', icon: ReceiptText },
+  { key: 'tax', icon: Landmark },
+  { key: 'checkin', icon: KeyRound },
+]
+
+/**
+ * `/` — the marketplace home. The search comes first (it is the page's job); right below, the destinations
+ * stand at their altitude over Colombia's thermal floors, the one image nobody else has.
+ */
 export default function HomePage() {
   const { t } = useTranslation('marketplace')
   const navigate = useNavigate()
+  const destinations = useDestinations()
+  const featured = useSearch(FEATURED_QUERY)
+  const list = destinations.data ?? []
+  const hotels = (featured.data?.results ?? []).slice(0, FEATURED_COUNT)
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const destination = String(new FormData(event.currentTarget).get('destination') ?? '').trim()
-    navigate(destination ? `/search?city=${encodeURIComponent(destination)}` : '/search')
+  function search({ city, stay }: SearchValue) {
+    navigate(`/search?${searchParams({ ...DEFAULT_SEARCH, ...stay, city })}`)
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-      <section className="pb-16 pt-14 sm:pb-24 sm:pt-24">
+    <div className="pb-20">
+      <section className="mx-auto w-full max-w-6xl px-4 pt-12 sm:px-6 sm:pt-20">
         <p className="eyebrow text-accent-ink">{t('home.eyebrow')}</p>
-        <h1 className="mt-4 max-w-3xl text-5xl leading-[1.02] font-extrabold tracking-[-0.035em] text-fg sm:text-7xl">
-          {t('home.title')}
-        </h1>
-        <p className="mt-6 max-w-xl text-lg text-muted">{t('home.subtitle')}</p>
-
-        <form
-          onSubmit={onSubmit}
-          aria-label={t('home.searchLabel')}
-          className="mt-10 grid gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm sm:grid-cols-[1.4fr_1fr_1fr_auto]"
-        >
-          <label className="flex items-center gap-3 rounded-xl px-4 py-3 focus-within:bg-surface-2">
-            <MapPin aria-hidden className="size-5 shrink-0 text-accent" />
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-xs font-semibold text-muted">{t('home.destination')}</span>
-              <input
-                name="destination"
-                placeholder={t('home.destinationPlaceholder')}
-                className="w-full bg-transparent text-base text-fg outline-none"
-              />
-            </span>
-          </label>
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3 sm:border-l sm:border-border">
-            <CalendarRange aria-hidden className="size-5 shrink-0 text-muted" />
-            <span className="flex flex-col">
-              <span className="text-xs font-semibold text-muted">{t('home.dates')}</span>
-              <span className="text-base text-subtle">— · —</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3 sm:border-l sm:border-border">
-            <UsersRound aria-hidden className="size-5 shrink-0 text-muted" />
-            <span className="flex flex-col">
-              <span className="text-xs font-semibold text-muted">{t('home.guests')}</span>
-              <span className="text-base text-fg">{t('home.guestsValue')}</span>
-            </span>
-          </div>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-base font-semibold text-on-accent transition-colors hover:bg-accent-hover"
-          >
-            <Search aria-hidden className="size-5" />
-            {t('home.search')}
-          </button>
-        </form>
+        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
+          <h1 className="max-w-[11ch] text-[clamp(2.9rem,8.2vw,6.1rem)] leading-[0.93] font-extrabold tracking-[-0.05em] text-fg">
+            {t('home.title')}
+          </h1>
+          <p className="max-w-md pb-2 text-lg leading-relaxed text-muted">{t('home.subtitle')}</p>
+        </div>
+        <SearchBar className="mt-10" value={EMPTY_SEARCH} onSubmit={search} destinations={list} />
+        <p className="mt-4 text-sm text-muted">{t('home.searchFacts')}</p>
       </section>
 
-      <section className="mb-20 flex flex-col items-start justify-between gap-6 border-t border-border pt-10 sm:flex-row sm:items-end">
-        <div className="max-w-lg">
-          <h2 className="text-2xl text-fg">{t('home.hotelsTitle')}</h2>
-          <p className="mt-2 text-muted">{t('home.hotelsBody')}</p>
+      {list.length > 0 && (
+        <section aria-labelledby="profile-title" className="mx-auto mt-20 w-full max-w-6xl px-4 sm:mt-28 sm:px-6">
+          <div className="grid gap-10 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-14">
+            <div className="lg:pt-6">
+              <p className="eyebrow">{t('home.profile.eyebrow')}</p>
+              <h2 id="profile-title" className="mt-3 text-4xl leading-[1.02] font-extrabold tracking-[-0.04em] text-fg sm:text-5xl">
+                {t('home.profile.title')}
+              </h2>
+              <p className="mt-5 leading-relaxed text-muted">{t('home.profile.body')}</p>
+            </div>
+            <AltitudeProfile destinations={list} hrefFor={(city) => cityHref(city)} />
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="destinations-title" className="mx-auto mt-20 w-full max-w-6xl px-4 sm:px-6">
+        <h2 id="destinations-title" className="text-2xl font-extrabold tracking-[-0.03em] text-fg sm:text-3xl">
+          {t('home.destinations.title')}
+        </h2>
+        <div className="mt-6 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+          {destinations.isPending
+            ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="aspect-[4/3] rounded-xl" />)
+            : list.map((destination) => <DestinationCard key={destination.city} destination={destination} href={cityHref(destination.city)} />)}
         </div>
-        <Link
-          to="/signup"
-          className="inline-flex items-center rounded-lg border border-border-strong bg-surface px-5 py-2.5 font-semibold text-fg transition-colors hover:border-accent hover:text-accent-ink"
-        >
-          {t('home.hotelsCta')}
-        </Link>
+      </section>
+
+      {(featured.isPending || hotels.length > 0) && (
+        <section aria-labelledby="featured-title" className="mx-auto mt-24 w-full max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 id="featured-title" className="text-2xl font-extrabold tracking-[-0.03em] text-fg sm:text-3xl">
+                {t('home.featured.title')}
+              </h2>
+              <p className="mt-2 text-muted">{t('home.featured.subtitle')}</p>
+            </div>
+            <Link to="/search" className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-ink hover:underline">
+              {t('home.featured.all')}
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </div>
+          <div className="mt-8 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.isPending
+              ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="aspect-[5/4] rounded-xl" />)
+              : hotels.map((hotel) => <HotelTile key={hotel.slug} hotel={hotel} href={`/hotel/${hotel.slug}`} />)}
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="facts-title" className="mx-auto mt-24 w-full max-w-6xl px-4 sm:px-6">
+        <h2 id="facts-title" className="text-2xl font-extrabold tracking-[-0.03em] text-fg sm:text-3xl">
+          {t('home.facts.title')}
+        </h2>
+        <ul className="mt-8 grid gap-8 border-t border-border pt-8 md:grid-cols-3">
+          {FACTS.map(({ key, icon: Icon }) => (
+            <li key={key} className="max-w-sm">
+              <Icon aria-hidden className="size-5 text-accent" />
+              <h3 className="mt-3 text-base font-bold text-fg">{t(`home.facts.${key}.title`)}</h3>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-muted">{t(`home.facts.${key}.body`)}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:px-6">
+        <div className="flex flex-col items-start gap-6 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-center sm:p-8">
+          <LogoMark className="size-11" />
+          <div className="max-w-xl flex-1">
+            <h2 className="text-xl font-bold text-fg">{t('home.hotels.title')}</h2>
+            <p className="mt-1.5 text-muted">{t('home.hotels.body')}</p>
+          </div>
+          <Button asChild size="lg" variant="secondary">
+            <Link to="/signup">{t('home.hotels.cta')}</Link>
+          </Button>
+        </div>
       </section>
     </div>
   )

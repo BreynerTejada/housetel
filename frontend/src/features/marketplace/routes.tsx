@@ -1,21 +1,33 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `marketplace` feature with placeholder pages. Owner: C4 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Routes of the `marketplace` feature (plan §E, owner C4). Pages load lazily, so the staff shell never ships
+// with the marketplace and the other way around. Hotel-branded pages (`/h/:slug…`) hide Housetel's chrome.
+const HOTEL_BRANDED = { chrome: 'none' } as const
+
 export const routes: FeatureRoutes = {
   public: [
     { path: '/', lazy: () => import('./pages/HomePage').then((m) => ({ Component: m.default })) },
-    { path: '/search', element: <UnderConstruction titleKey="marketplace:pages.search" /> },
-    { path: '/hotel/:slug', element: <UnderConstruction titleKey="marketplace:pages.hotel" /> },
-    { path: '/book/:slug', element: <UnderConstruction titleKey="marketplace:pages.book" /> },
-    { path: '/booking/:code/confirmed', element: <UnderConstruction titleKey="marketplace:pages.confirmed" /> },
-    { path: '/h/:slug', handle: { chrome: 'none' }, element: <UnderConstruction titleKey="marketplace:pages.engine" /> },
+    { path: '/search', lazy: () => import('./pages/SearchPage').then((m) => ({ Component: m.default })) },
+    { path: '/hotel/:slug', lazy: () => import('./pages/HotelPage').then((m) => ({ Component: m.default })) },
+    { path: '/book/:slug', lazy: () => import('./pages/CheckoutPage').then((m) => ({ Component: m.default })) },
+    { path: '/booking/:code/confirmed', lazy: () => import('./pages/ConfirmationPage').then((m) => ({ Component: m.default })) },
+    { path: '/h/:slug', handle: HOTEL_BRANDED, lazy: () => import('./pages/EnginePage').then((m) => ({ Component: m.default })) },
+    {
+      path: '/h/:slug/book',
+      handle: HOTEL_BRANDED,
+      lazy: () => import('./pages/EngineCheckoutPage').then((m) => ({ Component: m.default })),
+    },
+    {
+      path: '/h/:slug/booking/:code',
+      handle: HOTEL_BRANDED,
+      lazy: () => import('./pages/EngineConfirmationPage').then((m) => ({ Component: m.default })),
+    },
   ],
-  bare: [
-    { path: '/embed/:slug', element: <UnderConstruction titleKey="marketplace:pages.embed" /> },
-  ],
+  bare: [{ path: '/embed/:slug', lazy: () => import('./pages/EmbedPage').then((m) => ({ Component: m.default })) }],
   app: [
-    { path: 'settings/booking-engine', element: <UnderConstruction titleKey="marketplace:nav.bookingEngine" /> },
+    {
+      path: 'settings/booking-engine',
+      lazy: () => import('./pages/BookingEngineSettingsPage').then((m) => ({ Component: m.default })),
+    },
   ],
 }

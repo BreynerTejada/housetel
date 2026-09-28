@@ -1,10 +1,13 @@
-"""End-to-end smoke through the Vite proxy, like the SPA: cookie jar + CSRF (plan B-INT; `make smoke`).
+"""End-to-end smoke through the Vite proxy, like the SPA: cookie jar + CSRF (plan B-INT/C-INT; `make smoke`).
 
-login owner@casaaurora.co → rooms → rate grid → offers → create a tentative reservation → its folio →
-simulated payment link → the public simulated gateway approves it → the reservation is confirmed and the
-payment recorded → logout. Standard library only, runs on the host:
+login owner@casaaurora.co → Today board (C1) → rooms → rate grid → offers → create a tentative reservation →
+its folio → simulated payment link → the public simulated gateway approves it → the reservation is confirmed
+and the payment recorded → its guest-portal link opens the public portal (C5) → BookSim books two nights and
+the reservation arrives in the PMS through the channel, then the OTA cancels it (C3) → a WhatsApp message from
+the simulator lands in the inbox (C6) → logout. Standard library only, runs on the host:
 `python3 backend/scripts/smoke_proxy.py [base_url]`.
-It leaves one confirmed reservation (booker "Smoke Integración") with a 30 % deposit in the demo data.
+It leaves in the demo data one confirmed reservation (booker "Smoke Integración", 30 % deposit), one cancelled
+BookSim reservation ("Smoke Canal") and one WhatsApp conversation (+57 300 555 0101, "Smoke WhatsApp").
 """
 
 import http.cookiejar
@@ -26,6 +29,11 @@ def cookie(name):
 
 
 def call(method, path, body=None, *, prop=None, expect=(200,)):
+    return call_status(method, path, body, prop=prop, expect=expect)[1]
+
+
+def call_status(method, path, body=None, *, prop=None, expect=(200,)):
+    """(status, payload); any status outside `expect` stops the smoke (so a caller can accept a 409)."""
     global requests_made
     headers = {"Accept": "application/json", "Origin": BASE}
     data = None
@@ -48,7 +56,7 @@ def call(method, path, body=None, *, prop=None, expect=(200,)):
     if status not in expect:
         print("    ", json.dumps(payload, ensure_ascii=False)[:600])
         raise SystemExit(1)
-    return payload
+    return status, payload
 
 
 def check(condition, message):
@@ -64,6 +72,12 @@ def main():
     prop = me["memberships"][0]["properties"][0]
     pid, today = prop["id"], date.fromisoformat(prop["business_date"])
     print(f"    {me['email']} · {prop['name']} · business date {today}")
+
+    board = call("GET", "/api/v1/frontdesk/today/", prop=pid)
+    check(board["business_date"] == str(today) and "kpis" in board, "the Today board does not answer")
+    kpis = board["kpis"]
+    print(f"    today: {kpis['arrivals_total']} arrivals, {kpis['departures_total']} departures, "
+          f"{kpis['in_house']} in house")  # fmt: skip
 
     rooms = call("GET", "/api/v1/inventory/rooms/", prop=pid)
     check(rooms, "the property has no rooms (is the demo seeded?)")
@@ -138,9 +152,72 @@ def main():
     method = payments[0]["method"]
     print(f"    {after['code']} confirmed · paid {deposit} ({method}) · balance {after['balance']}")
 
+    phase_c(pid, today, after)
+
     call("POST", "/api/v1/accounts/auth/logout/", expect=(204,))
     call("GET", "/api/v1/accounts/me/", expect=(401,))
     print(f"SMOKE OK · {requests_made} requests · reservation {after['code']}")
+
+
+def phase_c(pid, today, reservation):
+    # C5: the booking's guest-portal link opens its public portal (no session needed: the token is the key).
+    link = call("GET", f"/api/v1/guestportal/reservations/{reservation['id']}/link/", prop=pid)
+    token = link["url"].rstrip("/").rsplit("/", 1)[-1]
+    portal = call("GET", f"/api/v1/public/guestportal/{token}/")
+    check(portal["reservation"]["code"] == reservation["code"], "the portal shows another booking")
+    print(f"    portal {portal['reservation']['code']}: check-in online {portal['checkin']['status']}")
+
+    # C3: BookSim books two nights → the reservation arrives through the channel; then the OTA cancels it.
+    connections = call("GET", "/api/v1/distribution/connections/", prop=pid)
+    booksim = next((c for c in connections if c["channel_code"] == "booksim"), None)
+    check(booksim is not None and booksim["status"] == "active", "no active BookSim connection")
+    rate = booksim["rate_mappings"][0]["external_rate_id"]
+    ota, checkin = None, today
+    for room in booksim["room_mappings"]:
+        for days in range(40, 100, 4):
+            checkin = today + timedelta(days=days)
+            body = {
+                "external_room_id": room["external_room_id"],
+                "external_rate_id": rate,
+                "checkin": str(checkin),
+                "checkout": str(checkin + timedelta(days=2)),
+                "adults": 2,
+                "children": 0,
+                "guest": {"first_name": "Smoke", "last_name": "Canal", "email": "smoke.canal@example.com",
+                          "country": "US"},
+            }  # fmt: skip
+            path = f"/api/v1/distribution/simulator/{booksim['id']}/bookings/"
+            status, created = call_status("POST", path, body, prop=pid, expect=(201, 409))
+            if status == 201:
+                ota = created
+                break
+        if ota:
+            break
+    check(ota is not None, "BookSim found no sellable nights in the next 100 days")
+    pms = ota["reservation"]
+    check(
+        ota["pms_status"] == "imported" and pms and pms["status"] == "confirmed",
+        "the OTA booking did not import",
+    )
+    imported = call("GET", f"/api/v1/bookings/reservations/{pms['id']}/", prop=pid)
+    check(imported["source"] == "ota" and imported["channel_code"] == "booksim", "not an OTA reservation")
+    cancel = f"/api/v1/distribution/simulator/{booksim['id']}/bookings/{ota['external_id']}/cancel/"
+    call("POST", cancel, {}, prop=pid)
+    cancelled = call("GET", f"/api/v1/bookings/reservations/{pms['id']}/", prop=pid)
+    check(cancelled["status"] == "cancelled", "the OTA cancellation did not cancel the PMS reservation")
+    print(f"    BookSim {ota['external_id']} → {pms['code']} imported, then cancelled by the OTA")
+
+    # C6: a WhatsApp message from the simulator opens (or reopens) an unread conversation in the inbox.
+    before = call("GET", "/api/v1/messaging/conversations/unread-count/", prop=pid)
+    inbound = {"phone": "+573005550101", "body": "Hola, ¿tienen parqueadero?", "name": "Smoke WhatsApp"}
+    sent = call("POST", "/api/v1/messaging/simulator/whatsapp/inbound/", inbound, prop=pid, expect=(201,))
+    unread = call("GET", "/api/v1/messaging/conversations/unread-count/", prop=pid)
+    check(unread["messages"] > before["messages"], "the WhatsApp message did not reach the inbox")
+    thread = call("GET", f"/api/v1/messaging/conversations/{sent['conversation_id']}/", prop=pid)
+    check(thread["channel"] == "whatsapp", "the message landed in a non-WhatsApp thread")
+    print(
+        f"    WhatsApp inbox: {unread['conversations']} unread conversations, {unread['messages']} messages"
+    )
 
 
 if __name__ == "__main__":

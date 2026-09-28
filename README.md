@@ -13,7 +13,7 @@ credenciales externas: cada integración arranca en modo **simulado**.
 ```bash
 cp .env.example .env        # y completa DJANGO_SECRET_KEY / FERNET_KEY (ver comentarios)
 make up                     # construye y levanta todos los servicios
-make seed                   # datos de demo (idempotente; la primera vez tarda ~10 min, ver abajo)
+make seed                   # datos de demo (idempotente; la primera vez tarda ~9 min, ver abajo)
 ```
 
 Abre **http://localhost:5173** (la app completa; Vite hace proxy de `/api` y `/media` al backend).
@@ -39,17 +39,21 @@ Solo el backend (útil mientras el frontend no está listo): `make up-back`.
 | `recepcion@casaaurora.co` | Recepción · Casa Aurora |
 | `limpieza@casaaurora.co` | Housekeeping · Casa Aurora |
 | `contabilidad@casaaurora.co` | Contabilidad · Casa Aurora |
+| `mantenimiento@casaaurora.co` | Mantenimiento · Casa Aurora (tickets) |
 | `owner@grupoandino.co` | Dueño · Grupo Andino (Andino Medellín y Andino Hostel Bogotá) |
 | `recepcion@grupoandino.co` | Recepción · Grupo Andino |
 | `limpieza@grupoandino.co` | Housekeeping · Grupo Andino (solo Andino Medellín) |
+| `owner@hostaldemo.co` | Dueño · Hostal Demo Trial (organización en prueba, sin inventario) |
 
 Admin de Django: http://localhost:8010/django-admin/ (con `admin@housetel.co`).
 
 ## Datos de demo (`make seed`)
 
 `seed_demo` recorre `SEED_ORDER` (cada app tiene su `seed.py`, idempotente) y crea todo **por los servicios de
-contrato** (auditoría, señales e inventario incluidos). La primera carga tarda **≈ 10 min** (unas 3.300 reservas);
-repetirla solo revisa y no duplica. `make reset` borra la BD y la recrea desde cero (migraciones + seed).
+contrato** (auditoría, señales e inventario incluidos). La primera carga tarda **≈ 9 min** (unas 3.360 reservas;
+imprime el tiempo de cada app); repetirla solo revisa y no duplica. `make reset` borra la BD y la recrea desde cero
+(migraciones + seed). Mientras corre conviene tener `worker` y `beat` detenidos (`make reset` ya lo hace así): las
+automatizaciones no deben actuar sobre datos a medio sembrar.
 
 - **Inventario**: Hotel Casa Aurora (24 habitaciones: Estándar, Superior, Suite Vista al Mar), Andino Medellín
   (40) y Andino Hostel Bogotá (dormitorios de 6 y 8 camas + privadas); amenidades, fotos, campos personalizados
@@ -63,19 +67,34 @@ repetirla solo revisa y no duplica. `make reset` borra la BD y la recrea desde c
 - **Finanzas**: cargos por noche, pagos (efectivo, datáfono, transferencia, pasarela simulada), depósitos, links de
   pago pendientes, penalidades, folios cerrados en 0 y un turno de caja abierto para `recepcion@casaaurora.co` (y
   `recepcion@grupoandino.co` en Medellín).
+- **Fase C**: tareas de limpieza de hoy y 3 tickets por hotel (uno bloquea una habitación); BookSim y AirSim
+  conectados y sincronizados (+ iCal en el hostal); motor de reservas y listing con la marca de cada hotel;
+  check-ins online completados y solicitudes del portal; plantillas, reglas del ciclo y conversaciones de ejemplo;
+  resolución DIAN de pruebas con facturas de las salidas de los últimos 30 días, reportes SIRE y TRA; reglas,
+  límites y recomendaciones de revenue; FAQ del chatbot; planes, suscripciones, facturas de plataforma y comisiones;
+  30 cierres de auditoría nocturna; alertas reales de las anomalías del demo. Resumen y cifras:
+  `docs/integration-notes/C-INT.md`.
 
-## Qué funciona hoy (Fases A y B)
+## Qué funciona hoy (Fases A–C)
 
 | Área | Rutas |
 |---|---|
-| Configuración de inventario | `/app/settings/property`, `/app/settings/room-types`, `/app/settings/rooms`, `/app/settings/custom-fields` |
-| Tarifas | `/app/rates` (grilla), `/app/rates/plans`, `/app/rates/promos`, `/app/settings/{taxes,policies,extras}` |
-| Huéspedes y equipo | `/app/guests`, `/app/guests/:id`, `/app/settings/users`, `/app/settings/roles`, `/invite/:token` |
-| Caja y pagos | `/app/cashier`, pasarela simulada `/sim/pay/:reference` |
-| API de reservas | `/api/v1/bookings/…` (reservas, estadías, check-in/out, ofertas, calendario); su UI llega en la Fase C |
+| Recepción | `/app` (Hoy: cifras, llegadas/salidas/en casa, tablero de llaves, widgets), `/app/reservations` (+ `/new`, `/:id`), `/app/night-audit` |
+| Calendario | `/app/calendar` (arrastrar para mover/crear/estirar, dormitorios por cama) |
+| Limpieza y mantenimiento | `/app/housekeeping`, `/app/housekeeping/mine` (móvil), `/app/maintenance`, `/app/settings/housekeeping` |
+| Tarifas y revenue | `/app/rates`, `/app/rates/plans`, `/app/rates/promos`, `/app/revenue`, `/app/settings/{taxes,policies,extras}` |
+| Canales | `/app/channels`, `/app/simulators/ota` (BookSim/AirSim/Channex simulados, iCal real) |
+| Huéspedes, mensajes, caja | `/app/guests`, `/app/inbox`, `/app/simulators/whatsapp`, `/app/cashier` |
+| Legal Colombia | `/app/compliance` (DIAN, SIRE, TRA), `/app/settings/compliance` |
+| Reportes | `/app/reports`, `/app/reports/:id` (CSV/XLSX/PDF) |
+| IA | copiloto (topbar, Ctrl+J), `/app/onboarding`, `/app/settings/{chatbot,ai}`, chatbot público en `/h/:slug` y `/g/:token` |
+| Centro de control | `/app/alerts`, `/app/settings/{integrations,automations,audit}` |
+| Configuración | `/app/settings/{property,room-types,rooms,custom-fields,booking-engine,guest-portal,messaging,users,roles,billing}` |
+| Público | `/` (marketplace), `/search`, `/hotel/:slug`, `/book/:slug`, `/booking/:code/confirmed`, `/h/:slug` (motor del hotel), `/embed/:slug`, `/g/:token` (portal y check-in online), `/signup`, `/sim/pay/:reference` |
+| Plataforma | `/admin` (métricas, organizaciones, planes, cobros, comisiones), `/app/getting-started`, `/app/settings/billing` |
 
-El resto de páginas muestra "En construcción" hasta su fase. Documentación de cada módulo (API con ejemplos,
-contratos, señales): `docs/integration-notes/` (B1–B4 y `B-INT.md`).
+Documentación de cada módulo (API con ejemplos, contratos, señales, cómo probarlo en la UI): `docs/integration-notes/`
+(A1–A3, B1–B4, `B-INT.md`, C1–C13 y `C-INT.md`, que trae el checklist consolidado para validar en el navegador).
 
 ## Comandos
 
@@ -91,8 +110,11 @@ make test-back ARGS="apps/core"    # pytest (TEST_DB_NAME=test_x para correr en 
 make test-front
 make lint / make format            # ruff (backend) + eslint (frontend)
 make check                         # system checks + migraciones pendientes + esquema OpenAPI sin warnings
-make check-data                    # invariantes de inventario y dinero, solo lectura (después del seed)
-make smoke                         # smoke de la API por el proxy de Vite (deja una reserva de prueba)
+make check-data                    # invariantes de inventario, dinero y datos de la Fase C (después del seed)
+make check-automations             # cada automatización × propiedad en una transacción revertida
+make smoke                         # smoke E2E de la API por el proxy de Vite (deja unos registros de prueba)
+make sweep                         # GET de solo lectura a los endpoints principales de todos los módulos
+make routes                        # abre todas las rutas en un Chrome headless propio (WIDTH=375 para celular)
 make shell                         # shell de Django
 ```
 

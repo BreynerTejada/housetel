@@ -4,5 +4,230 @@
   },
   "pages": {
     "reportDetail": "Reporte"
+  },
+  "hub": {
+    "title": "Reportes",
+    "description": "Cifras calculadas sobre la fecha de negocio: los rangos incluyen el primer y el último día, y el día de salida nunca cuenta como noche.",
+    "glance": "Este mes de un vistazo",
+    "glanceHint": "Del {{start}} al {{end}}. Desde hoy las cifras son previstas.",
+    "openPerformance": "Ver rendimiento",
+    "open": "Abrir",
+    "empty": "Tu rol no incluye reportes",
+    "emptyHint": "Pide a un administrador el permiso de reportes que necesitas.",
+    "count_one": "{{count}} reporte",
+    "count_other": "{{count}} reportes"
+  },
+  "categories": {
+    "performance": {
+      "title": "Rendimiento",
+      "description": "Ocupación, ADR, RevPAR, ingresos por segmento y lo que ya está reservado."
+    },
+    "operations": {
+      "title": "Operación",
+      "description": "Llegadas, salidas, huéspedes en casa y estado de las habitaciones."
+    },
+    "finance": {
+      "title": "Finanzas",
+      "description": "Ingresos publicados, recaudo por medio de pago, caja y saldos por cobrar."
+    },
+    "taxes": {
+      "title": "Impuestos",
+      "description": "IVA generado, base gravada y base exenta de extranjeros no residentes."
+    }
+  },
+  "reports": {
+    "performance": {
+      "title": "Rendimiento",
+      "description": "Ocupación, ADR, RevPAR e ingresos de alojamiento por día, con comparación."
+    },
+    "revenue-by-segment": {
+      "title": "Ingresos por segmento",
+      "description": "Noches e ingresos por fuente, canal, categoría o plan tarifario."
+    },
+    "pickup": {
+      "title": "Pickup",
+      "description": "Cuántas noches se reservaron en los últimos días para las fechas que vienen."
+    },
+    "forecast": {
+      "title": "Pronóstico (on the books)",
+      "description": "Ocupación e ingresos ya reservados para los próximos 90 días."
+    },
+    "cancellations": {
+      "title": "Cancelaciones",
+      "description": "Reservas canceladas, noches e ingresos perdidos y penalidades cobradas."
+    },
+    "booking-window": {
+      "title": "Anticipación y duración",
+      "description": "Con cuántos días de antelación reservan y cuántas noches se quedan."
+    },
+    "guests-by-nationality": {
+      "title": "Huéspedes por nacionalidad",
+      "description": "Noches e ingresos por país del titular de la reserva."
+    },
+    "arrivals": {
+      "title": "Llegadas",
+      "description": "Quién llega, a qué habitación, a qué hora y con qué saldo."
+    },
+    "departures": {
+      "title": "Salidas",
+      "description": "Quién sale cada día y qué saldo queda por cobrar."
+    },
+    "in-house": {
+      "title": "En casa",
+      "description": "Huéspedes alojados por habitación en las noches del rango."
+    },
+    "no-shows": {
+      "title": "No-shows",
+      "description": "Reservas que no llegaron, noches perdidas y penalidades."
+    },
+    "occupancy-outlook": {
+      "title": "Ocupación prevista",
+      "description": "Ocupación, llegadas y salidas de cada noche de las próximas dos semanas."
+    },
+    "housekeeping-status": {
+      "title": "Estado de habitaciones",
+      "description": "Limpias, sucias, inspeccionadas y fuera de servicio, con quién las ocupa."
+    },
+    "daily-revenue": {
+      "title": "Ingresos diarios",
+      "description": "Cargos publicados por tipo: alojamiento, extras, penalidades e impuestos."
+    },
+    "payments-by-method": {
+      "title": "Pagos por medio",
+      "description": "Recaudo por medio de pago, reembolsos y neto de cada día."
+    },
+    "cash-shifts": {
+      "title": "Turnos de caja",
+      "description": "Aperturas, cierres, efectivo esperado, contado y diferencias."
+    },
+    "receivables": {
+      "title": "Saldos por cobrar",
+      "description": "Reservas con saldo pendiente, por tipo y antigüedad."
+    },
+    "taxes": {
+      "title": "Impuestos (IVA)",
+      "description": "Base gravada, IVA, base exenta y no gravado, por impuesto y por día."
+    }
+  },
+  "filters": {
+    "label": "Filtros del reporte",
+    "range": "Rango",
+    "presets": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "tomorrow": "Mañana",
+      "thisWeek": "Esta semana",
+      "thisMonth": "Este mes",
+      "lastMonth": "Mes pasado",
+      "last30": "Últimos 30 días",
+      "next14": "Próximos 14 días",
+      "next30": "Próximos 30 días",
+      "next90": "Próximos 90 días",
+      "custom": "Personalizado"
+    },
+    "customRange": "Rango personalizado",
+    "customHint": "Elige el primer y el último día: los dos cuentan.",
+    "compare": "Comparar con",
+    "compareModes": {
+      "none": "Sin comparación",
+      "previous_period": "Periodo anterior",
+      "previous_year": "Año anterior"
+    },
+    "groupBy": "Agrupar por",
+    "groups": {
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "source": "Fuente",
+      "channel": "Canal",
+      "room_type": "Categoría",
+      "rate_plan": "Plan"
+    },
+    "window": "Reservado en",
+    "windowDays_one": "Último día",
+    "windowDays_other": "{{count}} días"
+  },
+  "ruler": {
+    "label": "Días que cubre el reporte",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "inclusive": "primer y último día incluidos",
+    "actual_one": "{{count}} real",
+    "actual_other": "{{count}} reales",
+    "forecast_one": "{{count}} previsto",
+    "forecast_other": "{{count}} previstos",
+    "today": "Hoy",
+    "compareWith": "Comparado con {{range}}",
+    "snapshot": "Foto al {{date}}, la fecha de negocio actual.",
+    "singleDay": "Un día de fecha de negocio"
+  },
+  "export": {
+    "button": "Exportar",
+    "csv": "CSV para Excel",
+    "xlsx": "Excel (.xlsx)",
+    "pdf": "PDF",
+    "hint": "Con los mismos filtros",
+    "done": "Reporte descargado",
+    "failed": "No se pudo exportar el reporte"
+  },
+  "kpi": {
+    "vs_previous_period": "vs. periodo anterior",
+    "vs_previous_year": "vs. año anterior",
+    "pp": "{{value}} pp",
+    "days": "{{value}} días",
+    "nights": "{{value}} noches"
+  },
+  "chart": {
+    "view": "Ver como",
+    "chart": "Gráfico",
+    "table": "Tabla",
+    "forecast": "Previsto",
+    "actual": "Real",
+    "today": "Hoy",
+    "gain": "Pickup positivo",
+    "loss": "Más cancelaciones que reservas",
+    "empty": "Sin datos en este rango",
+    "metric": "Indicador",
+    "date": "Fecha"
+  },
+  "table": {
+    "rows_one": "{{count}} fila",
+    "rows_other": "{{count}} filas",
+    "search": "Buscar en la tabla…",
+    "openReservation": "Abrir la reserva {{code}}",
+    "empty": "No hay registros en este rango",
+    "yes": "Sí",
+    "no": "No",
+    "unknown": "Sin dato",
+    "sortBy": "Ordenar por {{column}}",
+    "total": "Total",
+    "previous": "Página anterior",
+    "next": "Página siguiente"
+  },
+  "notes": {
+    "title": "Cómo se calcula",
+    "subtitle": "Las definiciones exactas que usa este reporte."
+  },
+  "report": {
+    "back": "Reportes",
+    "notFound": "Este reporte no existe",
+    "notFoundHint": "Puede que el enlace esté incompleto. Vuelve al listado de reportes.",
+    "noPermission": "Tu rol no incluye este reporte",
+    "noPermissionHint": "Pide a un administrador el permiso «{{permission}}».",
+    "updating": "Actualizando…",
+    "generated": "Generado el {{time}}"
+  },
+  "widget": {
+    "title": "Ocupación de los próximos 14 días",
+    "average": "Media {{value}}",
+    "peak": "Noche más llena: {{date}}, {{value}}",
+    "open": "Ver ocupación prevista",
+    "empty": "No hay inventario para mostrar"
+  },
+  "commands": {
+    "group": "Reportes",
+    "performance": "Ver reporte de rendimiento",
+    "arrivals": "Ver llegadas de hoy",
+    "dailyRevenue": "Ver ingresos diarios"
   }
 }

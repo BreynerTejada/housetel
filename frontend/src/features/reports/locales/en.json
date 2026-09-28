@@ -4,5 +4,230 @@
   },
   "pages": {
     "reportDetail": "Report"
+  },
+  "hub": {
+    "title": "Reports",
+    "description": "Figures computed on the business date: ranges include their first and last day, and the departure day never counts as a night.",
+    "glance": "This month at a glance",
+    "glanceHint": "{{start}} to {{end}}. From today on, figures are forecast.",
+    "openPerformance": "View performance",
+    "open": "Open",
+    "empty": "Your role includes no reports",
+    "emptyHint": "Ask an administrator for the report permission you need.",
+    "count_one": "{{count}} report",
+    "count_other": "{{count}} reports"
+  },
+  "categories": {
+    "performance": {
+      "title": "Performance",
+      "description": "Occupancy, ADR, RevPAR, revenue by segment and what is already booked."
+    },
+    "operations": {
+      "title": "Operations",
+      "description": "Arrivals, departures, guests in house and room status."
+    },
+    "finance": {
+      "title": "Finance",
+      "description": "Posted revenue, collections by payment method, cash and receivables."
+    },
+    "taxes": {
+      "title": "Taxes",
+      "description": "VAT charged, taxable base and the exempt base of foreign non-residents."
+    }
+  },
+  "reports": {
+    "performance": {
+      "title": "Performance",
+      "description": "Occupancy, ADR, RevPAR and room revenue by day, with comparison."
+    },
+    "revenue-by-segment": {
+      "title": "Revenue by segment",
+      "description": "Room nights and revenue by source, channel, room type or rate plan."
+    },
+    "pickup": {
+      "title": "Pickup",
+      "description": "How many room nights were booked in the last days for the dates ahead."
+    },
+    "forecast": {
+      "title": "Forecast (on the books)",
+      "description": "Occupancy and revenue already booked for the next 90 days."
+    },
+    "cancellations": {
+      "title": "Cancellations",
+      "description": "Cancelled bookings, lost nights and revenue, and penalties charged."
+    },
+    "booking-window": {
+      "title": "Booking window and length of stay",
+      "description": "How many days ahead guests book and how many nights they stay."
+    },
+    "guests-by-nationality": {
+      "title": "Guests by nationality",
+      "description": "Room nights and revenue by the booker's country."
+    },
+    "arrivals": {
+      "title": "Arrivals",
+      "description": "Who arrives, in which room, at what time and with what balance."
+    },
+    "departures": {
+      "title": "Departures",
+      "description": "Who leaves each day and what balance is left to collect."
+    },
+    "in-house": {
+      "title": "In house",
+      "description": "Guests staying, room by room, on the nights of the range."
+    },
+    "no-shows": {
+      "title": "No-shows",
+      "description": "Bookings that never arrived, lost nights and penalties."
+    },
+    "occupancy-outlook": {
+      "title": "Occupancy outlook",
+      "description": "Occupancy, arrivals and departures for each night of the next two weeks."
+    },
+    "housekeeping-status": {
+      "title": "Room status",
+      "description": "Clean, dirty, inspected and out of service, with who is in each room."
+    },
+    "daily-revenue": {
+      "title": "Daily revenue",
+      "description": "Posted charges by type: room, extras, penalties and taxes."
+    },
+    "payments-by-method": {
+      "title": "Payments by method",
+      "description": "Collections by payment method, refunds and net per day."
+    },
+    "cash-shifts": {
+      "title": "Cash shifts",
+      "description": "Openings, closings, expected and counted cash, and differences."
+    },
+    "receivables": {
+      "title": "Receivables",
+      "description": "Bookings with an outstanding balance, by type and age."
+    },
+    "taxes": {
+      "title": "Taxes (VAT)",
+      "description": "Taxable base, VAT, exempt base and untaxed, by tax and by day."
+    }
+  },
+  "filters": {
+    "label": "Report filters",
+    "range": "Range",
+    "presets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "tomorrow": "Tomorrow",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "last30": "Last 30 days",
+      "next14": "Next 14 days",
+      "next30": "Next 30 days",
+      "next90": "Next 90 days",
+      "custom": "Custom"
+    },
+    "customRange": "Custom range",
+    "customHint": "Pick the first and the last day: both count.",
+    "compare": "Compare with",
+    "compareModes": {
+      "none": "No comparison",
+      "previous_period": "Previous period",
+      "previous_year": "Last year"
+    },
+    "groupBy": "Group by",
+    "groups": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "source": "Source",
+      "channel": "Channel",
+      "room_type": "Room type",
+      "rate_plan": "Plan"
+    },
+    "window": "Booked in",
+    "windowDays_one": "Last day",
+    "windowDays_other": "{{count}} days"
+  },
+  "ruler": {
+    "label": "Days the report covers",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "inclusive": "first and last day included",
+    "actual_one": "{{count}} actual",
+    "actual_other": "{{count}} actual",
+    "forecast_one": "{{count}} forecast",
+    "forecast_other": "{{count}} forecast",
+    "today": "Today",
+    "compareWith": "Compared with {{range}}",
+    "snapshot": "Snapshot as of {{date}}, the current business date.",
+    "singleDay": "One business day"
+  },
+  "export": {
+    "button": "Export",
+    "csv": "CSV for Excel",
+    "xlsx": "Excel (.xlsx)",
+    "pdf": "PDF",
+    "hint": "With the same filters",
+    "done": "Report downloaded",
+    "failed": "The report could not be exported"
+  },
+  "kpi": {
+    "vs_previous_period": "vs. previous period",
+    "vs_previous_year": "vs. last year",
+    "pp": "{{value}} pp",
+    "days": "{{value}} days",
+    "nights": "{{value}} nights"
+  },
+  "chart": {
+    "view": "View as",
+    "chart": "Chart",
+    "table": "Table",
+    "forecast": "Forecast",
+    "actual": "Actual",
+    "today": "Today",
+    "gain": "Positive pickup",
+    "loss": "More cancellations than bookings",
+    "empty": "No data in this range",
+    "metric": "Metric",
+    "date": "Date"
+  },
+  "table": {
+    "rows_one": "{{count}} row",
+    "rows_other": "{{count}} rows",
+    "search": "Search the table…",
+    "openReservation": "Open booking {{code}}",
+    "empty": "No records in this range",
+    "yes": "Yes",
+    "no": "No",
+    "unknown": "Unknown",
+    "sortBy": "Sort by {{column}}",
+    "total": "Total",
+    "previous": "Previous page",
+    "next": "Next page"
+  },
+  "notes": {
+    "title": "How it is calculated",
+    "subtitle": "The exact definitions this report uses."
+  },
+  "report": {
+    "back": "Reports",
+    "notFound": "This report does not exist",
+    "notFoundHint": "The link may be incomplete. Go back to the list of reports.",
+    "noPermission": "Your role does not include this report",
+    "noPermissionHint": "Ask an administrator for the “{{permission}}” permission.",
+    "updating": "Updating…",
+    "generated": "Generated {{time}}"
+  },
+  "widget": {
+    "title": "Occupancy over the next 14 days",
+    "average": "Average {{value}}",
+    "peak": "Busiest night: {{date}}, {{value}}",
+    "open": "View occupancy outlook",
+    "empty": "No inventory to show"
+  },
+  "commands": {
+    "group": "Reports",
+    "performance": "View performance report",
+    "arrivals": "View today's arrivals",
+    "dailyRevenue": "View daily revenue"
   }
 }

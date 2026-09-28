@@ -69,6 +69,11 @@ export interface ReservationTab {
   Component: ComponentType<{ reservationId: string }>
 }
 
+/**
+ * Item of the reservation's actions menu (C1). The host wraps `Component` in its own dialog titled with
+ * `labelKey`, so the component renders only the dialog's body (and, if it needs one, a `DialogFooter`) — never
+ * a `Dialog` of its own — and calls `close()` when it is done.
+ */
 export interface ReservationAction {
   id: string
   labelKey: string

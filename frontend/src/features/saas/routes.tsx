@@ -1,22 +1,30 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `saas` feature with placeholder pages. Owner: C11 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Routes of the `saas` feature (plan §E, owner C11). Pages load lazily.
 export const routes: FeatureRoutes = {
-  public: [
-    { path: '/signup', element: <UnderConstruction titleKey="saas:pages.signup" /> },
-  ],
+  public: [{ path: '/signup', lazy: () => import('./pages/SignupPage').then((m) => ({ Component: m.default })) }],
   app: [
-    { path: 'getting-started', element: <UnderConstruction titleKey="saas:nav.gettingStarted" /> },
-    { path: 'settings/billing', element: <UnderConstruction titleKey="saas:nav.billing" /> },
+    {
+      path: 'getting-started',
+      lazy: () => import('./pages/GettingStartedPage').then((m) => ({ Component: m.default })),
+    },
+    { path: 'settings/billing', lazy: () => import('./pages/BillingPage').then((m) => ({ Component: m.default })) },
   ],
   admin: [
-    { index: true, element: <UnderConstruction titleKey="saas:nav.adminHome" /> },
-    { path: 'organizations', element: <UnderConstruction titleKey="saas:nav.adminOrgs" /> },
-    { path: 'organizations/:id', element: <UnderConstruction titleKey="saas:pages.adminOrgDetail" /> },
-    { path: 'plans', element: <UnderConstruction titleKey="saas:nav.adminPlans" /> },
-    { path: 'billing', element: <UnderConstruction titleKey="saas:nav.adminBilling" /> },
-    { path: 'commissions', element: <UnderConstruction titleKey="saas:nav.adminCommissions" /> },
+    { index: true, lazy: () => import('./pages/admin/AdminHomePage').then((m) => ({ Component: m.default })) },
+    {
+      path: 'organizations',
+      lazy: () => import('./pages/admin/OrganizationsPage').then((m) => ({ Component: m.default })),
+    },
+    {
+      path: 'organizations/:id',
+      lazy: () => import('./pages/admin/OrganizationDetailPage').then((m) => ({ Component: m.default })),
+    },
+    { path: 'plans', lazy: () => import('./pages/admin/PlansPage').then((m) => ({ Component: m.default })) },
+    { path: 'billing', lazy: () => import('./pages/admin/AdminBillingPage').then((m) => ({ Component: m.default })) },
+    {
+      path: 'commissions',
+      lazy: () => import('./pages/admin/CommissionsPage').then((m) => ({ Component: m.default })),
+    },
   ],
 }

@@ -1,11 +1,9 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `compliance` feature with placeholder pages. Owner: C7 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Owner: C7. Pages load on demand (plan §E).
 export const routes: FeatureRoutes = {
   app: [
-    { path: 'compliance', element: <UnderConstruction titleKey="compliance:nav.compliance" /> },
-    { path: 'settings/compliance', element: <UnderConstruction titleKey="compliance:nav.settingsCompliance" /> },
+    { path: 'compliance', lazy: () => import('./pages/CompliancePage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/compliance', lazy: () => import('./pages/ComplianceSettingsPage').then((m) => ({ Component: m.default })) },
   ],
 }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>{{ subject }}</title>
+<style>
+  .hk-content p { margin: 0 0 14px; }
+  .hk-content a { color: {{ accent }}; }
+  @media (max-width: 620px) {
+    .hk-pad { padding-left: 22px !important; padding-right: 22px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#FAF8F5;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">{{ preheader }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAF8F5;">
+  <tr>
+    <td align="center" style="padding:32px 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#FFFFFF;border:1px solid #E7E2DA;border-radius:14px;border-collapse:separate;">
+        <tr>
+          <td style="height:6px;line-height:6px;font-size:0;background:{{ accent }};border-radius:14px 14px 0 0;">&nbsp;</td>
+        </tr>
+        <tr>
+          <td class="hk-pad" style="padding:30px 40px 6px;font-family:'Manrope','Segoe UI',Helvetica,Arial,sans-serif;">
+            {% if property_city %}<p style="margin:0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6E675E;font-weight:600;">{{ property_city }}</p>{% endif %}
+            <p style="margin:4px 0 0;font-size:22px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;color:#1F1C19;">{{ property_name }}</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="hk-pad hk-content" style="padding:18px 40px 26px;font-family:'Manrope','Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#1F1C19;">
+            {{ content }}
+          </td>
+        </tr>
+        <tr>
+          <td class="hk-pad" style="padding:18px 40px 26px;border-top:1px solid #E7E2DA;font-family:'Manrope','Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#6E675E;">
+            <strong style="color:#1F1C19;">{{ property_name }}</strong>{% if address_line %}<br>{{ address_line }}{% endif %}
+            {% if contact_line %}<br>{{ contact_line }}{% endif %}
+          </td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;font-family:'Manrope','Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;color:#948C81;">{{ powered_by }}</p>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

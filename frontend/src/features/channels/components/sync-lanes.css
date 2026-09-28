@@ -1,0 +1,68 @@
+/*
+ * The two wires between Housetel and a channel: what goes out (prices, availability, calendars) and what
+ * comes in (bookings). Their look tells the state: solid sage = up to date, moving sand dashes = changes on
+ * their way, a broken clay wire = failing, stone dashes = paused, faint dots = nothing yet.
+ */
+.channels-lane {
+  --lane-color: var(--border-strong);
+  position: relative;
+  height: 2px;
+  margin-inline: 5px;
+  border-radius: 999px;
+  background: var(--lane-color);
+}
+
+.channels-lane::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid var(--lane-color);
+  border-right: 2px solid var(--lane-color);
+}
+
+.channels-lane[data-direction='out']::after {
+  right: -1px;
+  transform: translate(0, -50%) rotate(45deg);
+}
+
+.channels-lane[data-direction='in']::after {
+  left: -1px;
+  transform: translate(0, -50%) rotate(-135deg);
+}
+
+.channels-lane[data-health='ok'] {
+  --lane-color: var(--success);
+}
+
+.channels-lane[data-health='queued'] {
+  --lane-color: var(--warning);
+  background: repeating-linear-gradient(90deg, var(--warning) 0 9px, transparent 9px 15px);
+  background-size: 30px 2px;
+  animation: channels-lane-flow 1.1s linear infinite;
+}
+
+.channels-lane[data-health='queued'][data-direction='in'] {
+  animation-direction: reverse;
+}
+
+.channels-lane[data-health='error'] {
+  --lane-color: var(--danger);
+  background: linear-gradient(90deg, var(--danger) 0 42%, transparent 42% 58%, var(--danger) 58%);
+}
+
+.channels-lane[data-health='paused'] {
+  --lane-color: var(--stone);
+  background: repeating-linear-gradient(90deg, var(--stone) 0 5px, transparent 5px 10px);
+}
+
+.channels-lane[data-health='idle'] {
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 2px, transparent 2px 7px);
+}
+
+@keyframes channels-lane-flow {
+  to {
+    background-position: 30px 0;
+  }
+}

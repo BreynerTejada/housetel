@@ -3,7 +3,9 @@
 
 A unit is a private room or a dorm bed. Its `busy` intervals are the active stays and active blocks on it (a
 dorm room block makes all its beds busy). Scoring, lowest first:
-1. not ready (neither clean nor inspected) when the guest arrives today or is late;
+1. not ready when the guest arrives today or is late: neither clean nor inspected, or still occupied by a
+   checked-in guest whose stay ends on (or before) the arrival day — the room is free on paper but the
+   departing guest has not checked out yet;
 2. for a group that already has rooms: not connected to any of them (`Room.connecting_rooms`);
 3. outside the group's zone (floor for private rooms, the dorm room for beds);
 4. fragmentation: whether the previous or next busy interval touches the stay (a 0-night gap), then the
@@ -32,6 +34,7 @@ class Unit:
     zone: str  # what a group shares: the floor (private) or the dorm room (beds)
     order: int
     busy: list = field(default_factory=list)  # [(start, end)] half-open
+    in_house_until: list = field(default_factory=list)  # checkout dates of the checked-in stays on the unit
 
     @property
     def unit_id(self):
@@ -79,11 +82,13 @@ def load_units(prop, room_type_ids, start, end) -> dict:
     room_ids = [*by_room, *beds_of_room]
     stays = Stay.objects.filter(
         status__in=ACTIVE_STAY_STATUSES, room_id__in=room_ids, checkin_date__lt=end, checkout_date__gt=start
-    ).values_list("room_id", "bed_id", "checkin_date", "checkout_date")
-    for room_id, bed_id, checkin, checkout in stays:
+    ).values_list("room_id", "bed_id", "checkin_date", "checkout_date", "status")
+    for room_id, bed_id, checkin, checkout, status in stays:
         unit = by_bed.get(bed_id) if bed_id else by_room.get(room_id)
         if unit is not None:
             unit.busy.append((checkin, checkout))
+            if status == Stay.Status.CHECKED_IN:
+                unit.in_house_until.append(checkout)
     blocks = RoomBlock.objects.filter(
         room_id__in=room_ids, released_at__isnull=True, start_date__lt=end, end_date__gt=start
     ).values_list("room_id", "bed_id", "start_date", "end_date")
@@ -102,10 +107,14 @@ def rank(stay, candidates, *, today, zone=None, near=None) -> list:
     stay's group already has (None / empty when there are none)."""
     arriving = stay.checkin_date <= today
 
+    def not_ready(unit) -> bool:
+        occupied = any(until <= stay.checkin_date for until in unit.in_house_until)
+        return occupied or unit.room.housekeeping_status not in READY_STATUSES
+
     def score(unit):
         gap = unit.gap(stay.checkin_date, stay.checkout_date)
         return (
-            arriving and unit.room.housekeeping_status not in READY_STATUSES,
+            arriving and not_ready(unit),
             bool(near) and unit.room.pk not in near,
             zone is not None and unit.zone != zone,
             gap != 0,

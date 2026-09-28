@@ -1,12 +1,10 @@
 import type { FeatureRoutes } from '@/app/extensions'
-import { UnderConstruction } from '@/components/UnderConstruction'
 
-// Phase A stub: routes of the `ai` feature with placeholder pages. Owner: C9 replaces them
-// (keep the paths; pages load with `lazy`). See docs/integration-notes/A2-frontend-foundation.md.
+// Routes of the `ai` feature (plan C9 · §E). Pages load lazily.
 export const routes: FeatureRoutes = {
   app: [
-    { path: 'onboarding', element: <UnderConstruction titleKey="ai:nav.onboarding" /> },
-    { path: 'settings/chatbot', element: <UnderConstruction titleKey="ai:nav.chatbot" /> },
-    { path: 'settings/ai', element: <UnderConstruction titleKey="ai:nav.aiSettings" /> },
+    { path: 'onboarding', lazy: () => import('./pages/OnboardingPage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/chatbot', lazy: () => import('./pages/ChatbotSettingsPage').then((m) => ({ Component: m.default })) },
+    { path: 'settings/ai', lazy: () => import('./pages/AISettingsPage').then((m) => ({ Component: m.default })) },
   ],
 }

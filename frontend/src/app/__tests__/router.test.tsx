@@ -8,11 +8,13 @@ import { useSession } from '@/lib/session'
 import { auroraMembership, makeMe, mockMe } from '@/test/fixtures'
 import { preloadLazyRoutes, renderRoutes } from '@/test/render'
 import { server } from '@/test/server'
+import { apiNotFoundFallback } from '@/test/shell'
 
 beforeAll(preloadLazyRoutes, 60_000)
 
 beforeEach(() => {
   useSession.setState({ propertyId: null, loggedOut: false })
+  server.use(apiNotFoundFallback)
 })
 
 describe('route tree', () => {
@@ -107,9 +109,35 @@ describe('public area', () => {
 
   it('hides the Housetel header on hotel-branded pages', async () => {
     mockMe(null)
+    // The hotel's own engine (C4) brands the page with the hotel's name instead of Housetel's.
+    server.use(
+      http.get('/api/v1/public/marketplace/properties/casa-aurora/booking-engine/', () =>
+        HttpResponse.json({
+          slug: 'casa-aurora',
+          name: 'Hotel Casa Aurora',
+          city: 'Cartagena',
+          department: 'Bolívar',
+          property_type: 'boutique',
+          star_rating: 4,
+          address: '',
+          phone: '',
+          email: '',
+          currency: 'COP',
+          enabled: true,
+          primary_color: '#B4583B',
+          logo: '',
+          hero_image: null,
+          headline: {},
+          show_promo_field: true,
+          terms: {},
+          booking: { earliest_checkin: '2026-09-25', latest_checkin: '2027-09-25', max_nights: 30, online_payments: true },
+          languages: ['es', 'en'],
+        }),
+      ),
+    )
     renderRoutes(buildRoutes(), { route: '/h/casa-aurora' })
 
-    expect(await screen.findByRole('heading', { name: 'Reservas directas' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Hotel Casa Aurora' })).toHaveAttribute('href', '/h/casa-aurora')
     expect(screen.queryByRole('link', { name: 'Para hoteles' })).not.toBeInTheDocument()
   })
 

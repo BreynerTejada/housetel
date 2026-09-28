@@ -212,7 +212,11 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
         *(["rest_framework.renderers.BrowsableAPIRenderer"] if DEBUG else []),
     ],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
+    # In development every browser reaches Django through the Vite proxy with the same IP, so the demo users
+    # share one login budget: a looser default there (override with LOGIN_THROTTLE_RATE).
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("LOGIN_THROTTLE_RATE", "30/min" if DEBUG and not TESTING else "10/min"),
+    },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
 
@@ -233,6 +237,22 @@ SPECTACULAR_SETTINGS = {
         "RoomTypeKindEnum": "apps.inventory.models.RoomType.Kind",
         "RoomBlockKindEnum": "apps.inventory.models.RoomBlock.Kind",
         "GuestDocumentKindEnum": "apps.guests.models.GuestDocument.Kind",
+        # Phase C (C-INT). Invoice.Kind has the same options as InvoiceResolution.DocumentKind, so both
+        # fields share InvoiceKindEnum; every real/simulated field with the "Real/Simulado" labels
+        # (IntegrationSetting, PaymentIntent, compliance documents) shares IntegrationModeEnum.
+        "InvoiceStatusEnum": "apps.compliance.models.Invoice.Status",
+        "InvoiceKindEnum": "apps.compliance.models.Invoice.Kind",
+        "SireReportStatusEnum": "apps.compliance.models.SireReport.Status",
+        "TraRegistrationStatusEnum": "apps.compliance.models.TraRegistration.Status",
+        "IntegrationModeEnum": "apps.core.models.IntegrationSetting.Mode",
+        "PricingRuleKindEnum": "apps.revenue.models.PricingRule.Kind",
+        "RateRecommendationStatusEnum": "apps.revenue.models.RateRecommendation.Status",
+        "RevenueRunStatusEnum": "apps.revenue.models.RevenueRun.Status",
+        # es/en with human labels (User, Guest, FAQ, chatbot) vs the bare codes of request serializers.
+        "LanguageEnum": "apps.accounts.models.User.Language",
+        "LanguageCodeEnum": ["es", "en"],
+        # Bare real/simulated codes of the AI settings/status serializers.
+        "ModeCodeEnum": ["real", "simulated"],
     },
 }
 

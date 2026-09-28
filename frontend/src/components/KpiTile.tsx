@@ -152,21 +152,25 @@ function Sparkline({ label, points, format = String }: { label: string; points: 
         )}
         <circle cx={x(shown)} cy={y(current.value)} r={3.5} className="fill-accent stroke-surface" strokeWidth={2} />
       </svg>
-      <table id={captionId} className="sr-only">
-        <caption>{label}</caption>
-        <tbody>
-          <tr>
-            <th scope="col">{t('kpi.period')}</th>
-            <th scope="col">{label}</th>
-          </tr>
-          {points.map((point) => (
-            <tr key={point.label}>
-              <th scope="row">{point.label}</th>
-              <td>{format(point.value)}</td>
+      {/* A table sizes itself to its content and ignores the 1px width of `sr-only`: the clipped wrapper keeps
+          it from widening the page (it overflowed the viewport when the tile sat in the right column). */}
+      <div className="sr-only">
+        <table id={captionId}>
+          <caption>{label}</caption>
+          <tbody>
+            <tr>
+              <th scope="col">{t('kpi.period')}</th>
+              <th scope="col">{label}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+            {points.map((point) => (
+              <tr key={point.label}>
+                <th scope="row">{point.label}</th>
+                <td>{format(point.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
