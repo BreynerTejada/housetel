@@ -3,9 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useQueryClient } from '@tanstack/react-query'
 import { isExistingGuest, type GuestPickerValue } from '@/features/guests/api'
 import { GuestPicker } from '@/features/guests/components/GuestPicker'
-import type { BookingSource, StepErrors, WizardState } from '../../lib/wizard'
+import { bookingKeys, getOffers } from '../../api'
+import {
+  bookerIsForeignNonResident,
+  offerQuery,
+  type BookingSource,
+  type StepErrors,
+  type WizardState,
+} from '../../lib/wizard'
 import { FieldError } from './FieldError'
 
 const SOURCES: BookingSource[] = ['front_desk', 'phone', 'email']
@@ -21,11 +29,37 @@ export function StepGuest({
   errors: StepErrors
 }) {
   const { t } = useTranslation('frontdesk')
+  const queryClient = useQueryClient()
   const ids = { guest: useId(), error: useId(), source: useId(), language: useId() }
 
-  function pick(guest: GuestPickerValue | null) {
-    const language = guest && isExistingGuest(guest) ? guest.language : guest?.language
-    update({ guest, language: language === 'en' ? 'en' : language === 'es' ? 'es' : state.language })
+  async function pick(guest: GuestPickerValue | null) {
+    const guestLanguage = guest && isExistingGuest(guest) ? guest.language : guest?.language
+    const language = guestLanguage === 'en' ? 'en' : guestLanguage === 'es' ? 'es' : state.language
+    const foreign = bookerIsForeignNonResident(guest)
+    if (foreign === null || foreign === state.foreign) {
+      update({ guest, language })
+      return
+    }
+    // The chosen offer was quoted with the other IVA treatment: re-quote it so the summary shows what
+    // the backend will actually charge (it applies the exemption from the booker's data).
+    if (!state.offer) {
+      update({ guest, language, foreign })
+      return
+    }
+    const chosen = state.offer
+    const query = offerQuery({ ...state, foreign })
+    try {
+      const offers = await queryClient.fetchQuery({
+        queryKey: bookingKeys.offers(query),
+        queryFn: () => getOffers(query),
+      })
+      const match = offers.find(
+        (offer) => offer.room_type_id === chosen.roomTypeId && offer.rate_plan_id === chosen.ratePlanId,
+      )
+      update({ guest, language, foreign, offer: match ? { ...chosen, total: match.total } : null })
+    } catch {
+      update({ guest, language, foreign, offer: null })
+    }
   }
 
   return (

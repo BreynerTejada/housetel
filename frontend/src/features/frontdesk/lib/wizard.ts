@@ -182,6 +182,20 @@ export function defaultExtraQuantity(chargeType: ExtraChargeType, nights: number
   }
 }
 
+/**
+ * Whether the booker is quoted without lodging IVA (foreign non-resident, ET art. 481), or null while it
+ * can't be told (no guest yet, or a new guest without nationality). The backend applies the same rule
+ * when it saves the reservation, so the wizard must quote with it to show the real total.
+ */
+export function bookerIsForeignNonResident(guest: GuestPickerValue | null): boolean | null {
+  if (!guest) return null
+  if (isExistingGuest(guest)) return guest.is_foreign_non_resident
+  const nationality = (guest.nationality ?? '').toUpperCase()
+  if (!nationality) return null
+  const residence = (guest.country_of_residence || nationality).toUpperCase()
+  return nationality !== 'CO' && residence !== 'CO'
+}
+
 /** Query of `GET /bookings/offers/` for the wizard's dates and guests. */
 export function offerQuery(state: WizardState): OfferQuery {
   return {

@@ -79,6 +79,8 @@ LOCAL_APPS = [
     "reports",
     "saas",
     "control",
+    "corporate",
+    "imports",
 ]
 
 INSTALLED_APPS = [
