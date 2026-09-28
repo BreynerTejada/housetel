@@ -1,0 +1,23 @@
+# Saltos de línea LF en todo el repo: el código corre dentro de contenedores Linux, y un script con CRLF
+# (clonado en Windows con core.autocrlf=true) falla con "/bin/sh^M: bad interpreter".
+* text=auto eol=lf
+
+# Scripts de Windows con CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# iCalendar exige CRLF (RFC 5545): los fixtures .ics se guardan tal cual
+*.ics -text
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary

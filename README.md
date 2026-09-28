@@ -1,177 +1,269 @@
 # Housetel
 
-PMS hotelero SaaS para Colombia (tipo Cloudbeds): PMS + marketplace propio + booking engine + channel manager +
-integraciones legales colombianas (DIAN, SIRE, TRA) + IA. Todo corre localmente con Docker Compose y funciona sin
-credenciales externas: cada integración arranca en modo **simulado**.
+PMS hotelero SaaS para Colombia, al estilo de Cloudbeds. Incluye:
 
-- Diseño (contrato común): [`docs/superpowers/specs/2026-09-25-housetel-pms-design.md`](docs/superpowers/specs/2026-09-25-housetel-pms-design.md)
-- Plan de implementación (manda sobre el spec): [`docs/superpowers/plans/2026-09-25-housetel-implementation.md`](docs/superpowers/plans/2026-09-25-housetel-implementation.md)
-- Notas de integración por tarea: [`docs/integration-notes/`](docs/integration-notes/)
+- recepción, calendario, reservas, housekeeping, tarifas y revenue;
+- channel manager, un marketplace propio y un booking engine;
+- portal del huésped con check-in online;
+- facturación electrónica DIAN, SIRE y TRA;
+- asistente de IA.
 
-## Arranque rápido
+Todo corre en tu computador con **Docker**. No necesita credenciales externas: cada integración arranca en **modo simulado** y se pasa a real cuando se configura.
 
-```bash
-cp .env.example .env        # y completa DJANGO_SECRET_KEY / FERNET_KEY (ver comentarios)
-make up                     # construye y levanta todos los servicios
-make seed                   # datos de demo (idempotente; la primera vez tarda ~9 min, ver abajo)
-```
+![Panel Hoy de recepción](docs/e2e-screenshots/01-hoy-recepcion.png)
 
-Abre **http://localhost:5173** (la app completa; Vite hace proxy de `/api` y `/media` al backend).
+---
 
-| Servicio | Qué es | URL en el host |
+## Contenido
+
+1. [Requisitos](#1-requisitos)
+2. [Instalación en Windows 10/11 (paso a paso)](#2-instalación-en-windows-1011-paso-a-paso)
+3. [Instalación en Linux o macOS](#3-instalación-en-linux-o-macos)
+4. [Iniciar sesión](#4-iniciar-sesión)
+5. [Recorrido de 5 minutos](#5-recorrido-de-5-minutos)
+6. [Uso diario: apagar, encender, reiniciar](#6-uso-diario-apagar-encender-reiniciar)
+7. [Solución de problemas](#7-solución-de-problemas)
+8. [Integraciones reales](#8-integraciones-reales)
+9. [Arquitectura y documentación](#9-arquitectura-y-documentación)
+
+---
+
+## 1. Requisitos
+
+| Qué | Para qué | Dónde |
 |---|---|---|
-| `frontend` | React 19 + Vite | http://localhost:5173 |
-| `backend` | Django 5.2 + DRF (`runserver`, migra al arrancar) | http://localhost:8010 · docs API: http://localhost:8010/api/docs/ |
-| `worker` | Celery worker | — |
-| `beat` | Celery beat (horario generado desde el registro de automatizaciones) | — |
-| `db` | PostgreSQL 17 (+ `btree_gist`) | no expuesto |
-| `redis` | Redis 7 (broker + caché) | no expuesto |
-| `mailpit` | SMTP local + bandeja web | http://localhost:8025 |
+| **Docker Desktop** (Windows/macOS) o **Docker Engine + Compose v2** (Linux) | Corre toda la app | https://www.docker.com/products/docker-desktop/ |
+| **Git** | Descargar el código | https://git-scm.com/downloads |
+| 8 GB de RAM libres y ~10 GB de disco | La app levanta 7 servicios y carga ~3.300 reservas de demo | — |
+| Puertos libres **5173**, **8010** y **8025** | App web, API y bandeja de correo de prueba | — |
 
-Solo el backend (útil mientras el frontend no está listo): `make up-back`.
+No necesitas instalar Python ni Node: todo va dentro de los contenedores.
 
-## Credenciales demo (clave `housetel123`)
+---
 
-| Usuario | Rol |
-|---|---|
-| `admin@housetel.co` | Super-admin de la plataforma |
-| `owner@casaaurora.co` | Dueño · Casa Aurora (Hotel Casa Aurora, Cartagena) |
-| `recepcion@casaaurora.co` | Recepción · Casa Aurora |
-| `limpieza@casaaurora.co` | Housekeeping · Casa Aurora |
-| `contabilidad@casaaurora.co` | Contabilidad · Casa Aurora |
-| `mantenimiento@casaaurora.co` | Mantenimiento · Casa Aurora (tickets) |
-| `owner@grupoandino.co` | Dueño · Grupo Andino (Andino Medellín y Andino Hostel Bogotá) |
-| `recepcion@grupoandino.co` | Recepción · Grupo Andino |
-| `limpieza@grupoandino.co` | Housekeeping · Grupo Andino (solo Andino Medellín) |
-| `owner@hostaldemo.co` | Dueño · Hostal Demo Trial (organización en prueba, sin inventario) |
+## 2. Instalación en Windows 10/11 (paso a paso)
 
-Admin de Django: http://localhost:8010/django-admin/ (con `admin@housetel.co`).
+### Paso 1 — Activar WSL 2 (una sola vez)
 
-## Datos de demo (`make seed`)
+Docker Desktop usa WSL 2 (el subsistema de Linux de Windows).
 
-`seed_demo` recorre `SEED_ORDER` (cada app tiene su `seed.py`, idempotente) y crea todo **por los servicios de
-contrato** (auditoría, señales e inventario incluidos). La primera carga tarda **≈ 9 min** (unas 3.360 reservas;
-imprime el tiempo de cada app); repetirla solo revisa y no duplica. `make reset` borra la BD y la recrea desde cero
-(migraciones + seed). Mientras corre conviene tener `worker` y `beat` detenidos (`make reset` ya lo hace así): las
-automatizaciones no deben actuar sobre datos a medio sembrar.
+1. Abre el menú Inicio, escribe **PowerShell**, clic derecho → **Ejecutar como administrador**.
+2. Ejecuta:
+   ```powershell
+   wsl --install
+   ```
+3. **Reinicia el computador** cuando termine.
+4. Si abre una ventana de Ubuntu pidiendo usuario y contraseña, créalos (o ciérrala: para esta guía no hace falta).
 
-- **Inventario**: Hotel Casa Aurora (24 habitaciones: Estándar, Superior, Suite Vista al Mar), Andino Medellín
-  (40) y Andino Hostel Bogotá (dormitorios de 6 y 8 camas + privadas); amenidades, fotos, campos personalizados
-  y overrides de ejemplo (p. ej. la 306).
-- **Tarifas**: IVA 19 % (exento a extranjeros no residentes), políticas "Flexible 48h" y "No reembolsable",
-  planes Tarifa flexible / No reembolsable (−12 %) / Con desayuno, temporadas, extras y el código `BIENVENIDA10`.
-- **Huéspedes**: 183 por organización (colombianos y extranjeros, VIP, etiquetas, 3 duplicados para la demo de
-  fusión); un rol propio y una invitación pendiente por organización.
-- **Reservas** de −60 a +90 días en todos los estados y fuentes (recepción, teléfono, email, walk-in, booking
-  engine, marketplace, BookSim/AirSim), con llegadas y salidas de hoy, huéspedes en casa y grupos.
-- **Finanzas**: cargos por noche, pagos (efectivo, datáfono, transferencia, pasarela simulada), depósitos, links de
-  pago pendientes, penalidades, folios cerrados en 0 y un turno de caja abierto para `recepcion@casaaurora.co` (y
-  `recepcion@grupoandino.co` en Medellín).
-- **Fase C**: tareas de limpieza de hoy y 3 tickets por hotel (uno bloquea una habitación); BookSim y AirSim
-  conectados y sincronizados (+ iCal en el hostal); motor de reservas y listing con la marca de cada hotel;
-  check-ins online completados y solicitudes del portal; plantillas, reglas del ciclo y conversaciones de ejemplo;
-  resolución DIAN de pruebas con facturas de las salidas de los últimos 30 días, reportes SIRE y TRA; reglas,
-  límites y recomendaciones de revenue; FAQ del chatbot; planes, suscripciones, facturas de plataforma y comisiones;
-  30 cierres de auditoría nocturna; alertas reales de las anomalías del demo. Resumen y cifras:
-  `docs/integration-notes/C-INT.md`.
+> Si `wsl --install` dice que ya está instalado, sigue al paso 2.
 
-## Qué funciona hoy (Fases A–C)
+### Paso 2 — Instalar Docker Desktop
 
-| Área | Rutas |
-|---|---|
-| Recepción | `/app` (Hoy: cifras, llegadas/salidas/en casa, tablero de llaves, widgets), `/app/reservations` (+ `/new`, `/:id`), `/app/night-audit` |
-| Calendario | `/app/calendar` (arrastrar para mover/crear/estirar, dormitorios por cama) |
-| Limpieza y mantenimiento | `/app/housekeeping`, `/app/housekeeping/mine` (móvil), `/app/maintenance`, `/app/settings/housekeeping` |
-| Tarifas y revenue | `/app/rates`, `/app/rates/plans`, `/app/rates/promos`, `/app/revenue`, `/app/settings/{taxes,policies,extras}` |
-| Canales | `/app/channels`, `/app/simulators/ota` (BookSim/AirSim/Channex simulados, iCal real) |
-| Huéspedes, mensajes, caja | `/app/guests`, `/app/inbox`, `/app/simulators/whatsapp`, `/app/cashier` |
-| Legal Colombia | `/app/compliance` (DIAN, SIRE, TRA), `/app/settings/compliance` |
-| Reportes | `/app/reports`, `/app/reports/:id` (CSV/XLSX/PDF) |
-| IA | copiloto (topbar, Ctrl+J), `/app/onboarding`, `/app/settings/{chatbot,ai}`, chatbot público en `/h/:slug` y `/g/:token` |
-| Centro de control | `/app/alerts`, `/app/settings/{integrations,automations,audit}` |
-| Configuración | `/app/settings/{property,room-types,rooms,custom-fields,booking-engine,guest-portal,messaging,users,roles,billing}` |
-| Público | `/` (marketplace), `/search`, `/hotel/:slug`, `/book/:slug`, `/booking/:code/confirmed`, `/h/:slug` (motor del hotel), `/embed/:slug`, `/g/:token` (portal y check-in online), `/signup`, `/sim/pay/:reference` |
-| Plataforma | `/admin` (métricas, organizaciones, planes, cobros, comisiones), `/app/getting-started`, `/app/settings/billing` |
+1. Descárgalo de https://www.docker.com/products/docker-desktop/ e instálalo con las opciones por defecto (deja marcada **"Use WSL 2 instead of Hyper-V"**).
+2. Ábrelo y espera a que abajo a la izquierda diga **"Engine running"** (la ballena en verde).
+3. Recomendado: **Settings → Resources** → dale al menos **6 GB de memoria** si tu equipo lo permite.
 
-Documentación de cada módulo (API con ejemplos, contratos, señales, cómo probarlo en la UI): `docs/integration-notes/`
-(A1–A3, B1–B4, `B-INT.md`, C1–C13 y `C-INT.md`, que trae el checklist consolidado para validar en el navegador).
+### Paso 3 — Instalar Git
 
-## Comandos
+1. Descárgalo de https://git-scm.com/download/win e instálalo con las opciones por defecto.
+
+### Paso 4 — Descargar el proyecto
+
+1. Abre **PowerShell** normal (no como administrador).
+2. Ejecuta:
+   ```powershell
+   cd $HOME\Documents
+   git clone https://github.com/BreynerTejada/housetel.git
+   cd housetel
+   ```
+   > El repositorio es privado: la primera vez Git abre una ventana para iniciar sesión en GitHub. Tu cuenta debe tener acceso (pídele al dueño que te invite como colaborador).
+
+### Paso 5 — Crear el archivo de configuración `.env`
+
+Este comando crea `.env` con claves de seguridad nuevas:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+```
+
+Debe responder **".env creado con claves nuevas."**. Si tienes una API key de Google Gemini (opcional, para la IA real), ábrela con `notepad .env` y pégala en `GEMINI_API_KEY=`.
+
+### Paso 6 — Construir y encender la app
+
+```powershell
+docker compose up -d --build
+```
+
+La **primera vez tarda 5–10 minutos** (descarga imágenes e instala dependencias). Las siguientes veces arranca en segundos.
+
+Espera a que el backend esté listo. Este comando debe responder `status : ok`:
+
+```powershell
+Invoke-RestMethod http://localhost:8010/api/v1/public/core/health/
+```
+
+Si da error, espera 30 segundos y repítelo.
+
+### Paso 7 — Cargar los datos de demo
+
+```powershell
+docker compose stop worker beat
+docker compose exec backend python manage.py seed_demo
+docker compose start worker beat
+```
+
+Crea 3 hoteles, usuarios, huéspedes y ~3.300 reservas. **Tarda unos 10 minutos**; al final dice **"Seed completo"**. No cierres la ventana mientras corre. Se hace una sola vez: los datos quedan guardados.
+
+### Paso 8 — Abrir la app
+
+Abre en el navegador **http://localhost:5173** y sigue con [Iniciar sesión](#4-iniciar-sesión).
+
+> **Mejor rendimiento (opcional):** si vas a modificar el código, clona el proyecto dentro de Ubuntu (WSL) y sigue la [guía de Linux](#3-instalación-en-linux-o-macos) desde la terminal de Ubuntu. Los archivos dentro de WSL son mucho más rápidos para Docker que los de `C:\`.
+
+---
+
+## 3. Instalación en Linux o macOS
 
 ```bash
-make help                          # lista todo
-make up / make down / make ps / make logs
-make migrate                       # aplica migraciones
-make makemigrations APP=inventory  # migraciones de una app
-make seed                          # datos de demo (idempotente)
-make reset                         # borra la BD y recrea todo con datos de demo frescos
-make test                          # backend + frontend
-make test-back ARGS="apps/core"    # pytest (TEST_DB_NAME=test_x para correr en paralelo)
-make test-front
-make lint / make format            # ruff (backend) + eslint (frontend)
-make check                         # system checks + migraciones pendientes + esquema OpenAPI sin warnings
-make check-data                    # invariantes de inventario, dinero y datos de la Fase C (después del seed)
-make check-automations             # cada automatización × propiedad en una transacción revertida
-make smoke                         # smoke E2E de la API por el proxy de Vite (deja unos registros de prueba)
-make sweep                         # GET de solo lectura a los endpoints principales de todos los módulos
-make routes                        # abre todas las rutas en un Chrome headless propio (WIDTH=375 para celular)
-make shell                         # shell de Django
+git clone git@github.com:BreynerTejada/housetel.git      # o https://github.com/BreynerTejada/housetel.git
+cd housetel
+./scripts/setup.sh                                        # crea .env con claves nuevas
+docker compose up -d --build                              # la primera vez tarda 5–10 min
+
+# espera a que responda {"status":"ok"}
+curl http://localhost:8010/api/v1/public/core/health/
+
+# datos de demo (~10 min, una sola vez)
+docker compose stop worker beat
+docker compose exec backend python manage.py seed_demo
+docker compose start worker beat
 ```
 
-Tests aislados por agente/tarea (bases de prueba distintas):
+Abre **http://localhost:5173**. Si tienes `make` instalado, puedes usar los atajos de la sección 6.
+
+---
+
+## 4. Iniciar sesión
+
+Entra a **http://localhost:5173/login**. La pantalla tiene botones de **acceso rápido** con las cuentas demo. También puedes escribirlas; **la contraseña de todas es `housetel123`**.
+
+| Usuario | Rol | Qué ve al entrar |
+|---|---|---|
+| `owner@casaaurora.co` | Dueña de **Hotel Casa Aurora** (Cartagena, 24 habitaciones) | Todo: panel Hoy, calendario, tarifas, revenue, reportes, configuración |
+| `recepcion@casaaurora.co` | Recepción | Panel Hoy, check-in/out, cobros y caja (tiene un turno de caja abierto) |
+| `limpieza@casaaurora.co` | Housekeeping | "Mis habitaciones" (vista pensada para el celular) |
+| `mantenimiento@casaaurora.co` | Mantenimiento | Tickets de mantenimiento |
+| `contabilidad@casaaurora.co` | Contabilidad | Reportes, finanzas y legal (DIAN, SIRE, TRA) |
+| `owner@grupoandino.co` | Dueño de **Grupo Andino** (hotel en Medellín + hostal por camas en Bogotá) | Cambia de hotel con el selector de arriba |
+| `recepcion@grupoandino.co` | Recepción de Grupo Andino | — |
+| `limpieza@grupoandino.co` | Housekeeping de Andino Medellín | — |
+| `owner@hostaldemo.co` | Dueño de "Hostal Demo Trial" (cuenta en prueba, sin inventario) | Primeros pasos y configuración asistida |
+| `admin@housetel.co` | **Super-admin** de la plataforma | `/admin`: métricas, hoteles, planes, cobros y comisiones |
+
+**Otras direcciones útiles:**
+
+| URL | Qué es |
+|---|---|
+| http://localhost:5173/ | Marketplace público para huéspedes (busca "Cartagena") |
+| http://localhost:5173/h/casa-aurora | Motor de reservas del hotel (con la marca del hotel) |
+| http://localhost:5173/signup | Registro de un hotel nuevo (prueba de 14 días + configuración con IA) |
+| http://localhost:8025 | **Mailpit**: todos los correos que envía la app (confirmaciones, links de pago, check-in) |
+| http://localhost:8010/api/docs/ | Documentación de la API |
+
+**Portal del huésped:** cada reserva tiene su propio link. Para ver los de las llegadas próximas:
 
 ```bash
-docker compose run --rm -e TEST_DB_NAME=test_<tarea> backend pytest apps/<app> -q
+docker compose exec backend python manage.py portal_links --property casa-aurora --days 3
 ```
 
-## Arquitectura
+---
 
-Monorepo: `backend/` (Python 3.13, Django 5.2, DRF, Celery 5, PostgreSQL 17, Redis 7) y `frontend/`
-(React 19 + TypeScript + Vite, Tailwind 4, TanStack). El código se monta como volumen: no hace falta reconstruir
-al cambiar código (sí al cambiar dependencias).
+## 5. Recorrido de 5 minutos
 
-```
-backend/
-├── config/            settings (todo desde variables de entorno), urls, celery
-├── conftest.py        fixtures comunes: organization, prop, make_member, owner, api, api_for, public_api
-└── apps/
-    ├── core/          tenancy, permisos, auditoría + deshacer, alertas, integraciones real/simulado,
-    │                  automatizaciones, señales de dominio, tokens, dinero/fechas, seed
-    ├── accounts/      User (login por email), Role, Membership, Invitation, auth (sesión + CSRF)
-    ├── inventory/     categorías → habitaciones → camas, herencia de atributos, bloqueos
-    ├── rates/         impuestos, políticas, planes base/derivados, grilla diaria, extras, promos, cotizador
-    ├── bookings/      reservas, estadías (exclusión en BD contra doble asignación), inventario diario
-    ├── guests/        huéspedes (CRM por organización); documentos de identidad fuera de /media
-    │                  (`backend/media-private/` o PRIVATE_MEDIA_ROOT), solo por la API autenticada
-    ├── finance/       folios, cargos (neto + IVA aparte), pagos, reembolsos, intents, caja
-    └── frontdesk, housekeeping, distribution, marketplace, guestportal, messaging, compliance,
-        revenue, ai, reports, saas, control      (módulos de la Fase C)
+1. **Recepción:** entra como `recepcion@casaaurora.co` → en **Hoy**, pulsa **Check-in** en una llegada lista → en **Salidas**, haz **Check-out** (si debe, cobra con "Registrar pago").
+2. **Limpieza en el celular:** entra como `limpieza@casaaurora.co` (mejor desde el celular o con la ventana angosta) → la habitación que salió aparece para limpiar → **Iniciar → Terminar**.
+3. **Calendario:** entra como dueña → **Calendario** → arrastra una reserva a otra habitación. Si está ocupada, la app lo impide.
+4. **Reserva como huésped:** en http://localhost:5173 busca **Cartagena** → Hotel Casa Aurora → elige habitación → **Reservar** → pon nacionalidad **Estados Unidos** (verás el IVA exento) → **Pagar ahora** → en la pasarela simulada pulsa **Pagar**.
+5. **WhatsApp:** **Herramientas → Simulador de WhatsApp** → escribe como huésped → respóndele desde **Bandeja**.
+6. **Copiloto IA:** botón **Copiloto** arriba → pregunta *"¿Cuántas llegadas hay hoy?"*.
 
-frontend/src/
-├── app/               árbol de rutas, puntos de extensión (extensions.ts), layouts, shell, login
-├── components/        compartidos (DataTable, FormField, Money, DatePicker, …) · ui/ (primitivas Radix)
-├── design/            tokens "cálido nórdico" (claro/oscuro) y estilos base
-├── lib/               cliente API (CSRF + X-Property-Id), auth/Me, permisos (fnmatch), i18n, formato
-└── features/<f>/      routes.tsx, nav.ts, locales/{es,en}.json (+ widgets, pestañas, topbar, comandos)
-```
+---
 
-Cada feature del frontend se registra sola por convención de archivos (plan §E; guía en
-`docs/integration-notes/A2-frontend-foundation.md`).
+## 6. Uso diario: apagar, encender, reiniciar
 
-Convenciones clave (detalle en el spec §3 y en `docs/integration-notes/A1-backend-foundation.md`):
+| Acción | Comando (Windows, Linux y macOS) | Atajo con `make` |
+|---|---|---|
+| Encender | `docker compose up -d` | `make up` |
+| Apagar (conserva los datos) | `docker compose stop` | `make down` |
+| Ver el estado | `docker compose ps` | `make ps` |
+| Ver logs | `docker compose logs -f backend` | `make logs` |
+| Recargar los datos de demo | `docker compose exec backend python manage.py seed_demo` | `make seed` |
+| **Borrar todo y empezar de cero** | `docker compose down -v` y luego los pasos 6 y 7 | `make reset` |
+| Consola de Django | `docker compose exec backend python manage.py shell` | `make shell` |
+| Tests | `docker compose run --rm backend pytest -q` · `docker compose run --rm frontend npm run test` | `make test` |
 
-- **API staff** `/api/v1/<app>/…` con sesión + CSRF y encabezado `X-Property-Id` (p. ej.
-  `GET /api/v1/core/context/` devuelve la propiedad activa, el rol y los permisos); **pública**
-  `/api/v1/public/<app>/…`. Errores siempre `{"detail", "code", "fields"?}`; anónimo → 401.
-- **Permisos** `<app>.<acción>` declarados en `apps/<app>/permissions.py`; roles con patrones (`bookings.*`, `*`).
-- **Dinero** `Decimal(14,2)`, strings en JSON; COP redondeado a pesos (`core.money.quantize`).
-- **Fechas** de estadía: llegada inclusiva, salida exclusiva; rangos de servicios `[start, end)`.
-- **Auto-descubrimiento**: cada app registra `permissions.py`, `providers.py`, `automations.py`,
-  `receivers.py` y `seed.py`; nadie edita archivos centrales para registrarse.
+> La **fecha de negocio** del demo avanza sola cada noche a las 2:00 (auditoría nocturna automática). Por eso, días después del seed, las llegadas y salidas "de hoy" cambian, igual que en un hotel real.
 
-## Integraciones: modo real vs simulado
+---
 
-Toda integración externa (pagos Wompi, Channex, iCal, DIAN, SIRE, TRA, email, WhatsApp, LLM, cobro SaaS) tiene un
-proveedor `real` y uno `simulated`, configurable por propiedad en `IntegrationSetting` (los secretos se guardan
-cifrados con Fernet). Por defecto todo es `simulated`, salvo email (SMTP → Mailpit en local) y el LLM (Gemini real
-si existe `GEMINI_API_KEY`, con caída a simulado).
+## 7. Solución de problemas
+
+| Síntoma | Solución |
+|---|---|
+| `error during connect` / `Cannot connect to the Docker daemon` | Docker Desktop no está abierto. Ábrelo y espera a que diga "Engine running". |
+| `port is already allocated` (5173, 8010 u 8025) | Otro programa usa ese puerto. Ciérralo, o cambia el primer número del puerto en `docker-compose.yml` (por ejemplo `"5174:5173"`) y abre la app en el nuevo puerto. |
+| `env file .env not found` | Te saltaste el paso 5 (crear `.env`). |
+| La página queda en "Cargando…" mucho tiempo la primera vez | Es normal en desarrollo: cada pantalla se compila la primera vez que se abre. Las siguientes cargan rápido. |
+| `relation … does not exist` al cargar el demo | El backend no había terminado de preparar la base de datos. Espera a que `health` responda `ok` y repite el seed. |
+| El seed se detiene o el equipo va muy lento | Falta memoria: en Docker Desktop → Settings → Resources sube la memoria a 6–8 GB. |
+| En Windows: `/bin/sh^M: bad interpreter` o scripts que fallan | El repo fuerza saltos de línea LF (`.gitattributes`). Si clonaste con una configuración antigua: `git config --global core.autocrlf input`, borra la carpeta y clona de nuevo. |
+| `No puedo iniciar sesión` tras muchos intentos | Hay un límite de intentos por minuto: espera 1 minuto. |
+| La IA responde "modo simulado" | Sin `GEMINI_API_KEY`, o se agotó la cuota gratuita de Gemini (20 llamadas/día). La app sigue funcionando con respuestas simuladas. |
+
+---
+
+## 8. Integraciones reales
+
+Cada integración tiene un modo **simulado** (por defecto, funciona sin internet) y uno **real**. Se cambia por hotel en **Configuración → Integraciones**: eliges "Real", pegas las credenciales y pulsas "Probar conexión". Los secretos se guardan cifrados y nunca se vuelven a mostrar.
+
+| Integración | Qué necesitas para el modo real |
+|---|---|
+| Pagos (Wompi) | Cuenta Wompi. Las llaves de **sandbox** son gratis e inmediatas |
+| Factura electrónica DIAN (Factus) | Credenciales de sandbox de Factus; en producción, la habilitación del NIT ante la DIAN |
+| Channel manager | iCal: los links de calendario de Airbnb o Booking. Channex: cuenta de staging |
+| WhatsApp | Meta Business + número de WhatsApp Business + token; necesita URL pública (túnel) para recibir mensajes |
+| TRA (MinCIT) | RNT del hotel + token de la plataforma TRA |
+| SIRE (Migración Colombia) | Sin API: la app genera el archivo y se sube en el portal de Migración |
+| Email | Un proveedor SMTP en el `.env` (localmente los correos van a Mailpit) |
+| IA | `GEMINI_API_KEY` (o `ANTHROPIC_API_KEY`) en el `.env` |
+
+Nunca pegues llaves o contraseñas en el código ni en issues: van en `.env` o en la pantalla de Integraciones.
+
+---
+
+## 9. Arquitectura y documentación
+
+- **Backend:** `backend/` (Python 3.13, Django 5.2, DRF, Celery, PostgreSQL 17, Redis 7).
+- **Frontend:** `frontend/` (React 19 + TypeScript + Vite + Tailwind 4).
+- El código se monta como volumen: no hay que reconstruir al cambiar código, solo al cambiar dependencias.
+
+| Servicio | Qué es | URL |
+|---|---|---|
+| `frontend` | App web (Vite hace proxy de `/api` y `/media` al backend) | http://localhost:5173 |
+| `backend` | API Django (migra la BD al arrancar) | http://localhost:8010 |
+| `worker` / `beat` | Tareas y automatizaciones programadas (Celery) | — |
+| `db` / `redis` | PostgreSQL y Redis | no expuestos |
+| `mailpit` | Servidor de correo de prueba | http://localhost:8025 |
+
+Documentación del proyecto:
+
+- Diseño del sistema: [`docs/superpowers/specs/2026-09-25-housetel-pms-design.md`](docs/superpowers/specs/2026-09-25-housetel-pms-design.md).
+- Planes de implementación: [`docs/superpowers/plans/`](docs/superpowers/plans/).
+- Notas por módulo (API con ejemplos, cómo probar en la UI): [`docs/integration-notes/`](docs/integration-notes/).
+- Auditoría de producto frente a Cloudbeds: [`docs/audit/2026-09-28-auditoria-vs-cloudbeds.md`](docs/audit/2026-09-28-auditoria-vs-cloudbeds.md).
+- Evidencia de la validación E2E en Chrome: [`docs/e2e-screenshots/`](docs/e2e-screenshots/).
+
+**Ramas:**
+
+- `main` es la versión estable y validada: fases A–C, con los 15 flujos probados en Chrome.
+- `wip/phase-p` es la fase piloto en curso: producción, cuentas, reservas multi-habitación y grupos, facturación corporativa, importador y guía de integraciones reales.
